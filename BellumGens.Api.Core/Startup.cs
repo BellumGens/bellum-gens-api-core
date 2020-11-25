@@ -56,6 +56,8 @@ namespace BellumGens.Api.Core
                 {
                     options.ClientId = Configuration["battleNetClientId"];
                     options.ClientSecret = Configuration["battleNetClientSecret"];
+                    options.Scope.Clear();
+                    options.Scope.Add("sc2.profile");
                 })
                 .AddTwitch(options =>
                 {
@@ -88,9 +90,9 @@ namespace BellumGens.Api.Core
             });
 
             services.AddSingleton<AppConfiguration>();
-            services.AddSingleton<ISteamService, SteamServiceProvider>();
-            services.AddSingleton<INotificationService, NotificationsService>();
-            services.AddSingleton<IEmailSender, EmailServiceProvider>();
+            services.AddScoped<ISteamService, SteamServiceProvider>();
+            services.AddScoped<INotificationService, NotificationsService>();
+            services.AddScoped<IEmailSender, EmailServiceProvider>();
             services.AddScoped<IFileService, FileService>();
 
             services.Configure<GzipCompressionProviderOptions>(options => options.Level = CompressionLevel.Optimal);

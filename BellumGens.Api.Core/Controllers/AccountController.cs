@@ -252,7 +252,7 @@ namespace BellumGens.Api.Controllers
                 {
                     string code = await _userManager.GenerateEmailConfirmationTokenAsync(newUser);
                     var callbackUrl = Url.Link("ActionApi", new { controller = "Account", action = "ConfirmEmail", userId = newUser.Id, code });
-                    await _sender.SendEmailAsync(model.Email, "Confirm your email", string.Format(emailConfirmation, callbackUrl));
+                    _sender.SendEmailAsync(model.Email, "Confirm your email", string.Format(emailConfirmation, callbackUrl));
                 }
                 catch (Exception e)
                 {
@@ -283,7 +283,7 @@ namespace BellumGens.Api.Controllers
                     {
                         string code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
                         var callbackUrl = Url.Link("ActionApi", new { controller = "Account", action = "ConfirmEmail", userId = user.Id, code });
-                        await _sender.SendEmailAsync(user.Email, "Confirm your email", string.Format(emailConfirmation, callbackUrl));
+                        _sender.SendEmailAsync(user.Email, "Confirm your email", string.Format(emailConfirmation, callbackUrl));
                     }
                     catch (Exception e)
                     {
@@ -299,31 +299,34 @@ namespace BellumGens.Api.Controllers
         [Route("Twitch", Name = "ExternalCallback")]
         public async Task<IActionResult> ExternalCallback(string error = null, string returnUrl = "", string userId = null)
         {
-            var info = await _signInManager.GetExternalLoginInfoAsync();
-            string returnPath = "";
             if (error != null)
             {
                 return Redirect(returnUrl + "/unauthorized");
             }
+
+            ExternalLoginInfo info = await _signInManager.GetExternalLoginInfoAsync();
+            Uri returnUri = new Uri(!string.IsNullOrEmpty(returnUrl) ? returnUrl : CORSConfig.returnOrigin);
+            string returnHost = returnUri.GetLeftPart(UriPartial.Authority);
+            string returnPath = returnUri.AbsolutePath;
             ApplicationUser user;
+            IdentityResult result;
 
             if (userId != null)
             {
                 user = await _userManager.FindByIdAsync(userId);
-                IdentityResult result = await _userManager.AddLoginAsync(user,
-                    new UserLoginInfo(info.LoginProvider, info.ProviderKey, info.ProviderDisplayName));
+                result = await AddLogin(user, info);
                 if (!result.Succeeded)
                 {
-                    return Redirect(returnUrl + "/unauthorized");
+                    return Redirect(returnHost + "/unauthorized");
                 }
-                return Redirect(returnUrl);
+                return Redirect(returnHost + returnPath);
             }
 
             user = await _userManager.FindByLoginAsync(info.LoginProvider, info.ProviderKey);
 
             if (user == null)
             {
-                var result = await Register(info);
+                result = await Register(info);
                 if (!result.Succeeded)
                 {
                     return Redirect(returnUrl + "/unauthorized");
@@ -338,9 +341,9 @@ namespace BellumGens.Api.Controllers
             var signInResult = await _signInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, isPersistent: true, bypassTwoFactor: true);
             if (!signInResult.Succeeded)
             {
-                return Redirect(returnUrl + "/unauthorized");
+                return Redirect(returnHost + "/unauthorized");
             }
-            return Redirect(returnUrl + returnPath);
+            return Redirect(returnHost + returnPath);
         }
 
         // GET api/Account/ExternalLogin
@@ -348,9 +351,6 @@ namespace BellumGens.Api.Controllers
         [Route("ExternalLogin", Name = "ExternalLogin")]
         public async Task<IActionResult> GetExternalLogin(string provider, string error = null, string returnUrl = "")
         {
-            Uri returnUri = new Uri(!string.IsNullOrEmpty(returnUrl) ? returnUrl : CORSConfig.returnOrigin);
-            returnUrl = returnUri.GetLeftPart(UriPartial.Authority);
-
             if (error != null)
             {
                 return Redirect(returnUrl + "/unauthorized");
@@ -364,7 +364,7 @@ namespace BellumGens.Api.Controllers
                 userId = user.Id;
             }
 
-            var properties = _signInManager.ConfigureExternalAuthenticationProperties(provider, Url.Action("ExternalCallback", "Account", new { returnUrl }), userId);
+            var properties = _signInManager.ConfigureExternalAuthenticationProperties(provider, Url.Action("ExternalCallback", "Account", new { returnUrl, userId }));
             return Challenge(properties, provider);
 		}
 
@@ -461,6 +461,40 @@ namespace BellumGens.Api.Controllers
 		
 			return await _userManager.AddLoginAsync(user, new UserLoginInfo(info.LoginProvider, info.ProviderKey, info.LoginProvider));
 		}
+        private async Task<IdentityResult> AddLogin(ApplicationUser user, ExternalLoginInfo info)
+        {
+            var providerId = info.ProviderKey;
+            switch (info.LoginProvider)
+            {
+                case "Twitch":
+                    if (user.TwitchId != providerId)
+                    {
+                        user.TwitchId = providerId;
+                        await _dbContext.SaveChangesAsync();
+                    }
+                    break;
+                case "Steam":
+                    string steamid = _steamService.SteamUserId(providerId);
+                    if (user.SteamID != steamid)
+                    {
+                        user.SteamID = steamid;
+                        await _dbContext.SaveChangesAsync();
+                    }
+                    break;
+                case "BattleNet":
+                    var username = info.Principal.FindFirstValue(ClaimTypes.Name);
+                    if (user.BattleNetId != username)
+                    {
+                        user.BattleNetId = username;
+                        await _dbContext.SaveChangesAsync();
+                    }
+                    break;
+                default:
+                    break;
+            }
+
+            return await _userManager.AddLoginAsync(user, new UserLoginInfo(info.LoginProvider, info.ProviderKey, info.ProviderDisplayName));
+        }
 
         private async Task<IdentityResult> Register(RegisterBindingModel info)
         {

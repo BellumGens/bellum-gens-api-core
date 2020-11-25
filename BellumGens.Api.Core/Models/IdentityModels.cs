@@ -208,7 +208,7 @@ namespace BellumGens.Api.Core.Models
 
 			modelBuilder.Entity<ApplicationUser>()
 						.Property(p => p.Accuracy)
-						.HasPrecision(3, 2);
+						.HasPrecision(5, 2);
 
 			modelBuilder.Entity<ApplicationUser>()
 						.Property(p => p.HeadshotPercentage)
