@@ -30,15 +30,15 @@ namespace BellumGens.Api.Controllers
 			_notificationService = notificationService;
 		}
 
-		[Route("User")]
+		[HttpGet]
 		[AllowAnonymous]
-		public async Task<IActionResult> GetUserDetails(string userid)
+		public async Task<IActionResult> Get(string userid)
 		{
 			UserStatsViewModel user = await _steamService.GetSteamUserDetails(userid);
             ApplicationUser registered = null;
             if (user.steamUser != null)
             {
-                registered = _dbContext.Users.Include(u => u.MemberOf).FirstOrDefault(u => u.Id == user.steamUser.steamID64);
+				registered = _dbContext.Users.Include(u => u.MemberOf).FirstOrDefault(u => u.SteamID == user.steamUser.steamID64);
             }
 			if (registered != null)
 			{

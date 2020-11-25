@@ -1,6 +1,5 @@
 ﻿using Newtonsoft.Json;
 using System;
-using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BellumGens.Api.Core.Models
@@ -84,7 +83,7 @@ namespace BellumGens.Api.Core.Models
 
         [ForeignKey("TeamId")]
         [JsonIgnore]
-		public virtual CSGOTeam Team { get; set; } 
+		public CSGOTeam Team { get; set; } 
 
 		[ForeignKey("UserId")]
         [JsonIgnore]

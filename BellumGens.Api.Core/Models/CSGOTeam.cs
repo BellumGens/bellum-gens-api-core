@@ -1,7 +1,5 @@
-﻿using BellumGens.Api.Core.Providers;
-using BellumGens.Api.Common;
+﻿using BellumGens.Api.Common;
 using Newtonsoft.Json;
-using SteamModels;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;

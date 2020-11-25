@@ -109,8 +109,7 @@ namespace BellumGens.Api.Core.Models
                     _teams = new List<CSGOTeamSummaryViewModel>();
                     foreach (TeamMember memberof in user.MemberOf)
                     {
-                        if (memberof.Team != null)
-                            _teams.Add(new CSGOTeamSummaryViewModel(memberof.Team));
+                        _teams.Add(new CSGOTeamSummaryViewModel(memberof.Team));
                     }
                 }
                 return _teams;

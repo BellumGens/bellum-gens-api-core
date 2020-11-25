@@ -129,8 +129,7 @@ namespace BellumGens.Api.Core.Models
 
 		public virtual ICollection<TeamInvite> Notifications { get; set; } = new HashSet<TeamInvite>();
 
-		[JsonIgnore]
-		public virtual ICollection<TeamMember> MemberOf { get; set; } = new HashSet<TeamMember>();
+		public ICollection<TeamMember> MemberOf { get; set; } = new HashSet<TeamMember>();
 
 		public virtual ICollection<TeamApplication> TeamApplications { get; set; }
     }
