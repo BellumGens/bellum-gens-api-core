@@ -90,28 +90,5 @@ namespace BellumGens.Api.Core.Models
 				CustomUrl = url;
 			}
 		}
-
-		//public void SaveStrategyImage()
-		//{
-		//	if (!string.IsNullOrEmpty(StratImage) && !Uri.IsWellFormedUriString(StratImage, UriKind.Absolute))
-		//	{
-		//		string base64 = StratImage.Substring(StratImage.IndexOf(',') + 1);
-		//		byte[] bytes = Convert.FromBase64String(base64);
-
-		//		Image image;
-		//		using (MemoryStream ms = new MemoryStream(bytes))
-		//		{
-		//			image = Image.FromStream(ms);
-		//			string path = Path.Combine(_hostEnvironment.WebRootPath, "/Content/Strats");
-		//			if (!Directory.Exists(path))
-		//			{
-		//				Directory.CreateDirectory(path);
-		//			}
-		//			path = Path.Combine(path, $"{CustomUrl}.png");
-		//			image.Save(path);
-		//			StratImage = CORSConfig.apiDomain + $"/Content/Strats/{CustomUrl}.png";
-		//		}
-		//	}
-		//}
 	}
 }

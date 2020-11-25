@@ -1,6 +1,7 @@
 ﻿using BellumGens.Api.Core.Models;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using WebPush;
 
 namespace BellumGens.Api.Core.Providers
@@ -16,7 +17,7 @@ namespace BellumGens.Api.Core.Providers
 			_privateVapidKey = appInfo.Config.privateVapidKey;
 		}
 
-		public void SendNotification(List<BellumGensPushSubscription> subs, TeamInvite notification)
+		public async Task SendNotificationAsync(List<BellumGensPushSubscription> subs, TeamInvite notification)
 		{
 			var subject = @"https://bellumgens.com";
 
@@ -29,7 +30,7 @@ namespace BellumGens.Api.Core.Providers
 				var payload = new BellumGensNotificationWrapper(notification);
 				try
 				{
-					webPushClient.SendNotification(subscription, payload.ToString(), vapidDetails);
+					await webPushClient.SendNotificationAsync(subscription, payload.ToString(), vapidDetails);
 				}
 				catch (WebPushException exception)
 				{
@@ -38,7 +39,7 @@ namespace BellumGens.Api.Core.Providers
 			}
 		}
 
-		public void SendNotification(List<BellumGensPushSubscription> subs, TeamInvite notification, NotificationState state)
+		public async Task SendNotificationAsync(List<BellumGensPushSubscription> subs, TeamInvite notification, NotificationState state)
 		{
 			var subject = @"https://bellumgens.com";
 
@@ -51,16 +52,15 @@ namespace BellumGens.Api.Core.Providers
 				var payload = new BellumGensNotificationWrapper(notification, state);
 				try
 				{
-					webPushClient.SendNotification(subscription, payload.ToString(), vapidDetails);
+					await webPushClient.SendNotificationAsync(subscription, payload.ToString(), vapidDetails);
 				}
-				catch (WebPushException exception)
+				catch
 				{
-					Console.WriteLine(exception);
 				}
 			}
 		}
 
-		public void SendNotification(List<BellumGensPushSubscription> subs, TeamApplication notification)
+		public async Task SendNotificationAsync(List<BellumGensPushSubscription> subs, TeamApplication notification)
 		{
 			var subject = @"https://bellumgens.com";
 
@@ -73,16 +73,15 @@ namespace BellumGens.Api.Core.Providers
 				var payload = new BellumGensNotificationWrapper(notification);
 				try
 				{
-					webPushClient.SendNotification(subscription, payload.ToString(), vapidDetails);
+					await webPushClient.SendNotificationAsync(subscription, payload.ToString(), vapidDetails);
 				}
-				catch (WebPushException exception)
+				catch
 				{
-					Console.WriteLine(exception);
 				}
 			}
 		}
 
-		public void SendNotification(List<BellumGensPushSubscription> subs, TeamApplication notification, NotificationState state)
+		public async Task SendNotificationAsync(List<BellumGensPushSubscription> subs, TeamApplication notification, NotificationState state)
 		{
 			var subject = @"https://bellumgens.com";
 
@@ -95,16 +94,15 @@ namespace BellumGens.Api.Core.Providers
 				var payload = new BellumGensNotificationWrapper(notification, state);
 				try
 				{
-					webPushClient.SendNotification(subscription, payload.ToString(), vapidDetails);
+					await webPushClient.SendNotificationAsync(subscription, payload.ToString(), vapidDetails);
 				}
-				catch (WebPushException exception)
+				catch
 				{
-					Console.WriteLine(exception);
 				}
 			}
 		}
 
-		public void SendNotification(List<BellumGensPushSubscription> subs, StrategyComment comment)
+		public async Task SendNotificationAsync(List<BellumGensPushSubscription> subs, StrategyComment comment)
 		{
 			var subject = @"https://bellumgens.com";
 
@@ -117,11 +115,10 @@ namespace BellumGens.Api.Core.Providers
 				var payload = new BellumGensNotificationWrapper(comment);
 				try
 				{
-					webPushClient.SendNotification(subscription, payload.ToString(), vapidDetails);
+					await webPushClient.SendNotificationAsync(subscription, payload.ToString(), vapidDetails);
 				}
-				catch (WebPushException exception)
+				catch
 				{
-					Console.WriteLine(exception);
 				}
 			}
 		}

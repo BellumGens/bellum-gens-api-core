@@ -1,15 +1,16 @@
 ﻿using BellumGens.Api.Core.Models;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace BellumGens.Api.Core.Providers
 {
     public interface INotificationService
     {
-        public void SendNotification(List<BellumGensPushSubscription> subs, TeamInvite notification);
-        public void SendNotification(List<BellumGensPushSubscription> subs, TeamInvite notification, NotificationState state);
-        public void SendNotification(List<BellumGensPushSubscription> subs, TeamApplication notification);
-        public void SendNotification(List<BellumGensPushSubscription> subs, TeamApplication notification, NotificationState state);
-        public void SendNotification(List<BellumGensPushSubscription> subs, StrategyComment comment);
+        public Task SendNotificationAsync(List<BellumGensPushSubscription> subs, TeamInvite notification);
+        public Task SendNotificationAsync(List<BellumGensPushSubscription> subs, TeamInvite notification, NotificationState state);
+        public Task SendNotificationAsync(List<BellumGensPushSubscription> subs, TeamApplication notification);
+        public Task SendNotificationAsync(List<BellumGensPushSubscription> subs, TeamApplication notification, NotificationState state);
+        public Task SendNotificationAsync(List<BellumGensPushSubscription> subs, StrategyComment comment);
 
     }
 }
