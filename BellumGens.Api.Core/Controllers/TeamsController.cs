@@ -299,7 +299,7 @@ namespace BellumGens.Api.Controllers
 				return BadRequest("Something went wrong...");
 			}
 			List<BellumGensPushSubscription> subs = _dbContext.PushSubscriptions.Where(sub => sub.userId == invitedUserEntity.Id).ToList();
-			_notificationService.SendNotificationAsync(subs, invite);
+			await _notificationService.SendNotificationAsync(subs, invite);
 			return Ok(model.userId);
 		}
 
@@ -335,7 +335,7 @@ namespace BellumGens.Api.Controllers
 				{
 					List<BellumGensPushSubscription> subs = _dbContext.PushSubscriptions.ToList();
 					subs = subs.FindAll(s => admins.Any(a => a.UserId == s.userId));
-					_notificationService.SendNotificationAsync(subs, application);
+					await _notificationService.SendNotificationAsync(subs, application);
 				}
 				catch (Exception e)
 				{
@@ -392,7 +392,7 @@ namespace BellumGens.Api.Controllers
 			try
 			{
 				List<BellumGensPushSubscription> subs = _dbContext.PushSubscriptions.Where(s => s.userId == entity.ApplicantId).ToList();
-				_notificationService.SendNotificationAsync(subs, application, NotificationState.Accepted);
+				await _notificationService.SendNotificationAsync(subs, application, NotificationState.Accepted);
 			}
 			catch (Exception e)
 			{
