@@ -100,7 +100,7 @@ namespace BellumGens.Api.Controllers
 				TeamName = group.groupName,
 				TeamAvatar = group.avatarFull
 			};
-			_dbContext.Teams.Add(team);
+			_dbContext.CSGOTeams.Add(team);
 			team.InitializeDefaults();
 			team.UniqueCustomUrl(_dbContext);
 
@@ -158,7 +158,7 @@ namespace BellumGens.Api.Controllers
 		{
             ApplicationUser user = await GetAuthUser();
 
-			_dbContext.Teams.Add(team);
+			_dbContext.CSGOTeams.Add(team);
 
 			team.Members.Add(new TeamMember()
 			{
@@ -233,13 +233,13 @@ namespace BellumGens.Api.Controllers
 		public async Task<IActionResult> AbandonTeam(Guid teamId)
 		{
             ApplicationUser user = await GetAuthUser();
-			CSGOTeam team = _dbContext.Teams.Find(teamId);
+			CSGOTeam team = _dbContext.CSGOTeams.Find(teamId);
 			TeamMember entity = team.Members.SingleOrDefault(e => e.UserId == user.Id);
 			team.Members.Remove(entity);
 			object response = new { removed = false };
 			if (team.Members.Count == 0)
 			{
-				_dbContext.Teams.Remove(team);
+				_dbContext.CSGOTeams.Remove(team);
 				response = new { removed = true };
 			}
 			else if (!team.Members.Any(m => m.IsAdmin))
@@ -330,7 +330,7 @@ namespace BellumGens.Api.Controllers
 					System.Diagnostics.Trace.TraceError($"Team application error: ${e.Message}");
 					return BadRequest("Something went wrong...");
 				}
-				List<TeamMember> admins = _dbContext.Teams.Find(application.TeamId).Members.Where(m => m.IsAdmin).ToList();
+				List<TeamMember> admins = _dbContext.CSGOTeams.Find(application.TeamId).Members.Where(m => m.IsAdmin).ToList();
 				try
 				{
 					List<BellumGensPushSubscription> subs = _dbContext.PushSubscriptions.ToList();
@@ -479,7 +479,7 @@ namespace BellumGens.Api.Controllers
 
 		private async Task<CSGOTeam> UserIsTeamAdmin(Guid teamId)
 		{
-			CSGOTeam team = _dbContext.Teams.Find(teamId);
+			CSGOTeam team = _dbContext.CSGOTeams.Find(teamId);
 			ApplicationUser user = await GetAuthUser();
 			return team != null && team.Members.Any(m => m.IsAdmin && m.UserId == user.Id) ? team : null;
 		}
@@ -500,13 +500,13 @@ namespace BellumGens.Api.Controllers
 
 		private CSGOTeam ResolveTeam(string teamId)
 		{
-			CSGOTeam team = _dbContext.Teams.FirstOrDefault(t => t.CustomUrl == teamId);
+			CSGOTeam team = _dbContext.CSGOTeams.FirstOrDefault(t => t.CustomUrl == teamId);
 			if (team == null)
 			{
 				var valid = Guid.TryParse(teamId, out Guid id);
 				if (valid)
 				{
-					team = _dbContext.Teams.Find(id);
+					team = _dbContext.CSGOTeams.Find(id);
 				}
 			}
 			return team;

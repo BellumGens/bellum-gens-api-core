@@ -286,7 +286,7 @@ namespace BellumGens.Api.Controllers
 
 		private async Task<bool> UserIsTeamEditor(Guid teamId)
 		{
-			CSGOTeam team = _dbContext.Teams.Find(teamId);
+			CSGOTeam team = _dbContext.CSGOTeams.Find(teamId);
 			ApplicationUser user = await GetAuthUser();
 			return team != null && team.Members.Any(m => m.IsEditor || m.IsAdmin && m.UserId == user.Id);
 		}
@@ -300,20 +300,20 @@ namespace BellumGens.Api.Controllers
 
 		private async Task<bool> UserIsTeamMember(Guid teamId)
 		{
-			CSGOTeam team = _dbContext.Teams.Find(teamId);
+			CSGOTeam team = _dbContext.CSGOTeams.Find(teamId);
 			ApplicationUser user = await GetAuthUser();
 			return team != null && team.Members.Any(m => m.UserId == user.Id);
 		}
 
 		private CSGOTeam ResolveTeam(string teamId)
 		{
-			CSGOTeam team = _dbContext.Teams.FirstOrDefault(t => t.CustomUrl == teamId);
+			CSGOTeam team = _dbContext.CSGOTeams.FirstOrDefault(t => t.CustomUrl == teamId);
 			if (team == null)
 			{
 				var valid = Guid.TryParse(teamId, out Guid id);
 				if (valid)
 				{
-					team = _dbContext.Teams.Find(id);
+					team = _dbContext.CSGOTeams.Find(id);
 				}
 			}
 			return team;

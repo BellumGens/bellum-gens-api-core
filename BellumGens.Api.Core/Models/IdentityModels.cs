@@ -142,7 +142,7 @@ namespace BellumGens.Api.Core.Models
 
 		public DbSet<UserMapPool> UserMapPool { get; set; }
 
-		public DbSet<CSGOTeam> Teams { get; set; }
+		public DbSet<CSGOTeam> CSGOTeams { get; set; }
 
 		public DbSet<TeamMember> TeamMembers { get; set; }
 
