@@ -235,7 +235,7 @@ namespace BellumGens.Api.Controllers
 			if (strat != null && strat.UserId != user.Id)
 			{
 				List<BellumGensPushSubscription> subs = _dbContext.PushSubscriptions.Where(s => s.userId == comment.Strategy.UserId).ToList();
-				_notificationService.SendNotificationAsync(subs, comment);
+				await _notificationService.SendNotificationAsync(subs, comment);
 			}
 			return Ok(comment);
 		}

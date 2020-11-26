@@ -163,7 +163,7 @@ namespace BellumGens.Api.Controllers
 				return BadRequest("Something went wrong...");
 			}
 			List<BellumGensPushSubscription> subs = _dbContext.PushSubscriptions.Where(s => s.userId == entity.InvitingUser.Id).ToList();
-			_notificationService.SendNotificationAsync(subs, entity, NotificationState.Accepted);
+			await _notificationService.SendNotificationAsync(subs, entity, NotificationState.Accepted);
 			return Ok(entity);
 		}
 

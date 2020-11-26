@@ -109,7 +109,7 @@ namespace BellumGens.Api.Controllers
                     builder.Append(@"<p>Поздрави от екипа на Bellum Gens!</p>
                                 <a href='https://eb-league.com' target='_blank'>https://eb-league.com</a>");
 
-                    _sender.SendEmailAsync(order.Email, "Поръчката ви е получена", builder.ToString());
+                    await _sender.SendEmailAsync(order.Email, "Поръчката ви е получена", builder.ToString());
                 }
                 catch (Exception e)
                 {
