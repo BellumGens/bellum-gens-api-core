@@ -142,7 +142,7 @@ namespace BellumGens.Api.Controllers
 
 		[AllowAnonymous]
         [HttpGet]
-        [Route("ConfirmEmail")]
+        [Route("ConfirmEmail", Name = "ConfirmEmail")]
 		public async Task<IActionResult> ConfirmEmail(string userId, string code)
 		{
 			if (userId == null || code == null)
@@ -166,22 +166,22 @@ namespace BellumGens.Api.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> Login(LoginBindingModel login)
         {
-            var user = await _userManager.FindByLoginAsync(login.UserName, login.Password);
-            if (user != null)
-            {
-                await _signInManager.SignInAsync(user, login.RememberMe);
+            var result = await _signInManager.PasswordSignInAsync(login.UserName, login.Password, login.RememberMe, false);
 
+            if (result.Succeeded)
+            {
+                var user = await _userManager.FindByNameAsync(login.UserName);
                 UserStatsViewModel model = new UserStatsViewModel(user, true);
                 if (string.IsNullOrEmpty(user.AvatarFull) && !Guid.TryParse(user.Id, out Guid newguid))
                 {
                     model = await _steamService.GetSteamUserDetails(user.Id);
-                    model.SetUser(user, _dbContext);
+                    model.RefreshAppUserValues(_dbContext);
                 }
                 var logins = await _userManager.GetLoginsAsync(user);
                 model.externalLogins = logins.Select(t => t.LoginProvider).ToList();
                 return Ok(model);
             }
-            return BadRequest("Invalid username or password.");
+            return BadRequest("Invalid username or password, or email not verified.");
         }
 
         // POST api/Account/Logout
@@ -246,19 +246,6 @@ namespace BellumGens.Api.Controllers
                 {
                     return GetErrorResult(register);
                 }
-
-                var newUser = await _userManager.FindByLoginAsync(model.UserName, model.Password);
-                try
-                {
-                    string code = await _userManager.GenerateEmailConfirmationTokenAsync(newUser);
-                    var callbackUrl = Url.Link("ActionApi", new { controller = "Account", action = "ConfirmEmail", userId = newUser.Id, code });
-                    await _sender.SendEmailAsync(model.Email, "Confirm your email", string.Format(emailConfirmation, callbackUrl));
-                }
-                catch (Exception e)
-                {
-                    System.Diagnostics.Trace.TraceError("Email confirmation send exception: " + e.Message);
-                }
-
                 return Ok();
             }
 
@@ -317,7 +304,8 @@ namespace BellumGens.Api.Controllers
                 result = await AddLogin(user, info);
                 if (!result.Succeeded)
                 {
-                    return Redirect(returnHost + "/unauthorized");
+                    string loginError = result.Errors.First().Description;
+                    return Redirect(returnHost + "/unauthorized/" + loginError);
                 }
                 return Redirect(returnHost + returnPath);
             }
@@ -464,36 +452,40 @@ namespace BellumGens.Api.Controllers
         private async Task<IdentityResult> AddLogin(ApplicationUser user, ExternalLoginInfo info)
         {
             var providerId = info.ProviderKey;
-            switch (info.LoginProvider)
+            IdentityResult result = await _userManager.AddLoginAsync(user, new UserLoginInfo(info.LoginProvider, info.ProviderKey, info.ProviderDisplayName));
+            if (result.Succeeded)
             {
-                case "Twitch":
-                    if (user.TwitchId != providerId)
-                    {
-                        user.TwitchId = providerId;
-                        await _dbContext.SaveChangesAsync();
-                    }
-                    break;
-                case "Steam":
-                    string steamid = _steamService.SteamUserId(providerId);
-                    if (user.SteamID != steamid)
-                    {
-                        user.SteamID = steamid;
-                        await _dbContext.SaveChangesAsync();
-                    }
-                    break;
-                case "BattleNet":
-                    var username = info.Principal.FindFirstValue(ClaimTypes.Name);
-                    if (user.BattleNetId != username)
-                    {
-                        user.BattleNetId = username;
-                        await _dbContext.SaveChangesAsync();
-                    }
-                    break;
-                default:
-                    break;
+                switch (info.LoginProvider)
+                {
+                    case "Twitch":
+                        if (user.TwitchId != providerId)
+                        {
+                            user.TwitchId = providerId;
+                            await _dbContext.SaveChangesAsync();
+                        }
+                        break;
+                    case "Steam":
+                        string steamid = _steamService.SteamUserId(providerId);
+                        if (user.SteamID != steamid)
+                        {
+                            user.SteamID = steamid;
+                            await _dbContext.SaveChangesAsync();
+                        }
+                        break;
+                    case "BattleNet":
+                        var username = info.Principal.FindFirstValue(ClaimTypes.Name);
+                        if (user.BattleNetId != username)
+                        {
+                            user.BattleNetId = username;
+                            await _dbContext.SaveChangesAsync();
+                        }
+                        break;
+                    default:
+                        break;
+                }
             }
 
-            return await _userManager.AddLoginAsync(user, new UserLoginInfo(info.LoginProvider, info.ProviderKey, info.ProviderDisplayName));
+            return result;
         }
 
         private async Task<IdentityResult> Register(RegisterBindingModel info)
@@ -509,6 +501,16 @@ namespace BellumGens.Api.Controllers
             if (result.Succeeded)
             {
                 result = await _userManager.AddPasswordAsync(user, info.Password);
+                if (!result.Succeeded)
+                {
+                    await _userManager.DeleteAsync(user);
+                }
+                else
+                {
+                    string code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+                    var callbackUrl = Url.RouteUrl("ConfirmEmail", new { userId = user.Id, code }, Request.Scheme);
+                    await _sender.SendEmailAsync(info.Email, "Confirm your email", string.Format(emailConfirmation, callbackUrl));
+                }
             }
             return result;
         }
