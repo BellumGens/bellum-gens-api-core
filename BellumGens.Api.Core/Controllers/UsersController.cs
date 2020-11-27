@@ -38,7 +38,7 @@ namespace BellumGens.Api.Controllers
             ApplicationUser registered = null;
             if (user.steamUser != null)
             {
-				registered = _dbContext.Users.Include(u => u.MemberOf).FirstOrDefault(u => u.SteamID == user.steamUser.steamID64);
+				registered = _dbContext.Users.Include(u => u.MemberOf).ThenInclude(m => m.Team).FirstOrDefault(u => u.SteamID == user.steamUser.steamID64);
             }
 			if (registered != null)
 			{
@@ -144,7 +144,7 @@ namespace BellumGens.Api.Controllers
 			{
 				return BadRequest("This invite was not sent to you...");
 			}
-			CSGOTeam team = _dbContext.Teams.Find(invite.TeamId);
+			CSGOTeam team = _dbContext.CSGOTeams.Find(invite.TeamId);
 			team.Members.Add(new TeamMember()
 			{
 				UserId = user.Id,

@@ -98,7 +98,7 @@ namespace BellumGens.Api.Core.Models
 			{
 				var parts = TeamName.Split(' ');
 				string url = string.Join("-", parts);
-				while (context.Teams.Where(t => t.CustomUrl == url).SingleOrDefault() != null)
+				while (context.CSGOTeams.Where(t => t.CustomUrl == url).SingleOrDefault() != null)
 				{
 					if (url.Length > 58)
 						url = url.Substring(0, 58);

@@ -85,7 +85,7 @@ namespace BellumGens.Api.Core.Models
     public class UserInfoViewModel : UserSummaryViewModel
     {
         private List<CSGOTeamSummaryViewModel> _teams;
-        private List<CSGOTeam> _teamAdmin;
+        private List<CSGOTeamSummaryViewModel> _teamAdmin;
         protected bool _isAuthUser;
 
 		public UserInfoViewModel() : base() { }
@@ -116,17 +116,17 @@ namespace BellumGens.Api.Core.Models
             }
         }
 
-        public List<CSGOTeam> teamAdmin
+        public List<CSGOTeamSummaryViewModel> teamAdmin
         {
             get
             {
                 if (_isAuthUser && _teamAdmin == null && user != null)
                 {
-                    _teamAdmin = new List<CSGOTeam>();
+                    _teamAdmin = new List<CSGOTeamSummaryViewModel>();
                     foreach (TeamMember memberof in user.MemberOf)
                     {
                         if (memberof.IsAdmin)
-							_teamAdmin.Add(memberof.Team);
+							_teamAdmin.Add(new CSGOTeamSummaryViewModel(memberof.Team));
                     }
                 }
                 return _teamAdmin;

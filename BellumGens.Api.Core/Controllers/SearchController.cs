@@ -28,7 +28,7 @@ namespace BellumGens.Api.Controllers
 			SearchResultViewModel results = new SearchResultViewModel();
 			if (!string.IsNullOrEmpty(name))
 			{
-				results.Teams = _dbContext.Teams.Where(t => t.Visible && t.TeamName.Contains(name)).ToList();
+				results.Teams = _dbContext.CSGOTeams.Where(t => t.Visible && t.TeamName.Contains(name)).ToList();
 				results.Strategies = _dbContext.Strategies.Where(s => s.Visible && s.Title.Contains(name)).ToList();
 				List<ApplicationUser> activeUsers = _dbContext.Users.Where(u => u.SearchVisible && u.UserName.Contains(name)).ToList();
 
@@ -52,17 +52,17 @@ namespace BellumGens.Api.Controllers
 		{
 			if (overlap <= 0 && role == null)
 			{
-				return Ok(_dbContext.Teams.Where(t => t.Visible).OrderBy(t => t.TeamId).Take(50).ToList());
+				return Ok(_dbContext.CSGOTeams.Where(t => t.Visible).OrderBy(t => t.TeamId).Take(50).ToList());
 			}
 
 			List<CSGOTeam> teams;
 			if (role != null)
 			{
-				teams = _dbContext.Teams.Where(t => t.Visible && !t.Members.Any(m => m.Role == role) && t.PracticeSchedule.Any(d => d.Available)).ToList();
+				teams = _dbContext.CSGOTeams.Where(t => t.Visible && !t.Members.Any(m => m.Role == role) && t.PracticeSchedule.Any(d => d.Available)).ToList();
 			}
 			else
 			{
-				teams = _dbContext.Teams.Where(t => t.Visible && t.PracticeSchedule.Any(d => d.Available)).ToList();
+				teams = _dbContext.CSGOTeams.Where(t => t.Visible && t.PracticeSchedule.Any(d => d.Available)).ToList();
 			}
 			if (overlap > 0)
 			{
@@ -116,7 +116,7 @@ namespace BellumGens.Api.Controllers
 				
 				if (teamid != null)
 				{
-					CSGOTeam team = _dbContext.Teams.Find(teamid);
+					CSGOTeam team = _dbContext.CSGOTeams.Find(teamid);
 					overlap = Math.Min(overlap, team.GetTotalAvailability());
 					users = users.Where(u => u.GetTotalAvailability() >= overlap && team.GetTotalOverlap(u) >= overlap).ToList();
 				}
