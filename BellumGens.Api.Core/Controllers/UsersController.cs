@@ -38,7 +38,7 @@ namespace BellumGens.Api.Controllers
             ApplicationUser registered = null;
             if (user.steamUser != null)
             {
-				registered = _dbContext.Users.Include(u => u.MemberOf).ThenInclude(m => m.Team).FirstOrDefault(u => u.SteamID == user.steamUser.steamID64);
+				registered = await _dbContext.Users.Include(u => u.MemberOf).ThenInclude(m => m.Team).FirstOrDefaultAsync(u => u.SteamID == user.steamUser.steamID64);
             }
 			if (registered != null)
 			{
@@ -55,7 +55,20 @@ namespace BellumGens.Api.Controllers
             return Ok(user?.steamUser?.groups);
         }
 
-        [Route("Availability")]
+		[Route("UserTeams")]
+		[AllowAnonymous]
+		public async Task<IActionResult> GetUserTeams(string userid)
+		{
+			List<CSGOTeam> userTeams = await _dbContext.TeamMembers.Where(m => m.UserId == userid).Include(m => m.Team).Select(m => m.Team).ToListAsync();
+			List<CSGOTeamSummaryViewModel> teams = new List<CSGOTeamSummaryViewModel>();
+			foreach (CSGOTeam team in userTeams)
+            {
+				teams.Add(new CSGOTeamSummaryViewModel(team));
+            }
+			return Ok(teams);
+		}
+
+		[Route("Availability")]
 		[HttpPut]
 		public async Task<IActionResult> SetAvailability(UserAvailability newAvailability)
 		{
