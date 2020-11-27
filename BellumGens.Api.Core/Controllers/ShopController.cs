@@ -105,7 +105,12 @@ namespace BellumGens.Api.Controllers
                     {
                         builder.Append($"<p>{Util.JerseyCutNames[jersey.Cut]} тениска, размер {Util.JerseySizeNames[jersey.Size]}</p>");
                     }
-                    builder.Append($"Обща цена: {order.Jerseys.Count * baseJerseyPrice * (1 - discount) + 5}лв.");
+                    decimal price = order.Jerseys.Count * baseJerseyPrice * (1 - discount);
+                    if (price >= 100)
+                    {
+                        builder.Append($"Безплатна доставка за поръчка над 100лв.! ");
+                    }
+                    builder.Append($"Обща цена: {price}лв.");
                     builder.Append(@"<p>Поздрави от екипа на Bellum Gens!</p>
                                 <a href='https://eb-league.com' target='_blank'>https://eb-league.com</a>");
 

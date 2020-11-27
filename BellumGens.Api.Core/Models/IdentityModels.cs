@@ -121,8 +121,6 @@ namespace BellumGens.Api.Core.Models
 
 		public PlaystyleRole PreferredSecondaryRole { get; set; }
 
-		// public virtual ICollection<Languages> LanguagesSpoken { get; set; }
-
 		public virtual ICollection<UserAvailability> Availability { get; set; } = new HashSet<UserAvailability>();
 
 		public virtual ICollection<UserMapPool> MapPool { get; set; } = new HashSet<UserMapPool>();
@@ -137,8 +135,6 @@ namespace BellumGens.Api.Core.Models
 	public class BellumGensDbContext : IdentityDbContext<ApplicationUser>
 	{
 		public DbSet<UserAvailability> UserAvailabilities { get; set; }
-
-		// public DbSet<Languages> Languages { get; set; }
 
 		public DbSet<UserMapPool> UserMapPool { get; set; }
 
@@ -194,16 +190,6 @@ namespace BellumGens.Api.Core.Models
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
 			base.OnModelCreating(modelBuilder);
-
-			//modelBuilder.Entity<ApplicationUser>()
-			//            .HasMany(e => e.LanguagesSpoken)
-			//            .WithMany(e => e.Users)
-			//            .Map(e =>
-			//            {
-			//                e.MapLeftKey("UserId");
-			//                e.MapRightKey("LanguageId");
-			//                e.ToTable("UserLanguages");
-			//            });
 
 			modelBuilder.Entity<ApplicationUser>()
 						.Property(p => p.Accuracy)
