@@ -301,7 +301,7 @@ namespace BellumGens.Api.Core.Migrations
                         .IsUnique()
                         .HasFilter("[CustomUrl] IS NOT NULL");
 
-                    b.ToTable("Teams");
+                    b.ToTable("CSGOTeams");
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.Company", b =>
