@@ -34,7 +34,7 @@ namespace BellumGens.Api.Core.Models
 		//	return this;
 		//}
 
-        private void RefreshAppUserValues(BellumGensDbContext context)
+        public void RefreshAppUserValues(BellumGensDbContext context)
         {
             bool changes = false;
             if (steamUser?.avatarFull != user.AvatarFull)

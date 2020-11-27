@@ -54,15 +54,15 @@ namespace BellumGens.Api.Core
                 })
                 .AddBattleNet(options =>
                 {
-                    options.ClientId = Configuration["battleNetClientId"];
-                    options.ClientSecret = Configuration["battleNetClientSecret"];
+                    options.ClientId = Configuration.GetValue<string>("battleNet:clientId");
+                    options.ClientSecret = Configuration.GetValue<string>("battleNet:secret");
                     options.Scope.Clear();
                     options.Scope.Add("sc2.profile");
                 })
                 .AddTwitch(options =>
                 {
-                    options.ClientId = Configuration["twitchClientId"];
-                    options.ClientSecret = Configuration["twitchSecret"];
+                    options.ClientId = Configuration.GetValue<string>("twitch:clientId");
+                    options.ClientSecret = Configuration.GetValue<string>("twitch:secret");
                     options.CallbackPath = "/signin-twitch";
                 })
                 .AddSteam(options =>
@@ -76,8 +76,7 @@ namespace BellumGens.Api.Core
                 options.Password.RequireDigit = true;
                 options.Password.RequireLowercase = true;
                 options.Password.RequireNonAlphanumeric = true;
-                options.Password.RequireUppercase = true;
-                options.Password.RequiredLength = 6;
+                options.Password.RequiredLength = 8;
                 options.Password.RequiredUniqueChars = 1;
 
                 // Lockout settings.
