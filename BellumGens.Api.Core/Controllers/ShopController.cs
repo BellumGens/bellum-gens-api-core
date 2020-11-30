@@ -1,4 +1,4 @@
-﻿using BellumGens.Api.Common;
+﻿using BellumGens.Api.Core.Common;
 using BellumGens.Api.Core.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;

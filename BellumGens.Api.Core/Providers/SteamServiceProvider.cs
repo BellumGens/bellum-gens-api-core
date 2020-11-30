@@ -1,5 +1,4 @@
-﻿using Newtonsoft.Json;
-using SteamModels;
+﻿using SteamModels;
 using System.Net.Http;
 using System.Xml.Serialization;
 using System.Collections.Generic;
@@ -10,6 +9,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
+using System.Text.Json;
 
 namespace BellumGens.Api.Core.Providers
 {
@@ -34,8 +34,8 @@ namespace BellumGens.Api.Core.Providers
 
 		public SteamServiceProvider(IMemoryCache cache, AppConfiguration appInfo)
         {
-			this._cache = cache;
-			this._appInfo = appInfo;
+			_cache = cache;
+			_appInfo = appInfo;
         }
 
 		public async Task<CSGOPlayerStats> GetStatsForCSGOUser(string username)
@@ -45,7 +45,7 @@ namespace BellumGens.Api.Core.Providers
 			{
 				Uri endpoint = new Uri(string.Format(_statsForGameUrl, _appInfo.Config.csgoGameId, _appInfo.Config.steamApiKey, username));
 				var statsForGameResponse = await client.GetStringAsync(endpoint);
-				statsForUser = JsonConvert.DeserializeObject<CSGOPlayerStats>(statsForGameResponse);
+				statsForUser = JsonSerializer.Deserialize<CSGOPlayerStats>(statsForGameResponse);
 
 			}
 			return statsForUser;
@@ -75,19 +75,16 @@ namespace BellumGens.Api.Core.Providers
 			using (HttpClient client = new HttpClient())
 			{
 				var playerDetailsResponse = await client.GetStringAsync(string.Format(_steamUserUrl, _appInfo.Config.steamApiKey, users));
-				result = JsonConvert.DeserializeObject<SteamUsersSummary>(playerDetailsResponse);
+				result = JsonSerializer.Deserialize<SteamUsersSummary>(playerDetailsResponse);
 			}
 			return result.response.players;
 		}
 
 		public async Task<UserStatsViewModel> GetSteamUserDetails(string name)
 		{
-			lock (_cache)
+			if (_cache.Get(name) is UserStatsViewModel)
 			{
-				if (_cache.Get(name) is UserStatsViewModel)
-				{
-					return _cache.Get(name) as UserStatsViewModel;
-				}
+				return _cache.Get(name) as UserStatsViewModel;
 			}
 
 			UserStatsViewModel model = new UserStatsViewModel();
@@ -121,11 +118,8 @@ namespace BellumGens.Api.Core.Providers
 				{
 					try
 					{
-						model.userStats = JsonConvert.DeserializeObject<CSGOPlayerStats>(await statsForGameResponse.Content.ReadAsStringAsync());
-						lock (_cache)
-						{
-							_cache.Set(name, model, DateTime.Now.AddDays(5));
-						}
+						model.userStats = JsonSerializer.Deserialize<CSGOPlayerStats>(await statsForGameResponse.Content.ReadAsStringAsync());
+						_cache.Set(name, model, DateTime.Now.AddDays(5));
 						return model;
 					}
 					catch

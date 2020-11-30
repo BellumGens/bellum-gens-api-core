@@ -1,7 +1,7 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace BellumGens.Api.Core.Models
 {
@@ -25,7 +25,7 @@ namespace BellumGens.Api.Core.Models
         public int Team2Points { get; set; }
 
         [NotMapped]
-        [JsonProperty("Team1")]
+        [JsonPropertyName("team1")]
         public CSGOTeamSummaryViewModel Team1Summary { 
             get
             {
@@ -34,7 +34,7 @@ namespace BellumGens.Api.Core.Models
         }
 
         [NotMapped]
-        [JsonProperty("Team2")]
+        [JsonPropertyName("team2")]
         public CSGOTeamSummaryViewModel Team2Summary
         {
             get

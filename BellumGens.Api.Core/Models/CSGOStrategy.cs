@@ -1,10 +1,10 @@
-﻿using BellumGens.Api.Common;
-using Newtonsoft.Json;
+﻿using BellumGens.Api.Core.Common;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
+using System.Text.Json.Serialization;
 
 namespace BellumGens.Api.Core.Models
 {
@@ -28,7 +28,6 @@ namespace BellumGens.Api.Core.Models
 
 		public string Url { get; set; }
 
-		[JsonProperty("Image")]
 		[Column("Image")]
 		public string StratImage { get; set; }
 
@@ -36,7 +35,6 @@ namespace BellumGens.Api.Core.Models
 
 		public bool Visible { get; set; }
 
-		[JsonIgnore]
 		public string PrivateShareLink { get; set; }
 
 		public DateTimeOffset LastUpdated { get; set; } = DateTimeOffset.Now;

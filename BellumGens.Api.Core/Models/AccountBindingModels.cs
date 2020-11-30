@@ -1,6 +1,4 @@
-﻿using System;
-using System.ComponentModel.DataAnnotations;
-using Newtonsoft.Json;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace BellumGens.Api.Core.Models
 {
@@ -35,38 +33,31 @@ namespace BellumGens.Api.Core.Models
     public class LoginBindingModel
     {
         [Required]
-        [JsonProperty("username")]
         public string UserName { get; set; }
 
         [Required]
         [DataType(DataType.Password)]
-        [JsonProperty("password")]
         public string Password { get; set; }
 
-        [JsonProperty("rememberMe")]
         public bool RememberMe { get; set; }
     }
 
     public class RegisterBindingModel
     {
         [Required]
-        [JsonProperty("username")]
         public string UserName { get; set; }
 
         [Required]
         [DataType(DataType.EmailAddress)]
-        [JsonProperty("email")]
         public string Email { get; set; }
 
         [Required]
         [StringLength(100, ErrorMessage = "The {0} must be at least {2} characters long.", MinimumLength = 8)]
         [DataType(DataType.Password)]
-        [JsonProperty("password")]
         public string Password { get; set; }
 
         [DataType(DataType.Password)]
         [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
-        [JsonProperty("confirmPassword")]
         public string ConfirmPassword { get; set; }
     }
 

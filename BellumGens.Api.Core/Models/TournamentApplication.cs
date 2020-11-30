@@ -1,9 +1,10 @@
-﻿using BellumGens.Api.Common;
-using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
+using System.Text.Json.Serialization;
+using BellumGens.Api.Core.Common;
+
 
 namespace BellumGens.Api.Core.Models
 {
