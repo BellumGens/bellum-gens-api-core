@@ -41,34 +41,46 @@ namespace BellumGens.Api.Controllers
 
         // GET api/Account/UserInfo
         [AllowAnonymous]
-        [Route("UserInfo")]
-        public async Task<UserStatsViewModel> GetUserInfo()
+        [HttpGet]
+        public async Task<IActionResult> Get()
         {
 			if (User.Identity.IsAuthenticated)
 			{
                 string userId = User.GetResolvedUserId();
 
-                ApplicationUser user = _dbContext.Users.Include(u => u.MemberOf).FirstOrDefault(e => e.Id == userId);
+                ApplicationUser user = _dbContext.Users.FirstOrDefault(e => e.Id == userId);
                 if (user == null)
                 {
                     await _signInManager.SignOutAsync();
                     return null;
                 }
 
-                UserStatsViewModel model = new UserStatsViewModel(user, true);
-                if (user.SteamID != null && string.IsNullOrEmpty(user.AvatarFull))
-                {
-                    model = await _steamService.GetSteamUserDetails(user.SteamID);
-                    model.SetUser(user, _dbContext);
-                }
+                UserInfoViewModel model = new UserInfoViewModel(user, true);
                 var logins = await _userManager.GetLoginsAsync(user);
                 model.externalLogins = logins.Select(t => t.LoginProvider).ToList();
-				return model;
+				return Ok(model);
 			}
-			return null;
+            return Unauthorized("Have to login first");
         }
 
-		[HttpPost]
+        [Route("UserNotifications")]
+        public async Task<IActionResult> GetUserNotifications()
+        {
+            ApplicationUser user = await GetAuthUser();
+            List<TeamInvite> teamInvites = await _dbContext.TeamInvites.Include(i => i.Team).Where(i => i.InvitedUserId == user.Id).ToListAsync();
+            return Ok(teamInvites);
+        }
+
+        [Route("UserTeamsAdmin")]
+        public async Task<IActionResult> GetUserTeams()
+        {
+            ApplicationUser user = await GetAuthUser();
+            List<CSGOTeamSummaryViewModel> teams = new List<CSGOTeamSummaryViewModel>();
+            await _dbContext.TeamMembers.Include(m => m.Team).Where(m => m.UserId == user.Id && m.IsAdmin).Select(m => m.Team).ForEachAsync(t => teams.Add(new CSGOTeamSummaryViewModel(t)));
+            return Ok(teams);
+        }
+
+        [HttpPost]
 		[AllowAnonymous]
 		[Route("Subscribe")]
 		public IActionResult Subscribe(Subscriber sub)

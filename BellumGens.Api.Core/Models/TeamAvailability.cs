@@ -8,8 +8,6 @@ namespace BellumGens.Api.Core.Models
 	{
 		public Guid TeamId { get; set; }
 
-		public DayOfWeek Day { get; set; }
-
 		[JsonIgnore]
 		[ForeignKey("TeamId")]
 		public virtual CSGOTeam Team { get; set; }

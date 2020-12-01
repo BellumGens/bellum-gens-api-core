@@ -69,6 +69,15 @@ namespace BellumGens.Api.Controllers
 		}
 
 		[Route("Availability")]
+		[AllowAnonymous]
+		[HttpGet]
+		public async Task<IActionResult> GetAvailability(string userid)
+		{
+			List<UserAvailability> availabilities = await _dbContext.UserAvailabilities.Where(u => u.UserId == userid).ToListAsync();
+			return Ok(availabilities);
+		}
+
+		[Route("Availability")]
 		[HttpPut]
 		public async Task<IActionResult> SetAvailability(UserAvailability newAvailability)
 		{
@@ -86,7 +95,16 @@ namespace BellumGens.Api.Controllers
 			}
 			return Ok(entity);
 		}
-		
+
+		[Route("MapPool")]
+		[AllowAnonymous]
+		[HttpGet]
+		public async Task<IActionResult> GetMapPool(string userid)
+		{
+			List<UserMapPool> mappool = await _dbContext.UserMapPool.Where(u => u.UserId == userid).ToListAsync();
+			return Ok(mappool);
+		}
+
 		[Route("mapPool")]
 		[HttpPut]
 		public async Task<IActionResult> SetMapPool(UserMapPool mapPool)
@@ -108,10 +126,10 @@ namespace BellumGens.Api.Controllers
 		
 		[Route("PrimaryRole")]
 		[HttpPut]
-		public async Task<IActionResult> SetPrimaryRole(Role role)
+		public async Task<IActionResult> SetPrimaryRole(PlaystyleRole id, Role role)
 		{
 			ApplicationUser user = await GetAuthUser();
-			_dbContext.Users.Find(user.Id).PreferredPrimaryRole = role.Id;
+			user.PreferredPrimaryRole = id;
 			try
 			{
 				_dbContext.SaveChanges();
@@ -121,15 +139,15 @@ namespace BellumGens.Api.Controllers
 				System.Diagnostics.Trace.TraceError($"User primary role error: ${e.Message}");
 				return BadRequest("Something went wrong... ");
 			}
-			return Ok("success");
+			return Ok(role);
 		}
 		
 		[Route("SecondaryRole")]
 		[HttpPut]
-		public async Task<IActionResult> SetSecondaryRole(Role role)
+		public async Task<IActionResult> SetSecondaryRole(PlaystyleRole id, Role role)
 		{
 			ApplicationUser user = await GetAuthUser();
-			_dbContext.Users.Find(user.Id).PreferredSecondaryRole = role.Id;
+			user.PreferredSecondaryRole = id;
 			try
 			{
 				_dbContext.SaveChanges();
@@ -139,7 +157,7 @@ namespace BellumGens.Api.Controllers
 				System.Diagnostics.Trace.TraceError($"User secondary role error: ${e.Message}");
 				return BadRequest("Something went wrong... ");
 			}
-			return Ok("success");
+			return Ok(role);
 		}
 
 		[Route("AcceptTeamInvite")]
