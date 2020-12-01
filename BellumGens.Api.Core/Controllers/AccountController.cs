@@ -55,10 +55,15 @@ namespace BellumGens.Api.Controllers
                     return null;
                 }
 
-                UserInfoViewModel model = new UserInfoViewModel(user, true);
+                UserStatsViewModel model = new UserStatsViewModel(user, true);
+                if (string.IsNullOrEmpty(user.AvatarFull) && user.SteamID != null)
+                {
+                    model = await _steamService.GetSteamUserDetails(user.Id);
+                    model.SetUser(user, _dbContext);
+                }
                 var logins = await _userManager.GetLoginsAsync(user);
                 model.externalLogins = logins.Select(t => t.LoginProvider).ToList();
-				return Ok(model);
+                return Ok(model);
 			}
             return Unauthorized("Have to login first");
         }
@@ -184,10 +189,10 @@ namespace BellumGens.Api.Controllers
             {
                 var user = await _userManager.FindByNameAsync(login.UserName);
                 UserStatsViewModel model = new UserStatsViewModel(user, true);
-                if (string.IsNullOrEmpty(user.AvatarFull) && !Guid.TryParse(user.Id, out Guid newguid))
+                if (string.IsNullOrEmpty(user.AvatarFull) && user.SteamID != null)
                 {
                     model = await _steamService.GetSteamUserDetails(user.Id);
-                    model.RefreshAppUserValues(_dbContext);
+                    model.SetUser(user, _dbContext);
                 }
                 var logins = await _userManager.GetLoginsAsync(user);
                 model.externalLogins = logins.Select(t => t.LoginProvider).ToList();

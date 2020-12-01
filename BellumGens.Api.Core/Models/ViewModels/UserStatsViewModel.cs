@@ -134,6 +134,9 @@ namespace BellumGens.Api.Core.Models
                     user.Accuracy = userStats.accuracy;
                     changes = true;
                 }
+                // Populate weapons and don't serialize stats again...
+                if (userStats.weapons != null)
+                    userStats.playerstats = null;
             }
             if (changes)
             {
