@@ -62,7 +62,6 @@ namespace BellumGens.Api.Core
                 .AddCookie(options =>
                 {
                     options.Cookie.HttpOnly = true;
-                    options.Cookie.HttpOnly = true;
                     options.Cookie.SameSite = SameSiteMode.None;
                     options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
                     options.ExpireTimeSpan = TimeSpan.FromDays(14);
