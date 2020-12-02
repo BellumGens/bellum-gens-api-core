@@ -15,19 +15,13 @@ namespace BellumGens.Api.Core.Providers
 {
 	public class SteamServiceProvider : ISteamService
 	{
-		private IMemoryCache _cache;
-		private AppConfiguration _appInfo;
-		private static readonly string _statsForGameUrl =
-				"https://api.steampowered.com/ISteamUserStats/GetUserStatsForGame/v0002/?appid={0}&key={1}&steamid={2}&format=json";
+		private readonly IMemoryCache _cache;
+		private readonly AppConfiguration _appInfo;
 
+		private static readonly string _statsForGameUrl = "https://api.steampowered.com/ISteamUserStats/GetUserStatsForGame/v0002/?appid={0}&key={1}&steamid={2}&format=json";
 		private static readonly string _steamUserUrl = "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key={0}&steamids={1}";
-
-		private static readonly string _playerDetailsById =
-			"https://steamcommunity.com/profiles/{0}/?xml=1";
-
-		private static readonly string _playerDetailsByUrl =
-			"https://steamcommunity.com/id/{0}/?xml=1";
-
+		private static readonly string _playerDetailsById = "https://steamcommunity.com/profiles/{0}/?xml=1";
+		private static readonly string _playerDetailsByUrl = "https://steamcommunity.com/id/{0}/?xml=1";
 		private static readonly string _groupMembersUrl = "https://steamcommunity.com/gid/{0}/memberslistxml/?xml=1";
 
 		//private static readonly string _steamAppNewsUrl = "https://api.steampowered.com/ISteamNews/GetNewsForApp/v0002/?appid={0}&maxlength=300&format=json";
