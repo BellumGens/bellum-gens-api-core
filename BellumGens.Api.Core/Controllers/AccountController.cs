@@ -354,20 +354,10 @@ namespace BellumGens.Api.Controllers
         // GET api/Account/ExternalLogin
         [AllowAnonymous]
         [Route("ExternalLogin", Name = "ExternalLogin")]
-        public async Task<IActionResult> GetExternalLogin(string provider, string error = null, string returnUrl = "")
+        public async Task<IActionResult> GetExternalLogin(string provider, string returnUrl = "")
         {
-            if (error != null)
-            {
-                return Redirect(returnUrl + "/unauthorized");
-			}
-
             ApplicationUser user = await GetAuthUser();
-            string userId = null;
-
-            if (user != null)
-            {
-                userId = user.Id;
-            }
+            string userId = user?.Id;
 
             var properties = _signInManager.ConfigureExternalAuthenticationProperties(provider, Url.Action("ExternalCallback", "Account", new { returnUrl, userId }));
             return Challenge(properties, provider);

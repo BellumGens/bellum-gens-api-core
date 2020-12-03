@@ -29,7 +29,7 @@ namespace BellumGens.Api.Controllers
 			if (!string.IsNullOrEmpty(name))
 			{
 				results.Teams = _dbContext.CSGOTeams.Where(t => t.Visible && t.TeamName.Contains(name)).ToList();
-				results.Strategies = _dbContext.Strategies.Where(s => s.Visible && s.Title.Contains(name)).ToList();
+				results.Strategies = _dbContext.CSGOStrategies.Where(s => s.Visible && s.Title.Contains(name)).ToList();
 				List<ApplicationUser> activeUsers = _dbContext.Users.Where(u => u.SearchVisible && u.UserName.Contains(name)).ToList();
 
 				foreach (ApplicationUser user in activeUsers)

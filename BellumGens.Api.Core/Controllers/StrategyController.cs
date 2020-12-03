@@ -35,7 +35,7 @@ namespace BellumGens.Api.Controllers
 		[AllowAnonymous]
 		public IActionResult GetStrategies(int page = 0)
 		{
-			List<CSGOStrategy> strategies = _dbContext.Strategies.Where(s => s.Visible == true && (!string.IsNullOrEmpty(s.Url) || !string.IsNullOrEmpty(s.StratImage)))
+			List<CSGOStrategy> strategies = _dbContext.CSGOStrategies.Where(s => s.Visible == true && (!string.IsNullOrEmpty(s.Url) || !string.IsNullOrEmpty(s.StratImage)))
 																 .OrderByDescending(s => s.LastUpdated).Skip(page * 25).Take(25).ToList();
 			return Ok(strategies.OrderByDescending(s => s.Rating));
 		}
@@ -57,7 +57,7 @@ namespace BellumGens.Api.Controllers
 			ApplicationUser user = await GetAuthUser();
 			if (user.Id == userId)
 			{
-				var strategies = _dbContext.Strategies.Where(s => s.UserId == userId).OrderByDescending(s => s.LastUpdated).ToList();
+				var strategies = _dbContext.CSGOStrategies.Where(s => s.UserId == userId).OrderByDescending(s => s.LastUpdated).ToList();
 				return Ok(strategies);
 			}
 			return BadRequest("You need to authenticate first.");
@@ -102,7 +102,7 @@ namespace BellumGens.Api.Controllers
                 strategy.UserId = user.Id;
 				strategy.UniqueCustomUrl(_dbContext);
 				strategy.StratImage = _fileService.SaveImageFile(strategy.StratImage, strategy.CustomUrl);
-				_dbContext.Strategies.Add(strategy);
+				_dbContext.CSGOStrategies.Add(strategy);
 			}
 			else
 			{
@@ -146,7 +146,7 @@ namespace BellumGens.Api.Controllers
 				}
 			}
 
-			_dbContext.Strategies.Remove(entity);
+			_dbContext.CSGOStrategies.Remove(entity);
 
 			try
 			{
@@ -166,7 +166,7 @@ namespace BellumGens.Api.Controllers
 		{
 			ApplicationUser user = await GetAuthUser();
 
-			var strategy = _dbContext.Strategies.Find(model.id);
+			var strategy = _dbContext.CSGOStrategies.Find(model.id);
 			StrategyVote vote = strategy.Votes.FirstOrDefault(v => v.UserId == user.Id);
 			if (vote == null)
 			{
@@ -219,7 +219,7 @@ namespace BellumGens.Api.Controllers
 			else
 			{
 				_dbContext.StrategyComments.Add(comment);
-				strat = _dbContext.Strategies.Find(comment.StratId);
+				strat = _dbContext.CSGOStrategies.Find(comment.StratId);
 			}
 
 			try
@@ -269,7 +269,7 @@ namespace BellumGens.Api.Controllers
 		private async Task<CSGOStrategy> UserCanEdit(Guid id)
 		{
 			ApplicationUser user = await GetAuthUser();
-            CSGOStrategy strat = _dbContext.Strategies.Find(id);
+            CSGOStrategy strat = _dbContext.CSGOStrategies.Find(id);
             if (strat?.TeamId != null)
             {
                 if (strat.Team.Members.Any(m => m.IsEditor || m.IsAdmin && m.UserId == user.Id))
@@ -321,13 +321,13 @@ namespace BellumGens.Api.Controllers
 
 		private CSGOStrategy ResolveStrategy(string stratId)
 		{
-			CSGOStrategy strat = _dbContext.Strategies.FirstOrDefault(s => s.CustomUrl == stratId);
+			CSGOStrategy strat = _dbContext.CSGOStrategies.FirstOrDefault(s => s.CustomUrl == stratId);
 			if (strat == null)
 			{
 				var valid = Guid.TryParse(stratId, out Guid id);
 				if (valid)
 				{
-					strat = _dbContext.Strategies.Find(id);
+					strat = _dbContext.CSGOStrategies.Find(id);
 				}
 			}
 			return strat;

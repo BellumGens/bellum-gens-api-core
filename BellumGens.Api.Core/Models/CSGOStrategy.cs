@@ -79,7 +79,7 @@ namespace BellumGens.Api.Core.Models
 			{
 				var parts = Title.Split(' ');
 				string url = string.Join("-", parts);
-				while (context.Strategies.Where(s => s.CustomUrl == url).SingleOrDefault() != null)
+				while (context.CSGOStrategies.Where(s => s.CustomUrl == url).SingleOrDefault() != null)
 				{
 					if (url.Length > 58)
 						url = url.Substring(0, 58);
