@@ -43,7 +43,7 @@ namespace BellumGens.Api.Controllers
 		[AllowAnonymous]
 		public async Task<List<TeamMember>> GetTeamMembers(Guid teamId)
 		{
-			return await _dbContext.TeamMembers.Where(m => m.TeamId == teamId).ToListAsync();
+			return await _dbContext.TeamMembers.Include(m => m.Member).Where(m => m.TeamId == teamId).ToListAsync();
 		}
 
 		[Route("Tournaments")]
@@ -63,9 +63,14 @@ namespace BellumGens.Api.Controllers
 
 		[Route("teamadmin")]
 		[HttpGet]
-		public async Task<IActionResult> GetIsTeamAdmin(Guid teamid)
+		public async Task<IActionResult> GetIsTeamAdmin(string teamid)
 		{
-			return Ok(await UserIsTeamAdmin(teamid));
+			if (Guid.TryParse(teamid, out Guid id))
+            {
+				return Ok(await UserIsTeamAdmin(id));
+			}
+			ApplicationUser user = await GetAuthUser();
+			return Ok(await _dbContext.CSGOTeams.AnyAsync(t => t.CustomUrl == teamid && t.Members.Any(m => m.UserId == user.Id && m.IsAdmin)));
 		}
 
 		[Route("teammember")]
@@ -89,7 +94,7 @@ namespace BellumGens.Api.Controllers
 			{
 				return BadRequest("You're not a member of this team.");
 			}
-			return Ok(await _dbContext.TeamMapPool.Where(t => t.TeamId == teamId).ToListAsync());
+			return Ok(await _dbContext.TeamMapPools.Where(t => t.TeamId == teamId).ToListAsync());
 		}
 
 		[Route("SteamMembers")]
@@ -445,7 +450,7 @@ namespace BellumGens.Api.Controllers
 
 			foreach (TeamMapPool mapPool in maps)
 			{
-				TeamMapPool entity = await _dbContext.TeamMapPool.FindAsync(mapPool.TeamId, mapPool.Map);
+				TeamMapPool entity = await _dbContext.TeamMapPools.FindAsync(mapPool.TeamId, mapPool.Map);
 				_dbContext.Entry(entity).CurrentValues.SetValues(mapPool);
 			}
 			try
@@ -461,6 +466,14 @@ namespace BellumGens.Api.Controllers
 		}
 
 		[Route("availability")]
+		[AllowAnonymous]
+		[HttpGet]
+		public async Task<IActionResult> GetTeamAvailability(Guid teamid)
+		{
+			return Ok(await _dbContext.TeamAvailabilities.Where(t => t.TeamId == teamid).ToListAsync());
+		}
+
+		[Route("availability")]
 		[HttpPut]
 		public async Task<IActionResult> SetTeamAvailability(TeamAvailability day)
 		{
@@ -469,7 +482,7 @@ namespace BellumGens.Api.Controllers
 				return BadRequest("You need to be team admin.");
 			}
 
-			TeamAvailability entity = await _dbContext.TeamPracticeSchedule.FindAsync(day.TeamId, day.Day);
+			TeamAvailability entity = await _dbContext.TeamAvailabilities.FindAsync(day.TeamId, day.Day);
 			_dbContext.Entry(entity).CurrentValues.SetValues(day);
 			try
 			{
@@ -481,41 +494,6 @@ namespace BellumGens.Api.Controllers
 				return BadRequest("Something went wrong...");
 			}
 			return Ok(entity);
-		}
-
-		private async Task<bool> UserIsTeamAdmin(Guid teamId)
-		{
-			ApplicationUser user = await GetAuthUser();
-			TeamMember member = await _dbContext.TeamMembers.FindAsync(teamId, user.Id);
-			return member != null ? member.IsAdmin : false;
-		}
-
-		private async Task<bool> UserIsTeamEditor(Guid teamId)
-		{
-			ApplicationUser user = await GetAuthUser();
-			TeamMember member = await _dbContext.TeamMembers.FindAsync(teamId, user.Id);
-			return member != null ? member.IsEditor || member.IsAdmin : false;
-		}
-
-		private async Task<bool> UserIsTeamMember(Guid teamId)
-        {
-			ApplicationUser user = await GetAuthUser();
-			TeamMember member = await _dbContext.TeamMembers.FindAsync(teamId, user.Id);
-			return member != null;
-        }
-
-		private async Task<CSGOTeam> ResolveTeam(string teamId)
-		{
-			CSGOTeam team = await _dbContext.CSGOTeams.FirstOrDefaultAsync(t => t.CustomUrl == teamId);
-			if (team == null)
-			{
-				var valid = Guid.TryParse(teamId, out Guid id);
-				if (valid)
-				{
-					team = await _dbContext.CSGOTeams.FindAsync(id);
-				}
-			}
-			return team;
 		}
 	}
 

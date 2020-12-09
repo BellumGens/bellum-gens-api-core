@@ -148,9 +148,9 @@ namespace BellumGens.Api.Core.Models
 
 		public DbSet<CSGOStrategy> CSGOStrategies { get; set; }
 
-		public DbSet<TeamMapPool> TeamMapPool { get; set; }
+		public DbSet<TeamMapPool> TeamMapPools { get; set; }
 
-		public DbSet<TeamAvailability> TeamPracticeSchedule { get; set; }
+		public DbSet<TeamAvailability> TeamAvailabilities { get; set; }
 
 		public DbSet<UserMessage> Messages { get; set; }
 

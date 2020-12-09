@@ -81,6 +81,15 @@ namespace BellumGens.Api.Core.Models
             }
         }
 
+        [NotMapped]
+        public string SteamId
+        {
+            get
+            {
+                return Member?.SteamID;
+            }
+        }
+
         [ForeignKey("TeamId")]
         [JsonIgnore]
 		public CSGOTeam Team { get; set; } 

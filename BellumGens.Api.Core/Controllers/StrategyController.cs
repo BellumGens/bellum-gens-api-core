@@ -41,14 +41,13 @@ namespace BellumGens.Api.Controllers
 		}
 
 		[Route("teamstrats")]
-		public async Task<IActionResult> GetTeamStrats(string teamId)
+		public async Task<IActionResult> GetTeamStrats(Guid teamId)
 		{
-			CSGOTeam team = await UserIsTeamMember(teamId);
-			if (team == null)
+			if (!await UserIsTeamMember(teamId))
 			{
 				return BadRequest("You're not a member of this team.");
 			}
-			return Ok(team.Strategies);
+			return Ok(await _dbContext.CSGOStrategies.Where(s => s.TeamId == teamId).ToListAsync());
 		}
 
 		[Route("userstrats")]
@@ -282,41 +281,6 @@ namespace BellumGens.Api.Controllers
                 return strat;
             }
             return null;
-		}
-
-		private async Task<bool> UserIsTeamEditor(Guid teamId)
-		{
-			CSGOTeam team = _dbContext.CSGOTeams.Find(teamId);
-			ApplicationUser user = await GetAuthUser();
-			return team != null && team.Members.Any(m => m.IsEditor || m.IsAdmin && m.UserId == user.Id);
-		}
-
-		private async Task<CSGOTeam> UserIsTeamMember(string teamId)
-		{
-			CSGOTeam team = ResolveTeam(teamId);
-			ApplicationUser user = await GetAuthUser();
-			return team != null && team.Members.Any(m => m.UserId == user.Id) ? team : null;
-		}
-
-		private async Task<bool> UserIsTeamMember(Guid teamId)
-		{
-			CSGOTeam team = _dbContext.CSGOTeams.Find(teamId);
-			ApplicationUser user = await GetAuthUser();
-			return team != null && team.Members.Any(m => m.UserId == user.Id);
-		}
-
-		private CSGOTeam ResolveTeam(string teamId)
-		{
-			CSGOTeam team = _dbContext.CSGOTeams.FirstOrDefault(t => t.CustomUrl == teamId);
-			if (team == null)
-			{
-				var valid = Guid.TryParse(teamId, out Guid id);
-				if (valid)
-				{
-					team = _dbContext.CSGOTeams.Find(id);
-				}
-			}
-			return team;
 		}
 
 		private CSGOStrategy ResolveStrategy(string stratId)

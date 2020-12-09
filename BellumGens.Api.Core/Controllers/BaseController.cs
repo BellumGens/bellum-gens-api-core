@@ -3,7 +3,9 @@ using BellumGens.Api.Core.Models.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Threading.Tasks;
 
 namespace BellumGens.Api.Controllers
@@ -37,6 +39,33 @@ namespace BellumGens.Api.Controllers
 		protected async Task<bool> UserIsInRole(string role)
 		{
 			return await _userManager.IsInRoleAsync(await GetAuthUser(), role);
+		}
+
+		protected async Task<bool> UserIsTeamAdmin(Guid teamId)
+		{
+			ApplicationUser user = await GetAuthUser();
+			TeamMember member = await _dbContext.TeamMembers.FindAsync(teamId, user.Id);
+			return member != null ? member.IsAdmin : false;
+		}
+
+		protected async Task<bool> UserIsTeamEditor(Guid teamId)
+		{
+			ApplicationUser user = await GetAuthUser();
+			TeamMember member = await _dbContext.TeamMembers.FindAsync(teamId, user.Id);
+			return member != null ? member.IsEditor || member.IsAdmin : false;
+		}
+
+		protected async Task<bool> UserIsTeamMember(Guid teamId)
+		{
+			ApplicationUser user = await GetAuthUser();
+			TeamMember member = await _dbContext.TeamMembers.FindAsync(teamId, user.Id);
+			return member != null;
+		}
+
+		protected async Task<CSGOTeam> ResolveTeam(string teamId)
+		{
+			Guid.TryParse(teamId, out Guid id);
+			return await _dbContext.CSGOTeams.FirstOrDefaultAsync(t => t.CustomUrl == teamId || t.TeamId == id);
 		}
 	}
 }
