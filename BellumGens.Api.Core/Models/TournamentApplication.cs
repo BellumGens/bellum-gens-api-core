@@ -3,8 +3,9 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 using BellumGens.Api.Core.Common;
-
+using Microsoft.EntityFrameworkCore;
 
 namespace BellumGens.Api.Core.Models
 {
@@ -63,12 +64,12 @@ namespace BellumGens.Api.Core.Models
         [JsonIgnore]
         public virtual Tournament Tournament { get; set; }
 
-        public void UniqueHash(BellumGensDbContext context)
+        public async Task UniqueHash(BellumGensDbContext context)
         {
             if (string.IsNullOrEmpty(Hash))
             {
                 Hash = Util.GenerateHashString(8);
-                while (context.TournamentApplications.Where(t => t.Hash == Hash).SingleOrDefault() != null)
+                while (await context.TournamentApplications.Where(t => t.Hash == Hash).SingleOrDefaultAsync() != null)
                 {
                     Hash = Util.GenerateHashString(8);
                 }

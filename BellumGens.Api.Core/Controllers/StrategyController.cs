@@ -33,12 +33,13 @@ namespace BellumGens.Api.Controllers
 
 		[Route("Strategies")]
 		[AllowAnonymous]
-		public IActionResult GetStrategies(int page = 0)
+		public async Task<IActionResult> GetStrategies(int page = 0)
 		{
-			List<CSGOStrategy> strategies = _dbContext.CSGOStrategies.Include(s => s.Comments)
-																	 .Include(s => s.Votes)
-																	 .Where(s => s.Visible == true && (!string.IsNullOrEmpty(s.Url) || !string.IsNullOrEmpty(s.StratImage)))
-																	 .OrderByDescending(s => s.LastUpdated).Skip(page * 25).Take(25).ToList();
+			List<CSGOStrategy> strategies = await _dbContext.CSGOStrategies
+															.Include(s => s.Comments)
+															.Include(s => s.Votes)
+															.Where(s => s.Visible == true && (!string.IsNullOrEmpty(s.Url) || !string.IsNullOrEmpty(s.StratImage)))
+															.OrderByDescending(s => s.LastUpdated).Skip(page * 25).Take(25).ToListAsync();
 			return Ok(strategies.OrderByDescending(s => s.Rating));
 		}
 
@@ -58,7 +59,7 @@ namespace BellumGens.Api.Controllers
 			ApplicationUser user = await GetAuthUser();
 			if (user.Id == userId)
 			{
-				var strategies = _dbContext.CSGOStrategies.Where(s => s.UserId == userId).OrderByDescending(s => s.LastUpdated).ToList();
+				var strategies = await _dbContext.CSGOStrategies.Where(s => s.UserId == userId).OrderByDescending(s => s.LastUpdated).ToListAsync();
 				return Ok(strategies);
 			}
 			return BadRequest("You need to authenticate first.");
@@ -119,7 +120,7 @@ namespace BellumGens.Api.Controllers
 
 			try
 			{
-				_dbContext.SaveChanges();
+				await _dbContext.SaveChangesAsync();
 			}
 			catch (DbUpdateException e)
 			{
@@ -151,7 +152,7 @@ namespace BellumGens.Api.Controllers
 
 			try
 			{
-				_dbContext.SaveChanges();
+				await _dbContext.SaveChangesAsync();
 			}
 			catch (DbUpdateException e)
 			{
@@ -167,7 +168,7 @@ namespace BellumGens.Api.Controllers
 		{
 			ApplicationUser user = await GetAuthUser();
 
-			StrategyVote vote = _dbContext.StrategyVotes.Find(model.id, user.Id);
+			StrategyVote vote = await _dbContext.StrategyVotes.FindAsync(model.id, user.Id);
 			if (vote == null)
 			{
 				vote = new StrategyVote()
@@ -212,7 +213,7 @@ namespace BellumGens.Api.Controllers
 
 			comment.User = user;
 
-			var entity = _dbContext.StrategyComments.Find(comment.Id);
+			var entity = await _dbContext.StrategyComments.FindAsync(comment.Id);
 			if (entity != null)
 			{
 				_dbContext.Entry(entity).CurrentValues.SetValues(comment);
@@ -220,12 +221,12 @@ namespace BellumGens.Api.Controllers
 			else
 			{
 				_dbContext.StrategyComments.Add(comment);
-				strat = _dbContext.CSGOStrategies.Find(comment.StratId);
+				strat = await _dbContext.CSGOStrategies.FindAsync(comment.StratId);
 			}
 
 			try
 			{
-				_dbContext.SaveChanges();
+				await _dbContext.SaveChangesAsync();
 			}
 			catch (DbUpdateException e)
 			{
@@ -235,7 +236,7 @@ namespace BellumGens.Api.Controllers
 
 			if (strat != null && strat.UserId != user.Id)
 			{
-				List<BellumGensPushSubscription> subs = _dbContext.BellumGensPushSubscriptions.Where(s => s.userId == comment.Strategy.UserId).ToList();
+				List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.userId == comment.Strategy.UserId).ToListAsync();
 				await _notificationService.SendNotificationAsync(subs, comment);
 			}
 			return Ok(comment);
@@ -247,7 +248,7 @@ namespace BellumGens.Api.Controllers
 		{
 			ApplicationUser user = await GetAuthUser();
 
-			var comment = _dbContext.StrategyComments.Find(id);
+			var comment = await _dbContext.StrategyComments.FindAsync(id);
 			if (comment == null || comment.UserId != user.Id)
 			{
 				return BadRequest("Could not delete this user comment...");
@@ -256,7 +257,7 @@ namespace BellumGens.Api.Controllers
 			_dbContext.StrategyComments.Remove(comment);
 			try
 			{
-				_dbContext.SaveChanges();
+				await _dbContext.SaveChangesAsync();
 			}
 			catch (DbUpdateException e)
 			{
@@ -270,10 +271,10 @@ namespace BellumGens.Api.Controllers
 		private async Task<CSGOStrategy> UserCanEdit(Guid id)
 		{
 			ApplicationUser user = await GetAuthUser();
-            CSGOStrategy strat = _dbContext.CSGOStrategies.Find(id);
+            CSGOStrategy strat = await _dbContext.CSGOStrategies.FindAsync(id);
             if (strat?.TeamId != null)
             {
-                if (strat.Team.Members.Any(m => m.IsEditor || m.IsAdmin && m.UserId == user.Id))
+                if (strat.Team.Members.Any(m => m.UserId == user.Id && m.IsEditor || m.IsAdmin))
                 {
                     return strat;
                 }

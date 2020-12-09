@@ -34,9 +34,9 @@ namespace BellumGens.Api.Controllers
         // GET api/Account/Username
         [AllowAnonymous]
         [Route("Username")]
-        public IActionResult GetUsername(string username)
+        public async Task<IActionResult> GetUsername(string username)
         {
-            return Ok(_dbContext.Users.Any(u => u.UserName == username));
+            return Ok(await _dbContext.Users.AnyAsync(u => u.UserName == username));
         }
 
         // GET api/Account/UserInfo
@@ -46,14 +46,7 @@ namespace BellumGens.Api.Controllers
         {
 			if (User.Identity.IsAuthenticated)
 			{
-                string userId = User.GetResolvedUserId();
-
-                ApplicationUser user = _dbContext.Users.FirstOrDefault(e => e.Id == userId);
-                if (user == null)
-                {
-                    await _signInManager.SignOutAsync();
-                    return null;
-                }
+                ApplicationUser user = await GetAuthUser();
 
                 UserStatsViewModel model = new UserStatsViewModel(user, true);
                 if (string.IsNullOrEmpty(user.AvatarFull) && user.SteamID != null)
@@ -88,7 +81,7 @@ namespace BellumGens.Api.Controllers
         [HttpPost]
 		[AllowAnonymous]
 		[Route("Subscribe")]
-		public IActionResult Subscribe(Subscriber sub)
+		public async Task<IActionResult> Subscribe(Subscriber sub)
 		{
             if (ModelState.IsValid)
             {
@@ -96,7 +89,7 @@ namespace BellumGens.Api.Controllers
 
                 try
                 {
-                    _dbContext.SaveChanges();
+                    await _dbContext.SaveChangesAsync();
                 }
                 catch (DbUpdateException e)
                 {
@@ -111,15 +104,15 @@ namespace BellumGens.Api.Controllers
 		[HttpGet]
 		[AllowAnonymous]
 		[Route("Unsubscribe")]
-		public IActionResult Unsubscribe(string email, Guid sub)
+		public async Task<IActionResult> Unsubscribe(string email, Guid sub)
 		{
-			Subscriber subscriber = _dbContext.Subscribers.Find(email);
+			Subscriber subscriber = await _dbContext.Subscribers.FindAsync(email);
 			if (subscriber?.SubKey == sub)
 			{
 				subscriber.Subscribed = false;
 				try
 				{
-					_dbContext.SaveChanges();
+					await _dbContext.SaveChangesAsync();
 				}
 				catch (DbUpdateException e)
 				{
@@ -141,7 +134,7 @@ namespace BellumGens.Api.Controllers
 			user.SearchVisible = preferences.searchVisible;
 			try
 			{
-				_dbContext.SaveChanges();
+				await _dbContext.SaveChangesAsync();
 				if (newEmail)
 				{
 					string code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
@@ -222,12 +215,12 @@ namespace BellumGens.Api.Controllers
 			}
             await _signInManager.SignOutAsync();
 
-            List<BellumGensPushSubscription> subs = _dbContext.BellumGensPushSubscriptions.Where(s => s.userId == userid).ToList();
+            List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.userId == userid).ToListAsync();
             foreach (var sub in subs)
             {
                 _dbContext.BellumGensPushSubscriptions.Remove(sub);
             }
-            List<TeamInvite> invites = _dbContext.TeamInvites.Where(i => i.InvitedUserId == userid || i.InvitingUserId == userid).ToList();
+            List<TeamInvite> invites = await _dbContext.TeamInvites.Where(i => i.InvitedUserId == userid || i.InvitingUserId == userid).ToListAsync();
             foreach (var invite in invites)
             {
                 _dbContext.TeamInvites.Remove(invite);
@@ -236,7 +229,7 @@ namespace BellumGens.Api.Controllers
 
 			try
 			{
-				_dbContext.SaveChanges();
+				await _dbContext.SaveChangesAsync();
 			}
 			catch (DbUpdateException e)
 			{

@@ -24,9 +24,9 @@ namespace BellumGens.Api.Controllers
 
         [HttpGet]
         [Route("Promo")]
-        public IActionResult CheckPromo(string code)
+        public async Task<IActionResult> CheckPromo(string code)
         {
-            return Ok(_dbContext.PromoCodes.Find(code.ToUpperInvariant()));
+            return Ok(await _dbContext.PromoCodes.FindAsync(code.ToUpperInvariant()));
         }
 
         [Authorize]
@@ -35,7 +35,7 @@ namespace BellumGens.Api.Controllers
         {
             if (await UserIsInRole("admin"))
             {
-                return Ok(_dbContext.JerseyOrders.ToList());
+                return Ok(await _dbContext.JerseyOrders.ToListAsync());
             }
             return Unauthorized();
         }
@@ -51,7 +51,7 @@ namespace BellumGens.Api.Controllers
 
                 try
                 {
-                    _dbContext.SaveChanges();
+                    await _dbContext.SaveChangesAsync();
                 }
                 catch (DbUpdateException e)
                 {
@@ -79,7 +79,7 @@ namespace BellumGens.Api.Controllers
 
                 try
                 {
-                    _dbContext.SaveChanges();
+                    await _dbContext.SaveChangesAsync();
                 }
                 catch (DbUpdateException e)
                 {
@@ -89,7 +89,7 @@ namespace BellumGens.Api.Controllers
 
                 try
                 {
-                    await _dbContext.Entry(order).Reference(o => o.Promo).LoadAsync().ConfigureAwait(false);
+                    await _dbContext.Entry(order).Reference(o => o.Promo).LoadAsync();
 
                     decimal discount = baseDiscount;
                     if (order.Promo != null)

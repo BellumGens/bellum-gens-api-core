@@ -26,10 +26,9 @@ namespace BellumGens.Api.Controllers
         #region TOURNAMENTS AND REGISTRATIONS
         [AllowAnonymous]
         [Route("ActiveTournament")]
-        public IActionResult GetActiveTournament()
+        public async Task<IActionResult> GetActiveTournament()
         {
-            var tournament = _dbContext.Tournaments.FirstOrDefault(t => t.Active);
-            return Ok(tournament);
+            return Ok(await _dbContext.Tournaments.FirstOrDefaultAsync(t => t.Active));
         }
 
         [HttpPost]
@@ -38,7 +37,7 @@ namespace BellumGens.Api.Controllers
         {
             if (ModelState.IsValid)
             {
-                Company c = _dbContext.Companies.Find(application.CompanyId);
+                Company c = await _dbContext.Companies.FindAsync(application.CompanyId);
                 ApplicationUser user = await GetAuthUser();
                 if (application.Game == Game.StarCraft2)
                 {
@@ -46,13 +45,13 @@ namespace BellumGens.Api.Controllers
                     {
                         return BadRequest("Моля попълнете Battle.net battle tag!");
                     }
-                    if (_dbContext.TournamentApplications.Where(a => a.BattleNetId == application.BattleNetId && a.TournamentId == application.TournamentId).SingleOrDefault() != null)
+                    if (await _dbContext.TournamentApplications.Where(a => a.BattleNetId == application.BattleNetId && a.TournamentId == application.TournamentId).SingleOrDefaultAsync() != null)
                     {
                         return BadRequest($"Вече има направена регистрация с battle tag {application.BattleNetId}!");
                     }
                     if (user.BattleNetId == null)
                     {
-                        _dbContext.Users.Find(user.Id).BattleNetId = application.BattleNetId;
+                        user.BattleNetId = application.BattleNetId;
                     }
                 }
                 else
@@ -61,7 +60,7 @@ namespace BellumGens.Api.Controllers
                     {
                         return BadRequest("Моля попълнете отбор във формата за регистрация!");
                     }
-                    if (_dbContext.TournamentApplications.Where(a => a.TeamId == application.TeamId && a.TournamentId == application.TournamentId).SingleOrDefault() != null)
+                    if (await _dbContext.TournamentApplications.Where(a => a.TeamId == application.TeamId && a.TournamentId == application.TournamentId).SingleOrDefaultAsync() != null)
                     {
                         return BadRequest("Вече има направена регистрация за този отбор!");
                     }
@@ -73,13 +72,13 @@ namespace BellumGens.Api.Controllers
                         Name = application.CompanyId
                     });
                 }
-                application.UniqueHash(_dbContext);
+                await application.UniqueHash(_dbContext);
                 application.UserId = user.Id;
                 _dbContext.TournamentApplications.Add(application);
                 
                 try
                 {
-                    _dbContext.SaveChanges();
+                    await _dbContext.SaveChangesAsync();
                 }
                 catch (DbUpdateException e)
                 {
@@ -120,14 +119,14 @@ namespace BellumGens.Api.Controllers
         public async Task<IActionResult> GetUserRegistrations()
         {
             ApplicationUser user = await GetAuthUser();
-            return Ok(_dbContext.TournamentApplications.Where(a => a.UserId == user.Id && a.Tournament.Active).ToList());
+            return Ok(await _dbContext.TournamentApplications.Where(a => a.UserId == user.Id && a.Tournament.Active).ToListAsync());
         }
 
         [AllowAnonymous]
         [Route("RegCount")]
-        public IActionResult GetTotalRegistrationsCount(Guid tournamentId)
+        public async Task<IActionResult> GetTotalRegistrationsCount(Guid tournamentId)
         {
-            List<TournamentApplication> registrations = _dbContext.TournamentApplications.Where(a => a.Tournament.ID == tournamentId).ToList();
+            List<TournamentApplication> registrations = await _dbContext.TournamentApplications.Where(a => a.Tournament.ID == tournamentId).ToListAsync();
             List<RegistrationCountViewModel> model = new List<RegistrationCountViewModel>()
             {
                 new RegistrationCountViewModel(registrations, Game.CSGO),
@@ -139,7 +138,7 @@ namespace BellumGens.Api.Controllers
         [Route("AllRegistrations")]
         public async Task<IActionResult> GetAllApplications()
         {
-            return await UserIsInRole("admin") ? Ok(_dbContext.TournamentApplications.Where(a => a.Tournament.Active).ToList()) : Unauthorized();
+            return await UserIsInRole("admin") ? Ok(await _dbContext.TournamentApplications.Where(a => a.Tournament.Active).ToListAsync()) : Unauthorized();
         }
 
         [HttpPut]
@@ -148,14 +147,14 @@ namespace BellumGens.Api.Controllers
         {
             if (await UserIsInRole("admin"))
             {
-                TournamentApplication entity = _dbContext.TournamentApplications.Find(id);
+                TournamentApplication entity = await _dbContext.TournamentApplications.FindAsync(id);
                 if (entity != null)
                 {
                     _dbContext.Entry(entity).CurrentValues.SetValues(application);
 
                     try
                     {
-                        _dbContext.SaveChanges();
+                        await _dbContext.SaveChangesAsync();
                     }
                     catch (DbUpdateException e)
                     {
@@ -171,15 +170,15 @@ namespace BellumGens.Api.Controllers
 
         [AllowAnonymous]
         [Route("CSGORegs")]
-        public IActionResult GetCSGORegistrations(Guid? tournamentId = null)
+        public async Task<IActionResult> GetCSGORegistrations(Guid? tournamentId = null)
         {
             List<TournamentApplication> entities = tournamentId != null ?
-                _dbContext.TournamentApplications.Where(r => r.Game == Game.CSGO && r.TournamentId == tournamentId).ToList() :
-                _dbContext.TournamentApplications.Where(r => r.Game == Game.CSGO && r.Tournament.Active).ToList();
+                await _dbContext.TournamentApplications.Where(r => r.Game == Game.CSGO && r.TournamentId == tournamentId).ToListAsync() :
+                await _dbContext.TournamentApplications.Where(r => r.Game == Game.CSGO && r.Tournament.Active).ToListAsync();
 
             List<TournamentCSGOMatch> matches = tournamentId != null ?
-                _dbContext.TournamentCSGOMatches.Where(m => m.TournamentId == tournamentId).ToList() :
-                _dbContext.TournamentCSGOMatches.Where(m => m.Tournament.Active).ToList();
+                await _dbContext.TournamentCSGOMatches.Where(m => m.TournamentId == tournamentId).ToListAsync() :
+                await _dbContext.TournamentCSGOMatches.Where(m => m.Tournament.Active).ToListAsync();
 
             List<TournamentCSGOParticipant> registrations = new List<TournamentCSGOParticipant>();
             foreach (TournamentApplication app in entities)
@@ -191,15 +190,15 @@ namespace BellumGens.Api.Controllers
 
         [AllowAnonymous]
         [Route("SC2Regs")]
-        public IActionResult GetSC2sRegistrations(Guid? tournamentId = null)
+        public async Task<IActionResult> GetSC2sRegistrations(Guid? tournamentId = null)
         {
             List<TournamentApplication> entities = tournamentId != null ?
-                _dbContext.TournamentApplications.Where(r => r.Game == Game.StarCraft2 && r.TournamentId == tournamentId).ToList() :
-                _dbContext.TournamentApplications.Where(r => r.Game == Game.StarCraft2 && r.Tournament.Active).ToList();
+                await _dbContext.TournamentApplications.Where(r => r.Game == Game.StarCraft2 && r.TournamentId == tournamentId).ToListAsync() :
+                await _dbContext.TournamentApplications.Where(r => r.Game == Game.StarCraft2 && r.Tournament.Active).ToListAsync();
 
             List<TournamentSC2Match> matches = tournamentId != null ?
-                _dbContext.TournamentSC2Matches.Where(m => m.TournamentId == tournamentId).ToList() :
-                _dbContext.TournamentSC2Matches.Where(m => m.Tournament.Active).ToList();
+                await _dbContext.TournamentSC2Matches.Where(m => m.TournamentId == tournamentId).ToListAsync() :
+                await _dbContext.TournamentSC2Matches.Where(m => m.Tournament.Active).ToListAsync();
 
             List<TournamentSC2Participant> registrations = new List<TournamentSC2Participant>();
             
@@ -215,24 +214,20 @@ namespace BellumGens.Api.Controllers
         public async Task<IActionResult> DeleteRegistraion(Guid id)
         {
             ApplicationUser user = await GetAuthUser();
-            TournamentApplication application = _dbContext.TournamentApplications.Find(id);
-            if (application != null)
+            TournamentApplication application = await _dbContext.TournamentApplications.FindAsync(id);
+            if (application?.UserId == user.Id)
             {
-                if (application.UserId == user.Id)
+                _dbContext.TournamentApplications.Remove(application);
+                try
                 {
-                    _dbContext.TournamentApplications.Remove(application);
-                    try
-                    {
-                        _dbContext.SaveChanges();
-                    }
-                    catch (DbUpdateException e)
-                    {
-                        System.Diagnostics.Trace.TraceError("Tournament registration delete error: " + e.Message);
-                        return BadRequest("Something went wrong!");
-                    }
-                    return Ok(id);
+                    await _dbContext.SaveChangesAsync();
                 }
-                return NotFound();
+                catch (DbUpdateException e)
+                {
+                    System.Diagnostics.Trace.TraceError("Tournament registration delete error: " + e.Message);
+                    return BadRequest("Something went wrong!");
+                }
+                return Ok(id);
             }
             return NotFound();
         }
@@ -240,9 +235,9 @@ namespace BellumGens.Api.Controllers
         [HttpGet]
         [AllowAnonymous]
         [Route("Tournaments")]
-        public IActionResult GetTournaments()
+        public async Task<IActionResult> GetTournaments()
         {
-            return Ok(_dbContext.Tournaments.ToList());
+            return Ok(await _dbContext.Tournaments.ToListAsync());
         }
 
 
@@ -254,7 +249,7 @@ namespace BellumGens.Api.Controllers
             {
                 if (ModelState.IsValid)
                 {
-                    var entity = _dbContext.Tournaments.Find(tournament.ID);
+                    var entity = await _dbContext.Tournaments.FindAsync(tournament.ID);
                     if (entity != null)
                     {
                         _dbContext.Entry(entity).CurrentValues.SetValues(tournament);
@@ -266,7 +261,7 @@ namespace BellumGens.Api.Controllers
 
                     try
                     {
-                        _dbContext.SaveChanges();
+                        await _dbContext.SaveChangesAsync();
                     }
                     catch (DbUpdateException e)
                     {
@@ -284,21 +279,21 @@ namespace BellumGens.Api.Controllers
         #region GROUPS
         [AllowAnonymous]
         [Route("CSGOGroups")]
-        public IActionResult GetCSGOGroups(Guid? tournamentId = null)
+        public async Task<IActionResult> GetCSGOGroups(Guid? tournamentId = null)
         {
             List<TournamentCSGOGroup> groups = tournamentId != null ?
-                _dbContext.TournamentCSGOGroups.Where(g => g.TournamentId == tournamentId).ToList() :
-                _dbContext.TournamentCSGOGroups.Where(g => g.Tournament.Active).ToList();
+                await _dbContext.TournamentCSGOGroups.Where(g => g.TournamentId == tournamentId).ToListAsync() :
+                await _dbContext.TournamentCSGOGroups.Where(g => g.Tournament.Active).ToListAsync();
             return Ok(groups);
         }
 
         [AllowAnonymous]
         [Route("SC2Groups")]
-        public IActionResult GetSC2Groups(Guid? tournamentId = null)
+        public async Task<IActionResult> GetSC2Groups(Guid? tournamentId = null)
         {
             List<TournamentSC2Group> groups = tournamentId != null ?
-                _dbContext.TournamentSC2Groups.Where(g => g.TournamentId == tournamentId).ToList() :
-                _dbContext.TournamentSC2Groups.Where(g => g.Tournament.Active).ToList();
+                await _dbContext.TournamentSC2Groups.Where(g => g.TournamentId == tournamentId).ToListAsync() :
+                await _dbContext.TournamentSC2Groups.Where(g => g.Tournament.Active).ToListAsync();
             return Ok(groups);
         }
 
@@ -308,20 +303,20 @@ namespace BellumGens.Api.Controllers
         {
             if (await UserIsInRole("event-admin"))
             {
-                TournamentCSGOGroup entity = _dbContext.TournamentCSGOGroups.Find(id);
+                TournamentCSGOGroup entity = await _dbContext.TournamentCSGOGroups.FindAsync(id);
                 if (entity != null)
                 {
                     _dbContext.Entry(entity).CurrentValues.SetValues(group);
                 }
                 else
                 {
-                    group.TournamentId = _dbContext.Tournaments.Where(t => t.Active).First().ID;
+                    group.TournamentId = (await _dbContext.Tournaments.FirstOrDefaultAsync(t => t.Active)).ID;
                     _dbContext.TournamentCSGOGroups.Add(group);
                 }
 
                 try
                 {
-                    _dbContext.SaveChanges();
+                    await _dbContext.SaveChangesAsync();
                 }
                 catch (DbUpdateException e)
                 {
@@ -339,20 +334,20 @@ namespace BellumGens.Api.Controllers
         {
             if (await UserIsInRole("event-admin"))
             {
-                TournamentSC2Group entity = _dbContext.TournamentSC2Groups.Find(id);
+                TournamentSC2Group entity = await _dbContext.TournamentSC2Groups.FindAsync(id);
                 if (entity != null)
                 {
                     _dbContext.Entry(entity).CurrentValues.SetValues(group);
                 }
                 else
                 {
-                    group.TournamentId = _dbContext.Tournaments.Where(t => t.Active).First().ID;
+                    group.TournamentId = (await _dbContext.Tournaments.FirstOrDefaultAsync(t => t.Active)).ID;
                     _dbContext.TournamentSC2Groups.Add(group);
                 }
 
                 try
                 {
-                    _dbContext.SaveChanges();
+                    await _dbContext.SaveChangesAsync();
                 }
                 catch (DbUpdateException e)
                 {
@@ -371,7 +366,7 @@ namespace BellumGens.Api.Controllers
             TournamentGroup entity;
             if (await UserIsInRole("event-admin"))
             {
-                entity = _dbContext.TournamentCSGOGroups.Find(id);
+                entity = await _dbContext.TournamentCSGOGroups.FindAsync(id);
                 if (entity != null)
                 {
                     foreach (var par in entity.Participants)
@@ -381,7 +376,7 @@ namespace BellumGens.Api.Controllers
                     _dbContext.TournamentCSGOGroups.Remove(entity as TournamentCSGOGroup);
                     try
                     {
-                        _dbContext.SaveChanges();
+                        await _dbContext.SaveChangesAsync();
                     }
                     catch (DbUpdateException e)
                     {
@@ -390,7 +385,7 @@ namespace BellumGens.Api.Controllers
                     }
                     return Ok("deleted");
                 }
-                entity = _dbContext.TournamentSC2Groups.Find(id);
+                entity = await _dbContext.TournamentSC2Groups.FindAsync(id);
                 if (entity != null)
                 {
                     foreach (var par in entity.Participants)
@@ -400,7 +395,7 @@ namespace BellumGens.Api.Controllers
                     _dbContext.TournamentSC2Groups.Remove(entity as TournamentSC2Group);
                     try
                     {
-                        _dbContext.SaveChanges();
+                        await _dbContext.SaveChangesAsync();
                     }
                     catch (DbUpdateException e)
                     {
@@ -421,13 +416,13 @@ namespace BellumGens.Api.Controllers
             TournamentGroup entity;
             if (await UserIsInRole("event-admin"))
             {
-                entity = _dbContext.TournamentCSGOGroups.Find(id);
+                entity = await _dbContext.TournamentCSGOGroups.FindAsync(id);
                 if (entity == null)
                 {
-                    entity = _dbContext.TournamentSC2Groups.Find(id);
+                    entity = await _dbContext.TournamentSC2Groups.FindAsync(id);
                     if (entity != null)
                     {
-                        TournamentApplication app = _dbContext.TournamentApplications.Find(participant.Id);
+                        TournamentApplication app = await _dbContext.TournamentApplications.FindAsync(participant.Id);
                         if (app == null)
                         {
                             return NotFound();
@@ -436,7 +431,7 @@ namespace BellumGens.Api.Controllers
                         app.TournamentSC2GroupId = id;
                         try
                         {
-                            _dbContext.SaveChanges();
+                            await _dbContext.SaveChangesAsync();
                         }
                         catch (DbUpdateException e)
                         {
@@ -449,7 +444,7 @@ namespace BellumGens.Api.Controllers
                 }
                 else
                 {
-                    TournamentApplication app = _dbContext.TournamentApplications.Find(participant.Id);
+                    TournamentApplication app = await _dbContext.TournamentApplications.FindAsync(participant.Id);
                     if (app == null)
                     {
                         return NotFound(); 
@@ -458,7 +453,7 @@ namespace BellumGens.Api.Controllers
                     app.TournamentCSGOGroupId = id;
                     try
                     {
-                        _dbContext.SaveChanges();
+                        await _dbContext.SaveChangesAsync();
                     }
                     catch (DbUpdateException e)
                     {
@@ -477,14 +472,14 @@ namespace BellumGens.Api.Controllers
         {
             if (await UserIsInRole("event-admin"))
             {
-                TournamentApplication entity = _dbContext.TournamentApplications.Find(id);
+                TournamentApplication entity = await _dbContext.TournamentApplications.FindAsync(id);
                 if (entity != null)
                 {
                     entity.TournamentCSGOGroupId = null;
                     entity.TournamentSC2GroupId = null;
                     try
                     {
-                        _dbContext.SaveChanges();
+                        await _dbContext.SaveChangesAsync();
                     }
                     catch (DbUpdateException e)
                     {
@@ -502,16 +497,16 @@ namespace BellumGens.Api.Controllers
         #region MATCHES
         [AllowAnonymous]
         [Route("csgomatches")]
-        public IActionResult GetCSGOMatches()
+        public async Task<IActionResult> GetCSGOMatches()
         {
-            return Ok(_dbContext.TournamentCSGOMatches.OrderBy(m => m.StartTime).ToList());
+            return Ok(await _dbContext.TournamentCSGOMatches.OrderBy(m => m.StartTime).ToListAsync());
         }
 
         [AllowAnonymous]
         [Route("csgomatch")]
-        public IActionResult GetCSGOMatch(Guid id)
+        public async Task<IActionResult> GetCSGOMatch(Guid id)
         {
-            TournamentCSGOMatch match = _dbContext.TournamentCSGOMatches.Find(id);
+            TournamentCSGOMatch match = await _dbContext.TournamentCSGOMatches.FindAsync(id);
             if (match != null)
                 return Ok(match);
             return NotFound();
@@ -519,16 +514,16 @@ namespace BellumGens.Api.Controllers
 
         [AllowAnonymous]
         [Route("sc2matches")]
-        public IActionResult GetSC2Matches()
+        public async Task<IActionResult> GetSC2Matches()
         {
-            return Ok(_dbContext.TournamentSC2Matches.OrderBy(m => m.StartTime).ToList());
+            return Ok(await _dbContext.TournamentSC2Matches.OrderBy(m => m.StartTime).ToListAsync());
         }
 
         [AllowAnonymous]
         [Route("sc2match")]
-        public IActionResult GetSC2Match(Guid id)
+        public async Task<IActionResult> GetSC2Match(Guid id)
         {
-            TournamentSC2Match match = _dbContext.TournamentSC2Matches.Find(id);
+            TournamentSC2Match match = await _dbContext.TournamentSC2Matches.FindAsync(id);
             if (match != null)
                 return Ok(match);
             return NotFound();
@@ -540,7 +535,7 @@ namespace BellumGens.Api.Controllers
         {
             if (await UserIsInRole("event-admin"))
             {
-                TournamentCSGOMatch entity = _dbContext.TournamentCSGOMatches.Find(id);
+                TournamentCSGOMatch entity = await _dbContext.TournamentCSGOMatches.FindAsync(id);
 
                 if (entity != null)
                 {
@@ -551,14 +546,14 @@ namespace BellumGens.Api.Controllers
                 {
                     if (match.TournamentId == null)
                     {
-                        match.TournamentId = _dbContext.Tournaments.Where(t => t.Active).First().ID;
+                        match.TournamentId = (await _dbContext.Tournaments.FirstOrDefaultAsync(t => t.Active)).ID;
                     }
                     _dbContext.TournamentCSGOMatches.Add(match);
                 }
 
                 try
                 {
-                    _dbContext.SaveChanges();
+                    await _dbContext.SaveChangesAsync();
                 }
                 catch (DbUpdateException e)
                 {
@@ -567,8 +562,8 @@ namespace BellumGens.Api.Controllers
                 }
                 if (entity == null)
                 {
-                    await _dbContext.Entry(match).Reference(m => m.Team1).LoadAsync().ConfigureAwait(false);
-                    await _dbContext.Entry(match).Reference(m => m.Team2).LoadAsync().ConfigureAwait(false);
+                    await _dbContext.Entry(match).Reference(m => m.Team1).LoadAsync();
+                    await _dbContext.Entry(match).Reference(m => m.Team2).LoadAsync();
                 }
 
                 return Ok(match);
@@ -582,12 +577,12 @@ namespace BellumGens.Api.Controllers
         {
             if (await UserIsInRole("event-admin"))
             {
-                TournamentCSGOMatch entity = _dbContext.TournamentCSGOMatches.Find(id);
+                TournamentCSGOMatch entity = await _dbContext.TournamentCSGOMatches.FindAsync(id);
                 _dbContext.TournamentCSGOMatches.Remove(entity);
 
                 try
                 {
-                    _dbContext.SaveChanges();
+                    await _dbContext.SaveChangesAsync();
                 }
                 catch (DbUpdateException e)
                 {
@@ -605,7 +600,7 @@ namespace BellumGens.Api.Controllers
         {
             if (await UserIsInRole("event-admin"))
             {
-                CSGOMatchMap entity = _dbContext.TournamentCSGOMatchMaps.Find(id);
+                CSGOMatchMap entity = await _dbContext.TournamentCSGOMatchMaps.FindAsync(id);
                 if (entity != null)
                 {
                     _dbContext.Entry(entity).CurrentValues.SetValues(map);
@@ -617,7 +612,7 @@ namespace BellumGens.Api.Controllers
 
                 try
                 {
-                    _dbContext.SaveChanges();
+                    await _dbContext.SaveChangesAsync();
                 }
                 catch (DbUpdateException e)
                 {
@@ -635,12 +630,12 @@ namespace BellumGens.Api.Controllers
         {
             if (await UserIsInRole("event-admin"))
             {
-                CSGOMatchMap entity = _dbContext.TournamentCSGOMatchMaps.Find(id);
+                CSGOMatchMap entity = await _dbContext.TournamentCSGOMatchMaps.FindAsync(id);
                 _dbContext.TournamentCSGOMatchMaps.Remove(entity);
 
                 try
                 {
-                    _dbContext.SaveChanges();
+                    await _dbContext.SaveChangesAsync();
                 }
                 catch (DbUpdateException e)
                 {
@@ -658,7 +653,7 @@ namespace BellumGens.Api.Controllers
         {
             if (await UserIsInRole("event-admin"))
             {
-                TournamentSC2Match entity = _dbContext.TournamentSC2Matches.Find(id);
+                TournamentSC2Match entity = await _dbContext.TournamentSC2Matches.FindAsync(id);
                 if (entity != null)
                 {
                     _dbContext.Entry(entity).CurrentValues.SetValues(match);
@@ -675,7 +670,7 @@ namespace BellumGens.Api.Controllers
 
                 try
                 {
-                    _dbContext.SaveChanges();
+                    await _dbContext.SaveChangesAsync();
                 }
                 catch (DbUpdateException e)
                 {
@@ -684,8 +679,8 @@ namespace BellumGens.Api.Controllers
                 }
                 if (entity == null)
                 {
-                    await _dbContext.Entry(match).Reference(m => m.Player1).LoadAsync().ConfigureAwait(false);
-                    await _dbContext.Entry(match).Reference(m => m.Player2).LoadAsync().ConfigureAwait(false);
+                    await _dbContext.Entry(match).Reference(m => m.Player1).LoadAsync();
+                    await _dbContext.Entry(match).Reference(m => m.Player2).LoadAsync();
                 }
                 return Ok(match);
             }
@@ -700,12 +695,12 @@ namespace BellumGens.Api.Controllers
         {
             if (await UserIsInRole("event-admin"))
             {
-                TournamentSC2Match entity = _dbContext.TournamentSC2Matches.Find(id);
+                TournamentSC2Match entity = await _dbContext.TournamentSC2Matches.FindAsync(id);
                 _dbContext.TournamentSC2Matches.Remove(entity);
 
                 try
                 {
-                    _dbContext.SaveChanges();
+                    await _dbContext.SaveChangesAsync();
                 }
                 catch (DbUpdateException e)
                 {
@@ -723,7 +718,7 @@ namespace BellumGens.Api.Controllers
         {
             if (await UserIsInRole("event-admin"))
             {
-                SC2MatchMap entity = _dbContext.TournamentSC2MatchMaps.Find(id);
+                SC2MatchMap entity = await _dbContext.TournamentSC2MatchMaps.FindAsync(id);
                 if (entity != null)
                 {
                     _dbContext.Entry(entity).CurrentValues.SetValues(map);
@@ -735,7 +730,7 @@ namespace BellumGens.Api.Controllers
 
                 try
                 {
-                    _dbContext.SaveChanges();
+                    await _dbContext.SaveChangesAsync();
                 }
                 catch (DbUpdateException e)
                 {
@@ -753,12 +748,12 @@ namespace BellumGens.Api.Controllers
         {
             if (await UserIsInRole("event-admin"))
             {
-                SC2MatchMap entity = _dbContext.TournamentSC2MatchMaps.Find(id);
+                SC2MatchMap entity = await _dbContext.TournamentSC2MatchMaps.FindAsync(id);
                 _dbContext.TournamentSC2MatchMaps.Remove(entity);
 
                 try
                 {
-                    _dbContext.SaveChanges();
+                    await _dbContext.SaveChangesAsync();
                 }
                 catch (DbUpdateException e)
                 {

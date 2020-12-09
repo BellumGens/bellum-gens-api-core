@@ -59,12 +59,12 @@ namespace BellumGens.Api.Controllers
 		[AllowAnonymous]
 		public async Task<IActionResult> GetUserTeams(string userid)
 		{
-			List<CSGOTeam> userTeams = await _dbContext.TeamMembers.Where(m => m.UserId == userid).Include(m => m.Team).Select(m => m.Team).ToListAsync();
 			List<CSGOTeamSummaryViewModel> teams = new List<CSGOTeamSummaryViewModel>();
-			foreach (CSGOTeam team in userTeams)
-            {
-				teams.Add(new CSGOTeamSummaryViewModel(team));
-            }
+			await _dbContext.TeamMembers.Where(m => m.UserId == userid).Include(m => m.Team).Select(m => m.Team)
+				.ForEachAsync(team =>
+				{
+					teams.Add(new CSGOTeamSummaryViewModel(team));
+				});
 			return Ok(teams);
 		}
 
@@ -82,11 +82,11 @@ namespace BellumGens.Api.Controllers
 		public async Task<IActionResult> SetAvailability(UserAvailability newAvailability)
 		{
 			ApplicationUser user = await GetAuthUser();
-			UserAvailability entity = _dbContext.Users.Find(user.Id).Availability.First(a => a.Day == newAvailability.Day);
+			UserAvailability entity = await _dbContext.UserAvailabilities.FindAsync(user.Id, newAvailability.Day);
 			_dbContext.Entry(entity).CurrentValues.SetValues(newAvailability);
 			try
 			{
-				_dbContext.SaveChanges();
+				await _dbContext.SaveChangesAsync();
 			}
             catch (DbUpdateException e)
 			{
@@ -110,11 +110,11 @@ namespace BellumGens.Api.Controllers
 		public async Task<IActionResult> SetMapPool(UserMapPool mapPool)
 		{
 			ApplicationUser user = await GetAuthUser();
-			UserMapPool userMap = _dbContext.Users.Find(user.Id).MapPool.First(m => m.Map == mapPool.Map);
+			UserMapPool userMap = await _dbContext.UserMapPool.FindAsync(user.Id, mapPool.Map);
 			_dbContext.Entry(userMap).CurrentValues.SetValues(mapPool);
 			try
 			{
-				_dbContext.SaveChanges();
+				await _dbContext.SaveChangesAsync();
 			}
 			catch (DbUpdateException e)
 			{
@@ -132,7 +132,7 @@ namespace BellumGens.Api.Controllers
 			user.PreferredPrimaryRole = id;
 			try
 			{
-				_dbContext.SaveChanges();
+				await _dbContext.SaveChangesAsync();
 			}
 			catch (DbUpdateException e)
 			{
@@ -150,7 +150,7 @@ namespace BellumGens.Api.Controllers
 			user.PreferredSecondaryRole = id;
 			try
 			{
-				_dbContext.SaveChanges();
+				await _dbContext.SaveChangesAsync();
 			}
 			catch (DbUpdateException e)
 			{
@@ -164,7 +164,7 @@ namespace BellumGens.Api.Controllers
 		[HttpPut]
 		public async Task<IActionResult> AcceptTeamInvite(TeamInvite invite)
 		{
-			TeamInvite entity = _dbContext.TeamInvites.Find(invite.InvitingUserId, invite.InvitedUserId, invite.TeamId);
+			TeamInvite entity = await _dbContext.TeamInvites.FindAsync(invite.InvitingUserId, invite.InvitedUserId, invite.TeamId);
 			if (entity == null)
 			{
 				return NotFound();
@@ -175,7 +175,7 @@ namespace BellumGens.Api.Controllers
 			{
 				return BadRequest("This invite was not sent to you...");
 			}
-			CSGOTeam team = _dbContext.CSGOTeams.Find(invite.TeamId);
+			CSGOTeam team = await _dbContext.CSGOTeams.FindAsync(invite.TeamId);
 			team.Members.Add(new TeamMember()
 			{
 				UserId = user.Id,
@@ -186,23 +186,23 @@ namespace BellumGens.Api.Controllers
 			entity.State = NotificationState.Accepted;
 			try
 			{
-				_dbContext.SaveChanges();
+				await _dbContext.SaveChangesAsync();
 			}
 			catch (DbUpdateException e)
 			{
 				System.Diagnostics.Trace.TraceError($"User team invite accept error: ${e.Message}");
 				return BadRequest("Something went wrong...");
 			}
-			List<BellumGensPushSubscription> subs = _dbContext.BellumGensPushSubscriptions.Where(s => s.userId == entity.InvitingUser.Id).ToList();
+			List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.userId == entity.InvitingUser.Id).ToListAsync();
 			await _notificationService.SendNotificationAsync(subs, entity, NotificationState.Accepted);
 			return Ok(entity);
 		}
 
 		[Route("RejectTeamInvite")]
 		[HttpPut]
-		public IActionResult RejectTeamInvite(TeamInvite invite)
+		public async Task<IActionResult> RejectTeamInvite(TeamInvite invite)
 		{
-			TeamInvite entity = _dbContext.TeamInvites.Find(invite.InvitingUserId, invite.InvitedUserId, invite.TeamId);
+			TeamInvite entity = await _dbContext.TeamInvites.FindAsync(invite.InvitingUserId, invite.InvitedUserId, invite.TeamId);
 			if (entity == null)
 			{
 				return NotFound();
@@ -211,7 +211,7 @@ namespace BellumGens.Api.Controllers
 			entity.State = NotificationState.Rejected;
 			try
 			{
-				_dbContext.SaveChanges();
+				await _dbContext.SaveChangesAsync();
 			}
 			catch (DbUpdateException e)
 			{
