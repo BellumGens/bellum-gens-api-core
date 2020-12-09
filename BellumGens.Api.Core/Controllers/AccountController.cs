@@ -222,10 +222,10 @@ namespace BellumGens.Api.Controllers
 			}
             await _signInManager.SignOutAsync();
 
-            List<BellumGensPushSubscription> subs = _dbContext.PushSubscriptions.Where(s => s.userId == userid).ToList();
+            List<BellumGensPushSubscription> subs = _dbContext.BellumGensPushSubscriptions.Where(s => s.userId == userid).ToList();
             foreach (var sub in subs)
             {
-                _dbContext.PushSubscriptions.Remove(sub);
+                _dbContext.BellumGensPushSubscriptions.Remove(sub);
             }
             List<TeamInvite> invites = _dbContext.TeamInvites.Where(i => i.InvitedUserId == userid || i.InvitingUserId == userid).ToList();
             foreach (var invite in invites)

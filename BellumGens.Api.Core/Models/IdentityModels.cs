@@ -148,13 +148,15 @@ namespace BellumGens.Api.Core.Models
 
 		public DbSet<CSGOStrategy> CSGOStrategies { get; set; }
 
+		public DbSet<StrategyVote> StrategyVotes { get; set; }
+
 		public DbSet<TeamMapPool> TeamMapPools { get; set; }
 
 		public DbSet<TeamAvailability> TeamAvailabilities { get; set; }
 
 		public DbSet<UserMessage> Messages { get; set; }
 
-		public DbSet<BellumGensPushSubscription> PushSubscriptions { get; set; }
+		public DbSet<BellumGensPushSubscription> BellumGensPushSubscriptions { get; set; }
 
 		public DbSet<StrategyComment> StrategyComments { get; set; }
 

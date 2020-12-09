@@ -35,8 +35,10 @@ namespace BellumGens.Api.Controllers
 		[AllowAnonymous]
 		public IActionResult GetStrategies(int page = 0)
 		{
-			List<CSGOStrategy> strategies = _dbContext.CSGOStrategies.Where(s => s.Visible == true && (!string.IsNullOrEmpty(s.Url) || !string.IsNullOrEmpty(s.StratImage)))
-																 .OrderByDescending(s => s.LastUpdated).Skip(page * 25).Take(25).ToList();
+			List<CSGOStrategy> strategies = _dbContext.CSGOStrategies.Include(s => s.Comments)
+																	 .Include(s => s.Votes)
+																	 .Where(s => s.Visible == true && (!string.IsNullOrEmpty(s.Url) || !string.IsNullOrEmpty(s.StratImage)))
+																	 .OrderByDescending(s => s.LastUpdated).Skip(page * 25).Take(25).ToList();
 			return Ok(strategies.OrderByDescending(s => s.Rating));
 		}
 
@@ -47,7 +49,7 @@ namespace BellumGens.Api.Controllers
 			{
 				return BadRequest("You're not a member of this team.");
 			}
-			return Ok(await _dbContext.CSGOStrategies.Where(s => s.TeamId == teamId).ToListAsync());
+			return Ok(await _dbContext.CSGOStrategies.Include(s => s.Comments).Include(s => s.Votes).Where(s => s.TeamId == teamId).ToListAsync());
 		}
 
 		[Route("userstrats")]
@@ -66,7 +68,7 @@ namespace BellumGens.Api.Controllers
 		[AllowAnonymous]
 		public async Task<IActionResult> GetStrat(string stratId)
 		{
-			CSGOStrategy strat = ResolveStrategy(stratId);
+			CSGOStrategy strat = await ResolveStrategy(stratId);
 			if (strat != null && !strat.Visible && strat.TeamId != null && strat.TeamId != Guid.Empty)
 			{
 				if (!await UserIsTeamMember(strat.TeamId.Value))
@@ -165,22 +167,22 @@ namespace BellumGens.Api.Controllers
 		{
 			ApplicationUser user = await GetAuthUser();
 
-			var strategy = _dbContext.CSGOStrategies.Find(model.id);
-			StrategyVote vote = strategy.Votes.FirstOrDefault(v => v.UserId == user.Id);
+			StrategyVote vote = _dbContext.StrategyVotes.Find(model.id, user.Id);
 			if (vote == null)
 			{
 				vote = new StrategyVote()
 				{
+					StratId = model.id,
 					UserId = user.Id,
 					Vote = model.direction
 				};
-				strategy.Votes.Add(vote);
+				_dbContext.StrategyVotes.Add(vote);
 			}
 			else
 			{
 				if (vote.Vote == model.direction)
 				{
-					strategy.Votes.Remove(vote);
+					_dbContext.StrategyVotes.Remove(vote);
 					vote = null;
 				}
 				else
@@ -191,7 +193,7 @@ namespace BellumGens.Api.Controllers
 
 			try
 			{
-				_dbContext.SaveChanges();
+				await _dbContext.SaveChangesAsync();
 			}
 			catch (DbUpdateException e)
 			{
@@ -233,7 +235,7 @@ namespace BellumGens.Api.Controllers
 
 			if (strat != null && strat.UserId != user.Id)
 			{
-				List<BellumGensPushSubscription> subs = _dbContext.PushSubscriptions.Where(s => s.userId == comment.Strategy.UserId).ToList();
+				List<BellumGensPushSubscription> subs = _dbContext.BellumGensPushSubscriptions.Where(s => s.userId == comment.Strategy.UserId).ToList();
 				await _notificationService.SendNotificationAsync(subs, comment);
 			}
 			return Ok(comment);
@@ -283,18 +285,10 @@ namespace BellumGens.Api.Controllers
             return null;
 		}
 
-		private CSGOStrategy ResolveStrategy(string stratId)
+		private async Task<CSGOStrategy> ResolveStrategy(string stratId)
 		{
-			CSGOStrategy strat = _dbContext.CSGOStrategies.FirstOrDefault(s => s.CustomUrl == stratId);
-			if (strat == null)
-			{
-				var valid = Guid.TryParse(stratId, out Guid id);
-				if (valid)
-				{
-					strat = _dbContext.CSGOStrategies.Find(id);
-				}
-			}
-			return strat;
+			Guid.TryParse(stratId, out Guid id);
+			return await _dbContext.CSGOStrategies.Include(s => s.Comments).Include(s => s.Votes).FirstOrDefaultAsync(s => s.CustomUrl == stratId || s.Id == id);
 		}
 	}
 }
