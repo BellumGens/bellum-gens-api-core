@@ -353,10 +353,10 @@ namespace BellumGens.Api.Controllers
 					System.Diagnostics.Trace.TraceError($"Team application error: ${e.Message}");
 					return BadRequest("Something went wrong...");
 				}
-				List<TeamMember> admins = await _dbContext.TeamMembers.Where(m => m.TeamId == application.TeamId && m.IsAdmin).ToListAsync();
+				TeamMember admin = await _dbContext.TeamMembers.Where(m => m.TeamId == application.TeamId && m.IsAdmin).FirstOrDefaultAsync();
 				try
 				{
-					List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => admins.Any(a => a.UserId == s.userId)).ToListAsync();
+					List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.userId == admin.UserId).ToListAsync();
 					await _notificationService.SendNotificationAsync(subs, application);
 				}
 				catch (Exception e)
