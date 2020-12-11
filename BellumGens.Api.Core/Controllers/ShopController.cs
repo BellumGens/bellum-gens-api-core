@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -35,7 +34,7 @@ namespace BellumGens.Api.Controllers
         {
             if (await UserIsInRole("admin"))
             {
-                return Ok(await _dbContext.JerseyOrders.ToListAsync());
+                return Ok(await _dbContext.JerseyOrders.Include(o => o.Jerseys).ToListAsync());
             }
             return Unauthorized();
         }

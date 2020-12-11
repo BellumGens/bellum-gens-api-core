@@ -507,7 +507,7 @@ namespace BellumGens.Api.Controllers
         [Route("csgomatches")]
         public async Task<IActionResult> GetCSGOMatches()
         {
-            return Ok(await _dbContext.TournamentCSGOMatches.Include(m => m.Team1).Include(m => m.Team2).OrderBy(m => m.StartTime).ToListAsync());
+            return Ok(await _dbContext.TournamentCSGOMatches.Include(m => m.Team1).Include(m => m.Team2).Include(m => m.Maps).OrderBy(m => m.StartTime).ToListAsync());
         }
 
         [AllowAnonymous]
@@ -524,7 +524,7 @@ namespace BellumGens.Api.Controllers
         [Route("sc2matches")]
         public async Task<IActionResult> GetSC2Matches()
         {
-            return Ok(await _dbContext.TournamentSC2Matches.Include(m => m.Player1).Include(m => m.Player2).OrderBy(m => m.StartTime).ToListAsync());
+            return Ok(await _dbContext.TournamentSC2Matches.Include(m => m.Player1).Include(m => m.Player2).Include(m => m.Maps).OrderBy(m => m.StartTime).ToListAsync());
         }
 
         [AllowAnonymous]
