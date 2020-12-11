@@ -55,10 +55,7 @@ namespace BellumGens.Api.Core
 
             services.AddMemoryCache();
 
-            services.AddAuthentication(options =>
-                {
-                    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-                })
+            services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
                 .AddCookie(options =>
                 {
                     options.Cookie.HttpOnly = true;
@@ -84,6 +81,15 @@ namespace BellumGens.Api.Core
                 {
                     options.ApplicationKey = Configuration["steamApiKey"];
                 });
+
+            services.ConfigureApplicationCookie(options =>
+            {
+                options.Cookie.HttpOnly = true;
+                options.Cookie.SameSite = SameSiteMode.None;
+                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                options.ExpireTimeSpan = TimeSpan.FromDays(14);
+                options.SlidingExpiration = true;
+            });
 
             services.Configure<IdentityOptions>(options =>
             {
