@@ -1,5 +1,4 @@
-﻿using Newtonsoft.Json;
-using SteamModels;
+﻿using SteamModels;
 using System.Net.Http;
 using System.Xml.Serialization;
 using System.Collections.Generic;
@@ -10,32 +9,27 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
+using System.Text.Json;
 
 namespace BellumGens.Api.Core.Providers
 {
 	public class SteamServiceProvider : ISteamService
 	{
-		private IMemoryCache _cache;
-		private AppConfiguration _appInfo;
-		private static readonly string _statsForGameUrl =
-				"https://api.steampowered.com/ISteamUserStats/GetUserStatsForGame/v0002/?appid={0}&key={1}&steamid={2}&format=json";
+		private readonly IMemoryCache _cache;
+		private readonly AppConfiguration _appInfo;
 
+		private static readonly string _statsForGameUrl = "https://api.steampowered.com/ISteamUserStats/GetUserStatsForGame/v0002/?appid={0}&key={1}&steamid={2}&format=json";
 		private static readonly string _steamUserUrl = "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key={0}&steamids={1}";
-
-		private static readonly string _playerDetailsById =
-			"https://steamcommunity.com/profiles/{0}/?xml=1";
-
-		private static readonly string _playerDetailsByUrl =
-			"https://steamcommunity.com/id/{0}/?xml=1";
-
+		private static readonly string _playerDetailsById = "https://steamcommunity.com/profiles/{0}/?xml=1";
+		private static readonly string _playerDetailsByUrl = "https://steamcommunity.com/id/{0}/?xml=1";
 		private static readonly string _groupMembersUrl = "https://steamcommunity.com/gid/{0}/memberslistxml/?xml=1";
 
 		//private static readonly string _steamAppNewsUrl = "https://api.steampowered.com/ISteamNews/GetNewsForApp/v0002/?appid={0}&maxlength=300&format=json";
 
 		public SteamServiceProvider(IMemoryCache cache, AppConfiguration appInfo)
         {
-			this._cache = cache;
-			this._appInfo = appInfo;
+			_cache = cache;
+			_appInfo = appInfo;
         }
 
 		public async Task<CSGOPlayerStats> GetStatsForCSGOUser(string username)
@@ -45,7 +39,7 @@ namespace BellumGens.Api.Core.Providers
 			{
 				Uri endpoint = new Uri(string.Format(_statsForGameUrl, _appInfo.Config.csgoGameId, _appInfo.Config.steamApiKey, username));
 				var statsForGameResponse = await client.GetStringAsync(endpoint);
-				statsForUser = JsonConvert.DeserializeObject<CSGOPlayerStats>(statsForGameResponse);
+				statsForUser = JsonSerializer.Deserialize<CSGOPlayerStats>(statsForGameResponse);
 
 			}
 			return statsForUser;
@@ -75,19 +69,16 @@ namespace BellumGens.Api.Core.Providers
 			using (HttpClient client = new HttpClient())
 			{
 				var playerDetailsResponse = await client.GetStringAsync(string.Format(_steamUserUrl, _appInfo.Config.steamApiKey, users));
-				result = JsonConvert.DeserializeObject<SteamUsersSummary>(playerDetailsResponse);
+				result = JsonSerializer.Deserialize<SteamUsersSummary>(playerDetailsResponse);
 			}
 			return result.response.players;
 		}
 
 		public async Task<UserStatsViewModel> GetSteamUserDetails(string name)
 		{
-			lock (_cache)
+			if (_cache.Get(name) is UserStatsViewModel)
 			{
-				if (_cache.Get(name) is UserStatsViewModel)
-				{
-					return _cache.Get(name) as UserStatsViewModel;
-				}
+				return _cache.Get(name) as UserStatsViewModel;
 			}
 
 			UserStatsViewModel model = new UserStatsViewModel();
@@ -121,11 +112,8 @@ namespace BellumGens.Api.Core.Providers
 				{
 					try
 					{
-						model.userStats = JsonConvert.DeserializeObject<CSGOPlayerStats>(await statsForGameResponse.Content.ReadAsStringAsync());
-						lock (_cache)
-						{
-							_cache.Set(name, model, DateTime.Now.AddDays(5));
-						}
+						model.userStats = JsonSerializer.Deserialize<CSGOPlayerStats>(await statsForGameResponse.Content.ReadAsStringAsync());
+						_cache.Set(name, model, DateTime.Now.AddDays(5));
 						return model;
 					}
 					catch

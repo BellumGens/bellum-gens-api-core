@@ -1,7 +1,7 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace BellumGens.Api.Core.Models
 {
@@ -13,7 +13,7 @@ namespace BellumGens.Api.Core.Models
 
         public SC2Map Map { get; set; }
 
-        public Guid SC2MatchId { get; set; }
+        public Guid Sc2MatchId { get; set; }
 
         public string PlayerPickId { get; set; }
 
@@ -22,7 +22,7 @@ namespace BellumGens.Api.Core.Models
         public string WinnerId { get; set; }
 
         [JsonIgnore]
-        [ForeignKey("SC2MatchId")]
+        [ForeignKey("Sc2MatchId")]
         public virtual TournamentSC2Match Match { get; set; }
 
         [JsonIgnore]

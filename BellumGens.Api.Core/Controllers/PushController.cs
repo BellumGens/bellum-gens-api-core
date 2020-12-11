@@ -27,11 +27,11 @@ namespace BellumGens.Api.Controllers
 				p256dh = sub.keys.p256dh,
 				auth = sub.keys.auth
 			};
-			_dbContext.PushSubscriptions.Add(push);
+			_dbContext.BellumGensPushSubscriptions.Add(push);
 
 			try
 			{
-				_dbContext.SaveChanges();
+				await _dbContext.SaveChangesAsync();
 			}
 			catch (DbUpdateException e)
 			{

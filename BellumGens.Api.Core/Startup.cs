@@ -20,6 +20,22 @@ namespace BellumGens.Api.Core
     {
         public static string PublicClientId { get; private set; }
 
+        public static string[] devCors = new string[] {
+                                      "http://localhost:4200",
+                                      "http://localhost:4000",
+                                      "http://localhost:4201",
+                                      "http://localhost:4001"
+                                  };
+
+        public static string[] prodCors = new string[] {
+                                      "https://bellumgens.com",
+                                      "https://www.bellumgens.com",
+                                      "https://eb-league.com",
+                                      "https://www.eb-league.com",
+                                      "http://staging.bellumgens.com",
+                                      "http://staging.eb-league.com"
+                                  };
+
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
@@ -45,7 +61,6 @@ namespace BellumGens.Api.Core
                 })
                 .AddCookie(options =>
                 {
-                    options.Cookie.HttpOnly = true;
                     options.Cookie.HttpOnly = true;
                     options.Cookie.SameSite = SameSiteMode.None;
                     options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
@@ -141,26 +156,14 @@ namespace BellumGens.Api.Core
                 app.UseCors(o => o.AllowAnyHeader()
                                   .AllowAnyMethod()
                                   .AllowCredentials()
-                                  .WithOrigins(new string[] {
-                                      "http://localhost:4200",
-                                      "http://localhost:4000",
-                                      "http://localhost:4201",
-                                      "http://localhost:4001"
-                                  }));
+                                  .WithOrigins(devCors));
             }
             else
             {
                 app.UseCors(o => o.AllowAnyHeader()
                                   .AllowAnyMethod()
                                   .AllowCredentials()
-                                  .WithOrigins(new string[] { 
-                                      "https://bellumgens.com",
-                                      "https://www.bellumgens.com",
-                                      "https://eb-league.com",
-                                      "https://www.eb-league.com",
-                                      "http://staging.bellumgens.com",
-                                      "http://staging.eb-league.com" 
-                                  }));
+                                  .WithOrigins(prodCors));
             }
 
             app.UseRouting();

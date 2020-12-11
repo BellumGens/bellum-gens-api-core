@@ -1,6 +1,6 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace BellumGens.Api.Core.Models
 {
@@ -9,9 +9,7 @@ namespace BellumGens.Api.Core.Models
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
         public Guid OrderId { get; set; }
-        [JsonProperty("cut")]
         public JerseyCut Cut { get; set; }
-        [JsonProperty("size")]
         public JerseySize Size { get; set; }
 
         [JsonIgnore]

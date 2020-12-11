@@ -1,6 +1,6 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace BellumGens.Api.Core.Models
 {
@@ -78,6 +78,15 @@ namespace BellumGens.Api.Core.Models
             get
             {
                 return Member?.RealName;
+            }
+        }
+
+        [NotMapped]
+        public string SteamId
+        {
+            get
+            {
+                return Member?.SteamID;
             }
         }
 

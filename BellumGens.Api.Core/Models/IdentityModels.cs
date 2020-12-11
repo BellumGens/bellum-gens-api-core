@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -121,8 +120,6 @@ namespace BellumGens.Api.Core.Models
 
 		public PlaystyleRole PreferredSecondaryRole { get; set; }
 
-		// public virtual ICollection<Languages> LanguagesSpoken { get; set; }
-
 		public virtual ICollection<UserAvailability> Availability { get; set; } = new HashSet<UserAvailability>();
 
 		public virtual ICollection<UserMapPool> MapPool { get; set; } = new HashSet<UserMapPool>();
@@ -138,8 +135,6 @@ namespace BellumGens.Api.Core.Models
 	{
 		public DbSet<UserAvailability> UserAvailabilities { get; set; }
 
-		// public DbSet<Languages> Languages { get; set; }
-
 		public DbSet<UserMapPool> UserMapPool { get; set; }
 
 		public DbSet<CSGOTeam> CSGOTeams { get; set; }
@@ -150,15 +145,17 @@ namespace BellumGens.Api.Core.Models
 
 		public DbSet<TeamApplication> TeamApplications { get; set; }
 
-		public DbSet<CSGOStrategy> Strategies { get; set; }
+		public DbSet<CSGOStrategy> CSGOStrategies { get; set; }
 
-		public DbSet<TeamMapPool> TeamMapPool { get; set; }
+		public DbSet<StrategyVote> StrategyVotes { get; set; }
 
-		public DbSet<TeamAvailability> TeamPracticeSchedule { get; set; }
+		public DbSet<TeamMapPool> TeamMapPools { get; set; }
+
+		public DbSet<TeamAvailability> TeamAvailabilities { get; set; }
 
 		public DbSet<UserMessage> Messages { get; set; }
 
-		public DbSet<BellumGensPushSubscription> PushSubscriptions { get; set; }
+		public DbSet<BellumGensPushSubscription> BellumGensPushSubscriptions { get; set; }
 
 		public DbSet<StrategyComment> StrategyComments { get; set; }
 
@@ -174,11 +171,11 @@ namespace BellumGens.Api.Core.Models
 
 		public DbSet<TournamentCSGOMatch> TournamentCSGOMatches { get; set; }
 
-		public DbSet<CSGOMatchMap> TournamentCSGOMatchMaps { get; set; }
+		public DbSet<CSGOMatchMap> CSGOMatchMaps { get; set; }
 
 		public DbSet<TournamentSC2Match> TournamentSC2Matches { get; set; }
 
-		public DbSet<SC2MatchMap> TournamentSC2MatchMaps { get; set; }
+		public DbSet<SC2MatchMap> SC2MatchMaps { get; set; }
 
 		public DbSet<Company> Companies { get; set; }
 
@@ -194,16 +191,6 @@ namespace BellumGens.Api.Core.Models
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
 			base.OnModelCreating(modelBuilder);
-
-			//modelBuilder.Entity<ApplicationUser>()
-			//            .HasMany(e => e.LanguagesSpoken)
-			//            .WithMany(e => e.Users)
-			//            .Map(e =>
-			//            {
-			//                e.MapLeftKey("UserId");
-			//                e.MapRightKey("LanguageId");
-			//                e.ToTable("UserLanguages");
-			//            });
 
 			modelBuilder.Entity<ApplicationUser>()
 						.Property(p => p.Accuracy)

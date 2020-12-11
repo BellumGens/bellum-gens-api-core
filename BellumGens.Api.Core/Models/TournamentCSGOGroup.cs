@@ -1,7 +1,7 @@
-﻿using Newtonsoft.Json;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
+using System.Text.Json.Serialization;
 
 namespace BellumGens.Api.Core.Models
 {
@@ -10,7 +10,7 @@ namespace BellumGens.Api.Core.Models
         private List<TournamentCSGOParticipant> _participants;
 
         [NotMapped]
-        [JsonProperty("Participants")]
+        [JsonPropertyName("participants")]
         public List<TournamentCSGOParticipant> PublicParticipants
         {
             get

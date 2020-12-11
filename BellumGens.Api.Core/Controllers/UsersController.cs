@@ -38,7 +38,7 @@ namespace BellumGens.Api.Controllers
             ApplicationUser registered = null;
             if (user.steamUser != null)
             {
-				registered = _dbContext.Users.Include(u => u.MemberOf).ThenInclude(m => m.Team).FirstOrDefault(u => u.SteamID == user.steamUser.steamID64);
+				registered = await _dbContext.Users.Include(u => u.MemberOf).ThenInclude(m => m.Team).FirstOrDefaultAsync(u => u.SteamID == user.steamUser.steamID64);
             }
 			if (registered != null)
 			{
@@ -55,16 +55,38 @@ namespace BellumGens.Api.Controllers
             return Ok(user?.steamUser?.groups);
         }
 
-        [Route("Availability")]
+		[Route("UserTeams")]
+		[AllowAnonymous]
+		public async Task<IActionResult> GetUserTeams(string userid)
+		{
+			List<CSGOTeamSummaryViewModel> teams = new List<CSGOTeamSummaryViewModel>();
+			await _dbContext.TeamMembers.Where(m => m.UserId == userid).Include(m => m.Team).Select(m => m.Team)
+				.ForEachAsync(team =>
+				{
+					teams.Add(new CSGOTeamSummaryViewModel(team));
+				});
+			return Ok(teams);
+		}
+
+		[Route("Availability")]
+		[AllowAnonymous]
+		[HttpGet]
+		public async Task<IActionResult> GetAvailability(string userid)
+		{
+			List<UserAvailability> availabilities = await _dbContext.UserAvailabilities.Where(u => u.UserId == userid).ToListAsync();
+			return Ok(availabilities);
+		}
+
+		[Route("Availability")]
 		[HttpPut]
 		public async Task<IActionResult> SetAvailability(UserAvailability newAvailability)
 		{
 			ApplicationUser user = await GetAuthUser();
-			UserAvailability entity = _dbContext.Users.Find(user.Id).Availability.First(a => a.Day == newAvailability.Day);
+			UserAvailability entity = await _dbContext.UserAvailabilities.FindAsync(user.Id, newAvailability.Day);
 			_dbContext.Entry(entity).CurrentValues.SetValues(newAvailability);
 			try
 			{
-				_dbContext.SaveChanges();
+				await _dbContext.SaveChangesAsync();
 			}
             catch (DbUpdateException e)
 			{
@@ -73,17 +95,26 @@ namespace BellumGens.Api.Controllers
 			}
 			return Ok(entity);
 		}
-		
+
+		[Route("MapPool")]
+		[AllowAnonymous]
+		[HttpGet]
+		public async Task<IActionResult> GetMapPool(string userid)
+		{
+			List<UserMapPool> mappool = await _dbContext.UserMapPool.Where(u => u.UserId == userid).ToListAsync();
+			return Ok(mappool);
+		}
+
 		[Route("mapPool")]
 		[HttpPut]
 		public async Task<IActionResult> SetMapPool(UserMapPool mapPool)
 		{
 			ApplicationUser user = await GetAuthUser();
-			UserMapPool userMap = _dbContext.Users.Find(user.Id).MapPool.First(m => m.Map == mapPool.Map);
+			UserMapPool userMap = await _dbContext.UserMapPool.FindAsync(user.Id, mapPool.Map);
 			_dbContext.Entry(userMap).CurrentValues.SetValues(mapPool);
 			try
 			{
-				_dbContext.SaveChanges();
+				await _dbContext.SaveChangesAsync();
 			}
 			catch (DbUpdateException e)
 			{
@@ -95,45 +126,45 @@ namespace BellumGens.Api.Controllers
 		
 		[Route("PrimaryRole")]
 		[HttpPut]
-		public async Task<IActionResult> SetPrimaryRole(Role role)
+		public async Task<IActionResult> SetPrimaryRole(PlaystyleRole id, Role role)
 		{
 			ApplicationUser user = await GetAuthUser();
-			_dbContext.Users.Find(user.Id).PreferredPrimaryRole = role.Id;
+			user.PreferredPrimaryRole = id;
 			try
 			{
-				_dbContext.SaveChanges();
+				await _dbContext.SaveChangesAsync();
 			}
 			catch (DbUpdateException e)
 			{
 				System.Diagnostics.Trace.TraceError($"User primary role error: ${e.Message}");
 				return BadRequest("Something went wrong... ");
 			}
-			return Ok("success");
+			return Ok(role);
 		}
 		
 		[Route("SecondaryRole")]
 		[HttpPut]
-		public async Task<IActionResult> SetSecondaryRole(Role role)
+		public async Task<IActionResult> SetSecondaryRole(PlaystyleRole id, Role role)
 		{
 			ApplicationUser user = await GetAuthUser();
-			_dbContext.Users.Find(user.Id).PreferredSecondaryRole = role.Id;
+			user.PreferredSecondaryRole = id;
 			try
 			{
-				_dbContext.SaveChanges();
+				await _dbContext.SaveChangesAsync();
 			}
 			catch (DbUpdateException e)
 			{
 				System.Diagnostics.Trace.TraceError($"User secondary role error: ${e.Message}");
 				return BadRequest("Something went wrong... ");
 			}
-			return Ok("success");
+			return Ok(role);
 		}
 
 		[Route("AcceptTeamInvite")]
 		[HttpPut]
 		public async Task<IActionResult> AcceptTeamInvite(TeamInvite invite)
 		{
-			TeamInvite entity = _dbContext.TeamInvites.Find(invite.InvitingUserId, invite.InvitedUserId, invite.TeamId);
+			TeamInvite entity = await _dbContext.TeamInvites.FindAsync(invite.InvitingUserId, invite.InvitedUserId, invite.TeamId);
 			if (entity == null)
 			{
 				return NotFound();
@@ -144,7 +175,7 @@ namespace BellumGens.Api.Controllers
 			{
 				return BadRequest("This invite was not sent to you...");
 			}
-			CSGOTeam team = _dbContext.CSGOTeams.Find(invite.TeamId);
+			CSGOTeam team = await _dbContext.CSGOTeams.FindAsync(invite.TeamId);
 			team.Members.Add(new TeamMember()
 			{
 				UserId = user.Id,
@@ -155,23 +186,23 @@ namespace BellumGens.Api.Controllers
 			entity.State = NotificationState.Accepted;
 			try
 			{
-				_dbContext.SaveChanges();
+				await _dbContext.SaveChangesAsync();
 			}
 			catch (DbUpdateException e)
 			{
 				System.Diagnostics.Trace.TraceError($"User team invite accept error: ${e.Message}");
 				return BadRequest("Something went wrong...");
 			}
-			List<BellumGensPushSubscription> subs = _dbContext.PushSubscriptions.Where(s => s.userId == entity.InvitingUser.Id).ToList();
+			List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.userId == entity.InvitingUser.Id).ToListAsync();
 			await _notificationService.SendNotificationAsync(subs, entity, NotificationState.Accepted);
 			return Ok(entity);
 		}
 
 		[Route("RejectTeamInvite")]
 		[HttpPut]
-		public IActionResult RejectTeamInvite(TeamInvite invite)
+		public async Task<IActionResult> RejectTeamInvite(TeamInvite invite)
 		{
-			TeamInvite entity = _dbContext.TeamInvites.Find(invite.InvitingUserId, invite.InvitedUserId, invite.TeamId);
+			TeamInvite entity = await _dbContext.TeamInvites.FindAsync(invite.InvitingUserId, invite.InvitedUserId, invite.TeamId);
 			if (entity == null)
 			{
 				return NotFound();
@@ -180,7 +211,7 @@ namespace BellumGens.Api.Controllers
 			entity.State = NotificationState.Rejected;
 			try
 			{
-				_dbContext.SaveChanges();
+				await _dbContext.SaveChangesAsync();
 			}
 			catch (DbUpdateException e)
 			{

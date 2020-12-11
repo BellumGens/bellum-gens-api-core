@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Web;
 
 namespace BellumGens.Api.Core.Models
 {
@@ -14,6 +11,8 @@ namespace BellumGens.Api.Core.Models
 		}
 
 		public bool Available { get; set; }
+
+		public DayOfWeek Day { get; set; }
 
 		public DateTimeOffset From { get; set; }
 

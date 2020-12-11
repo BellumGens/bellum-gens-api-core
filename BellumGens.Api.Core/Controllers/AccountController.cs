@@ -34,44 +34,54 @@ namespace BellumGens.Api.Controllers
         // GET api/Account/Username
         [AllowAnonymous]
         [Route("Username")]
-        public IActionResult GetUsername(string username)
+        public async Task<IActionResult> GetUsername(string username)
         {
-            return Ok(_dbContext.Users.Any(u => u.UserName == username));
+            return Ok(await _dbContext.Users.AnyAsync(u => u.UserName == username));
         }
 
         // GET api/Account/UserInfo
         [AllowAnonymous]
-        [Route("UserInfo")]
-        public async Task<UserStatsViewModel> GetUserInfo()
+        [HttpGet]
+        public async Task<IActionResult> Get()
         {
 			if (User.Identity.IsAuthenticated)
 			{
-                string userId = User.GetResolvedUserId();
-
-                ApplicationUser user = _dbContext.Users.Include(u => u.MemberOf).FirstOrDefault(e => e.Id == userId);
-                if (user == null)
-                {
-                    await _signInManager.SignOutAsync();
-                    return null;
-                }
+                ApplicationUser user = await GetAuthUser();
 
                 UserStatsViewModel model = new UserStatsViewModel(user, true);
-                if (user.SteamID != null && string.IsNullOrEmpty(user.AvatarFull))
+                if (string.IsNullOrEmpty(user.AvatarFull) && user.SteamID != null)
                 {
-                    model = await _steamService.GetSteamUserDetails(user.SteamID);
+                    model = await _steamService.GetSteamUserDetails(user.Id);
                     model.SetUser(user, _dbContext);
                 }
                 var logins = await _userManager.GetLoginsAsync(user);
                 model.externalLogins = logins.Select(t => t.LoginProvider).ToList();
-				return model;
+                return Ok(model);
 			}
-			return null;
+            return Unauthorized("Have to login first");
         }
 
-		[HttpPost]
+        [Route("UserNotifications")]
+        public async Task<IActionResult> GetUserNotifications()
+        {
+            ApplicationUser user = await GetAuthUser();
+            List<TeamInvite> teamInvites = await _dbContext.TeamInvites.Include(i => i.Team).Where(i => i.InvitedUserId == user.Id).ToListAsync();
+            return Ok(teamInvites);
+        }
+
+        [Route("UserTeamsAdmin")]
+        public async Task<IActionResult> GetUserTeams()
+        {
+            ApplicationUser user = await GetAuthUser();
+            List<CSGOTeamSummaryViewModel> teams = new List<CSGOTeamSummaryViewModel>();
+            await _dbContext.TeamMembers.Include(m => m.Team).Where(m => m.UserId == user.Id && m.IsAdmin).Select(m => m.Team).ForEachAsync(t => teams.Add(new CSGOTeamSummaryViewModel(t)));
+            return Ok(teams);
+        }
+
+        [HttpPost]
 		[AllowAnonymous]
 		[Route("Subscribe")]
-		public IActionResult Subscribe(Subscriber sub)
+		public async Task<IActionResult> Subscribe(Subscriber sub)
 		{
             if (ModelState.IsValid)
             {
@@ -79,7 +89,7 @@ namespace BellumGens.Api.Controllers
 
                 try
                 {
-                    _dbContext.SaveChanges();
+                    await _dbContext.SaveChangesAsync();
                 }
                 catch (DbUpdateException e)
                 {
@@ -94,15 +104,15 @@ namespace BellumGens.Api.Controllers
 		[HttpGet]
 		[AllowAnonymous]
 		[Route("Unsubscribe")]
-		public IActionResult Unsubscribe(string email, Guid sub)
+		public async Task<IActionResult> Unsubscribe(string email, Guid sub)
 		{
-			Subscriber subscriber = _dbContext.Subscribers.Find(email);
+			Subscriber subscriber = await _dbContext.Subscribers.FindAsync(email);
 			if (subscriber?.SubKey == sub)
 			{
 				subscriber.Subscribed = false;
 				try
 				{
-					_dbContext.SaveChanges();
+					await _dbContext.SaveChangesAsync();
 				}
 				catch (DbUpdateException e)
 				{
@@ -124,7 +134,7 @@ namespace BellumGens.Api.Controllers
 			user.SearchVisible = preferences.searchVisible;
 			try
 			{
-				_dbContext.SaveChanges();
+				await _dbContext.SaveChangesAsync();
 				if (newEmail)
 				{
 					string code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
@@ -172,10 +182,10 @@ namespace BellumGens.Api.Controllers
             {
                 var user = await _userManager.FindByNameAsync(login.UserName);
                 UserStatsViewModel model = new UserStatsViewModel(user, true);
-                if (string.IsNullOrEmpty(user.AvatarFull) && !Guid.TryParse(user.Id, out Guid newguid))
+                if (string.IsNullOrEmpty(user.AvatarFull) && user.SteamID != null)
                 {
                     model = await _steamService.GetSteamUserDetails(user.Id);
-                    model.RefreshAppUserValues(_dbContext);
+                    model.SetUser(user, _dbContext);
                 }
                 var logins = await _userManager.GetLoginsAsync(user);
                 model.externalLogins = logins.Select(t => t.LoginProvider).ToList();
@@ -205,12 +215,12 @@ namespace BellumGens.Api.Controllers
 			}
             await _signInManager.SignOutAsync();
 
-            List<BellumGensPushSubscription> subs = _dbContext.PushSubscriptions.Where(s => s.userId == userid).ToList();
+            List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.userId == userid).ToListAsync();
             foreach (var sub in subs)
             {
-                _dbContext.PushSubscriptions.Remove(sub);
+                _dbContext.BellumGensPushSubscriptions.Remove(sub);
             }
-            List<TeamInvite> invites = _dbContext.TeamInvites.Where(i => i.InvitedUserId == userid || i.InvitingUserId == userid).ToList();
+            List<TeamInvite> invites = await _dbContext.TeamInvites.Where(i => i.InvitedUserId == userid || i.InvitingUserId == userid).ToListAsync();
             foreach (var invite in invites)
             {
                 _dbContext.TeamInvites.Remove(invite);
@@ -219,7 +229,7 @@ namespace BellumGens.Api.Controllers
 
 			try
 			{
-				_dbContext.SaveChanges();
+				await _dbContext.SaveChangesAsync();
 			}
 			catch (DbUpdateException e)
 			{
@@ -337,20 +347,10 @@ namespace BellumGens.Api.Controllers
         // GET api/Account/ExternalLogin
         [AllowAnonymous]
         [Route("ExternalLogin", Name = "ExternalLogin")]
-        public async Task<IActionResult> GetExternalLogin(string provider, string error = null, string returnUrl = "")
+        public async Task<IActionResult> GetExternalLogin(string provider, string returnUrl = "")
         {
-            if (error != null)
-            {
-                return Redirect(returnUrl + "/unauthorized");
-			}
-
             ApplicationUser user = await GetAuthUser();
-            string userId = null;
-
-            if (user != null)
-            {
-                userId = user.Id;
-            }
+            string userId = user?.Id;
 
             var properties = _signInManager.ConfigureExternalAuthenticationProperties(provider, Url.Action("ExternalCallback", "Account", new { returnUrl, userId }));
             return Challenge(properties, provider);

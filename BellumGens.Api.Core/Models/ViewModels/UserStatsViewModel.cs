@@ -1,7 +1,5 @@
-﻿using BellumGens.Api.Core.Providers;
-using SteamModels;
+﻿using SteamModels;
 using SteamModels.CSGO;
-using System.Threading.Tasks;
 
 namespace BellumGens.Api.Core.Models
 {
@@ -16,23 +14,65 @@ namespace BellumGens.Api.Core.Models
         public bool steamUserException { get; set; }
 		public CSGOPlayerStats userStats { get; set; }
 		public bool userStatsException { get; set; }
+        public bool registered
+        {
+            get { return user != null; }
+        }
+        public bool? steamPrivate
+        {
+            get
+            {
+                return user?.SteamPrivate;
+            }
+        }
+        public decimal? headshotPercentage
+        {
+            get
+            {
+                return user?.HeadshotPercentage;
+            }
+        }
+        public decimal? killDeathRatio
+        {
+            get
+            {
+                return user?.KillDeathRatio;
+            }
+        }
+        public decimal? accuracy
+        {
+            get
+            {
+                return user?.Accuracy;
+            }
+        }
+        public string country
+        {
+            get
+            {
+                return user?.Country;
+            }
+        }
+        public PlaystyleRole? primaryRole
+        {
+            get
+            {
+                return user?.PreferredPrimaryRole;
+            }
+        }
+        public PlaystyleRole? secondaryRole
+        {
+            get
+            {
+                return user?.PreferredSecondaryRole;
+            }
+        }
 
         public void SetUser(ApplicationUser user, BellumGensDbContext context)
         {
             this.user = user;
             RefreshAppUserValues(context);
         }
-
-  //      public async Task<UserStatsViewModel> GetSteamUserDetails(BellumGensDbContext context)
-		//{
-		//	UserStatsViewModel model = await SteamServiceProvider.GetSteamUserDetails(id);
-		//	steamUser = model.steamUser;
-		//	steamUserException = model.steamUserException;
-		//	userStats = model.userStats;
-		//	userStatsException = model.userStatsException;
-  //          RefreshAppUserValues(context);
-		//	return this;
-		//}
 
         public void RefreshAppUserValues(BellumGensDbContext context)
         {
@@ -94,6 +134,9 @@ namespace BellumGens.Api.Core.Models
                     user.Accuracy = userStats.accuracy;
                     changes = true;
                 }
+                // Populate weapons and don't serialize stats again...
+                if (userStats.weapons != null)
+                    userStats.playerstats = null;
             }
             if (changes)
             {

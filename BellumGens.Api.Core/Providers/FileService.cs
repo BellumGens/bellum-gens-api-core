@@ -15,6 +15,7 @@ namespace BellumGens.Api.Core.Providers
 		}
 		public string SaveImageFile(string blob, string name)
         {
+			string resultPath = "";
 			if (!string.IsNullOrEmpty(blob) && !Uri.IsWellFormedUriString(blob, UriKind.Absolute))
 			{
 				string base64 = blob.Substring(blob.IndexOf(',') + 1);
@@ -31,10 +32,10 @@ namespace BellumGens.Api.Core.Providers
 					}
 					path = Path.Combine(path, $"{name}.png");
 					image.Save(path);
-					blob = CORSConfig.apiDomain + $"/Content/Strats/{name}.png";
+					resultPath = CORSConfig.apiDomain + $"/Content/Strats/{name}.png";
 				}
 			}
-			return blob;
+			return resultPath;
 		}
     }
 }

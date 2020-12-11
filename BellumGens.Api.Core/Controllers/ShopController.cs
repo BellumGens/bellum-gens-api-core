@@ -1,4 +1,4 @@
-﻿using BellumGens.Api.Common;
+﻿using BellumGens.Api.Core.Common;
 using BellumGens.Api.Core.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -24,9 +23,9 @@ namespace BellumGens.Api.Controllers
 
         [HttpGet]
         [Route("Promo")]
-        public IActionResult CheckPromo(string code)
+        public async Task<IActionResult> CheckPromo(string code)
         {
-            return Ok(_dbContext.PromoCodes.Find(code.ToUpperInvariant()));
+            return Ok(await _dbContext.PromoCodes.FindAsync(code.ToUpperInvariant()));
         }
 
         [Authorize]
@@ -35,7 +34,7 @@ namespace BellumGens.Api.Controllers
         {
             if (await UserIsInRole("admin"))
             {
-                return Ok(_dbContext.JerseyOrders.ToList());
+                return Ok(await _dbContext.JerseyOrders.Include(o => o.Jerseys).ToListAsync());
             }
             return Unauthorized();
         }
@@ -51,7 +50,7 @@ namespace BellumGens.Api.Controllers
 
                 try
                 {
-                    _dbContext.SaveChanges();
+                    await _dbContext.SaveChangesAsync();
                 }
                 catch (DbUpdateException e)
                 {
@@ -79,7 +78,7 @@ namespace BellumGens.Api.Controllers
 
                 try
                 {
-                    _dbContext.SaveChanges();
+                    await _dbContext.SaveChangesAsync();
                 }
                 catch (DbUpdateException e)
                 {
@@ -89,7 +88,7 @@ namespace BellumGens.Api.Controllers
 
                 try
                 {
-                    await _dbContext.Entry(order).Reference(o => o.Promo).LoadAsync().ConfigureAwait(false);
+                    await _dbContext.Entry(order).Reference(o => o.Promo).LoadAsync();
 
                     decimal discount = baseDiscount;
                     if (order.Promo != null)
@@ -105,7 +104,12 @@ namespace BellumGens.Api.Controllers
                     {
                         builder.Append($"<p>{Util.JerseyCutNames[jersey.Cut]} тениска, размер {Util.JerseySizeNames[jersey.Size]}</p>");
                     }
-                    builder.Append($"Обща цена: {order.Jerseys.Count * baseJerseyPrice * (1 - discount) + 5}лв.");
+                    decimal price = order.Jerseys.Count * baseJerseyPrice * (1 - discount);
+                    if (price >= 100)
+                    {
+                        builder.Append($"Безплатна доставка за поръчка над 100лв.! ");
+                    }
+                    builder.Append($"Обща цена: {price}лв.");
                     builder.Append(@"<p>Поздрави от екипа на Bellum Gens!</p>
                                 <a href='https://eb-league.com' target='_blank'>https://eb-league.com</a>");
 

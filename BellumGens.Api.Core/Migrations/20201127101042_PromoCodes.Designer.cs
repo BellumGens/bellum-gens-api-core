@@ -4,14 +4,16 @@ using BellumGens.Api.Core.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace BellumGens.Api.Core.Migrations
 {
     [DbContext(typeof(BellumGensDbContext))]
-    partial class BellumGensDbContextModelSnapshot : ModelSnapshot
+    [Migration("20201127101042_PromoCodes")]
+    partial class PromoCodes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -165,7 +167,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasIndex("userId");
 
-                    b.ToTable("BellumGensPushSubscriptions");
+                    b.ToTable("PushSubscriptions");
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.CSGOMatchMap", b =>
@@ -174,7 +176,7 @@ namespace BellumGens.Api.Core.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("CsgoMatchId")
+                    b.Property<Guid>("CSGOMatchId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<int>("Map")
@@ -194,13 +196,13 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CsgoMatchId");
+                    b.HasIndex("CSGOMatchId");
 
                     b.HasIndex("TeamBanId");
 
                     b.HasIndex("TeamPickId");
 
-                    b.ToTable("CSGOMatchMaps");
+                    b.ToTable("TournamentCSGOMatchMaps");
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.CSGOStrategy", b =>
@@ -260,7 +262,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("CSGOStrategies");
+                    b.ToTable("Strategies");
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.CSGOTeam", b =>
@@ -433,7 +435,7 @@ namespace BellumGens.Api.Core.Migrations
                     b.Property<string>("PlayerPickId")
                         .HasColumnType("nvarchar(450)");
 
-                    b.Property<Guid>("Sc2MatchId")
+                    b.Property<Guid>("SC2MatchId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("WinnerId")
@@ -445,9 +447,9 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasIndex("PlayerPickId");
 
-                    b.HasIndex("Sc2MatchId");
+                    b.HasIndex("SC2MatchId");
 
-                    b.ToTable("SC2MatchMaps");
+                    b.ToTable("TournamentSC2MatchMaps");
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.StrategyComment", b =>
@@ -492,7 +494,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("StrategyVotes");
+                    b.ToTable("StrategyVote");
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.Subscriber", b =>
@@ -555,7 +557,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasKey("TeamId", "Day");
 
-                    b.ToTable("TeamAvailabilities");
+                    b.ToTable("TeamPracticeSchedule");
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.TeamInvite", b =>
@@ -601,7 +603,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasKey("TeamId", "Map");
 
-                    b.ToTable("TeamMapPools");
+                    b.ToTable("TeamMapPool");
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.TeamMember", b =>
@@ -1065,7 +1067,7 @@ namespace BellumGens.Api.Core.Migrations
                 {
                     b.HasOne("BellumGens.Api.Core.Models.TournamentCSGOMatch", "Match")
                         .WithMany("Maps")
-                        .HasForeignKey("CsgoMatchId")
+                        .HasForeignKey("CSGOMatchId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -1131,7 +1133,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasOne("BellumGens.Api.Core.Models.TournamentSC2Match", "Match")
                         .WithMany("Maps")
-                        .HasForeignKey("Sc2MatchId")
+                        .HasForeignKey("SC2MatchId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 

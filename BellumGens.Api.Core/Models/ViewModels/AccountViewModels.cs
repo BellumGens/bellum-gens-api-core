@@ -14,19 +14,6 @@ namespace BellumGens.Api.Core.Models
         public string State { get; set; }
     }
 
-    public class ManageInfoViewModel
-    {
-        public string LocalLoginProvider { get; set; }
-
-        public string Email { get; set; }
-
-        public IEnumerable<UserLoginInfoViewModel> Logins { get; set; }
-
-        public IEnumerable<ExternalLoginViewModel> ExternalLoginProviders { get; set; }
-    }
-
-
-
     public class UserSummaryViewModel
     {
         protected ApplicationUser user;
@@ -84,8 +71,6 @@ namespace BellumGens.Api.Core.Models
 
     public class UserInfoViewModel : UserSummaryViewModel
     {
-        private List<CSGOTeamSummaryViewModel> _teams;
-        private List<CSGOTeamSummaryViewModel> _teamAdmin;
         protected bool _isAuthUser;
 
 		public UserInfoViewModel() : base() { }
@@ -94,81 +79,7 @@ namespace BellumGens.Api.Core.Models
         {
             _isAuthUser = isAuthUser;
         }
-
-		public bool registered
-		{
-			get { return user != null; }
-		}
-
-        public List<CSGOTeamSummaryViewModel> teams
-        {
-            get
-            {
-                if (_teams == null && user != null)
-                {
-                    _teams = new List<CSGOTeamSummaryViewModel>();
-                    foreach (TeamMember memberof in user.MemberOf)
-                    {
-                        _teams.Add(new CSGOTeamSummaryViewModel(memberof.Team));
-                    }
-                }
-                return _teams;
-            }
-        }
-
-        public List<CSGOTeamSummaryViewModel> teamAdmin
-        {
-            get
-            {
-                if (_isAuthUser && _teamAdmin == null && user != null)
-                {
-                    _teamAdmin = new List<CSGOTeamSummaryViewModel>();
-                    foreach (TeamMember memberof in user.MemberOf)
-                    {
-                        if (memberof.IsAdmin)
-							_teamAdmin.Add(new CSGOTeamSummaryViewModel(memberof.Team));
-                    }
-                }
-                return _teamAdmin;
-            }
-        }
-
-        public ICollection<TeamInvite> notifications
-        {
-            get
-            {
-                return _isAuthUser ? user?.Notifications.OrderByDescending(n => n.Sent).ToList() : null;
-            }
-        }
         public List<string> externalLogins { get; set; }
-        public bool? steamPrivate
-        {
-            get
-            {
-                return user?.SteamPrivate;
-            }
-        }
-        public decimal? headshotPercentage
-        {
-            get
-            {
-                return user?.HeadshotPercentage;
-            }
-        }
-        public decimal? killDeathRatio
-        {
-            get
-            {
-                return user?.KillDeathRatio;
-            }
-        }
-        public decimal? accuracy
-        {
-            get
-            {
-                return user?.Accuracy;
-            }
-        }
         public string email
         {
             get
@@ -183,7 +94,6 @@ namespace BellumGens.Api.Core.Models
                 return user?.SearchVisible;
             }
         }
-
         public string avatarIcon
         {
             get
@@ -191,7 +101,6 @@ namespace BellumGens.Api.Core.Models
                 return user?.AvatarIcon;
             }
         }
-
         public string avatarFull
         {
             get
@@ -207,47 +116,5 @@ namespace BellumGens.Api.Core.Models
                 return user?.RealName;
             }
         }
-        public string country
-        {
-            get
-            {
-                return user?.Country;
-            }
-        }
-        public ICollection<UserAvailability> availability
-        {
-            get
-            {
-                return user?.Availability;
-            }
-        }
-        public PlaystyleRole? primaryRole
-        {
-            get
-            {
-                return user?.PreferredPrimaryRole;
-            }
-        }
-        public PlaystyleRole? secondaryRole
-        {
-            get
-            {
-                return user?.PreferredSecondaryRole;
-            }
-        }
-        public ICollection<UserMapPool> mapPool
-        {
-            get
-            {
-                return user?.MapPool;
-            }
-        }
-    }
-
-    public class UserLoginInfoViewModel
-    {
-        public string LoginProvider { get; set; }
-
-        public string ProviderKey { get; set; }
     }
 }

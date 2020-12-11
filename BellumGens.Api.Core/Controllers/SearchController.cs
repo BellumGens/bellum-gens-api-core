@@ -4,6 +4,7 @@ using BellumGens.Api.Core.Providers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -28,9 +29,9 @@ namespace BellumGens.Api.Controllers
 			SearchResultViewModel results = new SearchResultViewModel();
 			if (!string.IsNullOrEmpty(name))
 			{
-				results.Teams = _dbContext.CSGOTeams.Where(t => t.Visible && t.TeamName.Contains(name)).ToList();
-				results.Strategies = _dbContext.Strategies.Where(s => s.Visible && s.Title.Contains(name)).ToList();
-				List<ApplicationUser> activeUsers = _dbContext.Users.Where(u => u.SearchVisible && u.UserName.Contains(name)).ToList();
+				results.Teams = await _dbContext.CSGOTeams.Where(t => t.Visible && t.TeamName.Contains(name)).ToListAsync();
+				results.Strategies = await _dbContext.CSGOStrategies.Where(s => s.Visible && s.Title.Contains(name)).ToListAsync();
+				List<ApplicationUser> activeUsers = await _dbContext.Users.Where(u => u.SearchVisible && u.UserName.Contains(name)).ToListAsync();
 
 				foreach (ApplicationUser user in activeUsers)
 				{
@@ -52,17 +53,17 @@ namespace BellumGens.Api.Controllers
 		{
 			if (overlap <= 0 && role == null)
 			{
-				return Ok(_dbContext.CSGOTeams.Where(t => t.Visible).OrderBy(t => t.TeamId).Take(50).ToList());
+				return Ok(await _dbContext.CSGOTeams.Where(t => t.Visible).OrderBy(t => t.TeamId).Take(50).ToListAsync());
 			}
 
 			List<CSGOTeam> teams;
 			if (role != null)
 			{
-				teams = _dbContext.CSGOTeams.Where(t => t.Visible && !t.Members.Any(m => m.Role == role) && t.PracticeSchedule.Any(d => d.Available)).ToList();
+				teams = await _dbContext.CSGOTeams.Where(t => t.Visible && !t.Members.Any(m => m.Role == role) && t.PracticeSchedule.Any(d => d.Available)).ToListAsync();
 			}
 			else
 			{
-				teams = _dbContext.CSGOTeams.Where(t => t.Visible && t.PracticeSchedule.Any(d => d.Available)).ToList();
+				teams = await _dbContext.CSGOTeams.Where(t => t.Visible && t.PracticeSchedule.Any(d => d.Available)).ToListAsync();
 			}
 			if (overlap > 0)
 			{
@@ -89,7 +90,7 @@ namespace BellumGens.Api.Controllers
             List<UserStatsViewModel> players = new List<UserStatsViewModel>();
             if (overlap <= 0 && role == null)
 			{
-				users = _dbContext.Users.Where(u => u.SearchVisible).OrderBy(u => u.Id).Take(50).ToList();
+				users = await _dbContext.Users.Where(u => u.SearchVisible).OrderBy(u => u.Id).Take(50).ToListAsync();
 
 				foreach (ApplicationUser user in users)
 				{
@@ -101,11 +102,11 @@ namespace BellumGens.Api.Controllers
 
 			if (role != null)
 			{
-				users = _dbContext.Users.Where(u => u.SearchVisible && (u.PreferredPrimaryRole == role || u.PreferredSecondaryRole == role)).ToList();
+				users = await _dbContext.Users.Where(u => u.SearchVisible && (u.PreferredPrimaryRole == role || u.PreferredSecondaryRole == role)).ToListAsync();
 			}
 			else
 			{
-				users = _dbContext.Users.Where(u => u.SearchVisible && u.Availability.Any(d => d.Available)).ToList();
+				users = await _dbContext.Users.Where(u => u.SearchVisible && u.Availability.Any(d => d.Available)).ToListAsync();
 			}
 			if (overlap > 0)
 			{

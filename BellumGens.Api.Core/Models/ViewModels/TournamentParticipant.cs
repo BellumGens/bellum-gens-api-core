@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Web;
 
 namespace BellumGens.Api.Core.Models
 {
@@ -13,7 +10,6 @@ namespace BellumGens.Api.Core.Models
             UserId = application.UserId;
             State = application.State;
             Company = application.CompanyId;
-
         }
 
         public Guid Id { get; set; }

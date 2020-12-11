@@ -1,8 +1,6 @@
-﻿using Newtonsoft.Json;
-using SteamModels;
-using System;
-using System.ComponentModel.DataAnnotations;
+﻿using System;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace BellumGens.Api.Core.Models
 {
