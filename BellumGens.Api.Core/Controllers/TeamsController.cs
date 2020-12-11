@@ -51,13 +51,15 @@ namespace BellumGens.Api.Controllers
 		public async Task<IActionResult> GetTournaments(string teamid)
 		{
 			CSGOTeam team = await ResolveTeam(teamid);
-			List<Tournament> tournaments = await _dbContext.Tournaments.ToListAsync();
 			List<TeamTournamentViewModel> model = new List<TeamTournamentViewModel>();
-			foreach (var tournament in tournaments)
-			{
-				if (tournament.CSGOMatches.Any(m => m.Team1Id == team.TeamId || m.Team2Id == team.TeamId))
-					model.Add(new TeamTournamentViewModel(tournament, team.TeamId));
-			}
+			await _dbContext.Tournaments
+							.Include(t => t.CSGOMatches)
+								.ThenInclude(m => m.Team1)
+								.Where(t => t.CSGOMatches.Any(m => m.Team1Id == team.TeamId))
+							.Include(t => t.CSGOMatches)
+								.ThenInclude(m => m.Team2)
+								.Where(t => t.CSGOMatches.Any(m => m.Team2Id == team.TeamId))
+							.ForEachAsync(tournament => model.Add(new TeamTournamentViewModel(tournament, team.TeamId)));
 			return Ok(model);
 		}
 

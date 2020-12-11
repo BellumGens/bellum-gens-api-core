@@ -13,7 +13,7 @@ namespace BellumGens.Api.Core.Models
 
         public CSGOMap Map { get; set; }
 
-        public Guid CSGOMatchId { get; set; }
+        public Guid CsgoMatchId { get; set; }
 
         public Guid? TeamPickId { get; set; }
 
@@ -24,7 +24,7 @@ namespace BellumGens.Api.Core.Models
         public int Team2Score { get; set; }
 
         [JsonIgnore]
-        [ForeignKey("CSGOMatchId")]
+        [ForeignKey("CsgoMatchId")]
         public virtual TournamentCSGOMatch Match { get; set; }
 
         [JsonIgnore]
