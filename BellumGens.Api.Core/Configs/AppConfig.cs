@@ -34,15 +34,15 @@ namespace BellumGens.Api.Core
 				battleNetClientSecret = configuration.GetValue<string>("battleNet:secret"),
 				twitchClientId = configuration.GetValue<string>("twitch:clientId"),
 				twitchSecret = configuration.GetValue<string>("twitch:secret"),
-				publicVapidKey = configuration["publicVapidKey"],
-				privateVapidKey = configuration["privateVapidKey"],
+				publicVapidKey = configuration.GetValue<string>("vapid:public"),
+				privateVapidKey = configuration.GetValue<string>("vapid:private"),
 				email = configuration.GetValue<string>("email:username"),
 				emailUsername = configuration.GetValue<string>("email:username"),
 				emailPassword = configuration.GetValue<string>("email:password"),
-				bank = configuration["bank"],
-				bankAccountOwner = configuration["bankAccountOwner"],
-				bic = configuration["bic"],
-				bankAccount = configuration["bankAccount"]
+				bank = configuration.GetValue<string>("bank:name"),
+				bankAccountOwner = configuration.GetValue<string>("bank:owner"),
+				bic = configuration.GetValue<string>("bank:bic"),
+				bankAccount = configuration.GetValue<string>("bank:account")
 			};
 		}
 
