@@ -97,14 +97,18 @@ namespace BellumGens.Api.Controllers
 				}
 			}
 
-			CSGOStrategy entity = await UserCanEdit(strategy.Id);
+			CSGOStrategy entity = null;
+
+			if (strategy.Id != Guid.Empty)
+				entity = await UserCanEdit(strategy.Id);
+
 			if (entity == null)
 			{
                 ApplicationUser user = await GetAuthUser();
                 strategy.UserId = user.Id;
 				strategy.UniqueCustomUrl(_dbContext);
 				strategy.StratImage = _fileService.SaveImageFile(strategy.StratImage, strategy.CustomUrl);
-				_dbContext.CSGOStrategies.Add(strategy);
+				_dbContext.Attach(strategy).State = EntityState.Added;
 			}
 			else
 			{
@@ -127,7 +131,7 @@ namespace BellumGens.Api.Controllers
 				System.Diagnostics.Trace.TraceError("User Strategy submit error: " + e.Message);
 				return BadRequest("Something went wrong...");
 			}
-			return Ok(entity);
+			return Ok(strategy);
 		}
 
 		[Route("Strat")]
