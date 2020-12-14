@@ -118,7 +118,10 @@ namespace BellumGens.Api.Controllers
                     strategy.UserId = user.Id;
                 }
 				strategy.LastUpdated = DateTimeOffset.Now;
-				strategy.StratImage = _fileService.SaveImageFile(strategy.StratImage, strategy.CustomUrl);
+				if (!Uri.IsWellFormedUriString(strategy.StratImage, UriKind.Absolute))
+				{
+					strategy.StratImage = _fileService.SaveImageFile(strategy.StratImage, strategy.CustomUrl);
+				}
 				_dbContext.Entry(entity).CurrentValues.SetValues(strategy);
 			}
 
