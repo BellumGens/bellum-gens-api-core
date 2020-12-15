@@ -284,10 +284,12 @@ namespace BellumGens.Api.Controllers
             List<TournamentCSGOGroup> groups = tournamentId != null ?
                 await _dbContext.TournamentCSGOGroups.Where(g => g.TournamentId == tournamentId)
                                 .Include(g => g.Participants)
-                                    .ThenInclude(p => p.Team).ToListAsync() :
+                                    .ThenInclude(p => p.Team)
+                                .Include(g => g.Matches).ToListAsync() :
                 await _dbContext.TournamentCSGOGroups.Where(g => g.Tournament.Active)
                                 .Include(g => g.Participants)
-                                    .ThenInclude(p => p.Team).ToListAsync();
+                                    .ThenInclude(p => p.Team)
+                                .Include(g => g.Matches).ToListAsync();
             return Ok(groups);
         }
 
@@ -298,10 +300,12 @@ namespace BellumGens.Api.Controllers
             List<TournamentSC2Group> groups = tournamentId != null ?
                 await _dbContext.TournamentSC2Groups.Where(g => g.TournamentId == tournamentId)
                                 .Include(g => g.Participants)
-                                    .ThenInclude(p => p.User).ToListAsync() :
+                                    .ThenInclude(p => p.User)
+                                .Include(g => g.Matches).ToListAsync() :
                 await _dbContext.TournamentSC2Groups.Where(g => g.Tournament.Active)
                                 .Include(g => g.Participants)
-                                    .ThenInclude(p => p.User).ToListAsync();
+                                    .ThenInclude(p => p.User)
+                                .Include(g => g.Matches).ToListAsync();
             return Ok(groups);
         }
 
@@ -391,7 +395,7 @@ namespace BellumGens.Api.Controllers
                         System.Diagnostics.Trace.TraceError("Tournament group delete exception: " + e.Message);
                         return BadRequest("Something went wrong...");
                     }
-                    return Ok("deleted");
+                    return Ok();
                 }
                 entity = await _dbContext.TournamentSC2Groups.FindAsync(id);
                 if (entity != null)
@@ -410,7 +414,7 @@ namespace BellumGens.Api.Controllers
                         System.Diagnostics.Trace.TraceError("Tournament group delete exception: " + e.Message);
                         return BadRequest("Something went wrong...");
                     }
-                    return Ok("deleted");
+                    return Ok();
                 }
                 return NotFound();
             }
@@ -446,7 +450,7 @@ namespace BellumGens.Api.Controllers
                             System.Diagnostics.Trace.TraceError("Tournament group participant add exception: " + e.Message);
                             return BadRequest("Something went wrong...");
                         }
-                        return Ok("added");
+                        return Ok();
                     }
                     return NotFound();
                 }
@@ -468,7 +472,7 @@ namespace BellumGens.Api.Controllers
                         System.Diagnostics.Trace.TraceError("Tournament group participant add exception: " + e.Message);
                         return BadRequest("Something went wrong...");
                     }
-                    return Ok("added");
+                    return Ok();
                 }
             }
             return Unauthorized();
@@ -494,7 +498,7 @@ namespace BellumGens.Api.Controllers
                         System.Diagnostics.Trace.TraceError("Tournament group participant delete exception: " + e.Message);
                         return BadRequest("Something went wrong...");
                     }
-                    return Ok("added");
+                    return Ok();
                 }
                 return NotFound();
             }
