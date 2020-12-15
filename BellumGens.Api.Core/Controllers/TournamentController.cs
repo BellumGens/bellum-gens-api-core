@@ -509,9 +509,13 @@ namespace BellumGens.Api.Controllers
         #region MATCHES
         [AllowAnonymous]
         [Route("csgomatches")]
-        public async Task<IActionResult> GetCSGOMatches()
+        public async Task<IActionResult> GetCSGOMatches(Guid? tournamentId = null)
         {
-            return Ok(await _dbContext.TournamentCSGOMatches.Include(m => m.Team1).Include(m => m.Team2).Include(m => m.Maps).OrderBy(m => m.StartTime).ToListAsync());
+            List<TournamentCSGOMatch> matches;
+            matches = tournamentId != null ?
+                        await _dbContext.TournamentCSGOMatches.Where(m => m.TournamentId == tournamentId).Include(m => m.Team1).Include(m => m.Team2).Include(m => m.Maps).OrderBy(m => m.StartTime).ToListAsync() :
+                        await _dbContext.TournamentCSGOMatches.Include(m => m.Team1).Include(m => m.Team2).Include(m => m.Maps).OrderBy(m => m.StartTime).ToListAsync();
+            return Ok(matches);
         }
 
         [AllowAnonymous]
@@ -526,9 +530,13 @@ namespace BellumGens.Api.Controllers
 
         [AllowAnonymous]
         [Route("sc2matches")]
-        public async Task<IActionResult> GetSC2Matches()
+        public async Task<IActionResult> GetSC2Matches(Guid? tournamentId = null)
         {
-            return Ok(await _dbContext.TournamentSC2Matches.Include(m => m.Player1).Include(m => m.Player2).Include(m => m.Maps).OrderBy(m => m.StartTime).ToListAsync());
+            List<TournamentSC2Match> matches;
+            matches = tournamentId != null ?
+                        await _dbContext.TournamentSC2Matches.Where(m => m.TournamentId == tournamentId).Include(m => m.Player1).Include(m => m.Player2).Include(m => m.Maps).OrderBy(m => m.StartTime).ToListAsync() :
+                        await _dbContext.TournamentSC2Matches.Include(m => m.Player1).Include(m => m.Player2).Include(m => m.Maps).OrderBy(m => m.StartTime).ToListAsync();
+            return Ok(matches);
         }
 
         [AllowAnonymous]
