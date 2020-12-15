@@ -25,7 +25,11 @@ namespace BellumGens.Api.Core.Providers
 				using (MemoryStream ms = new MemoryStream(bytes))
 				{
 					image = Image.FromStream(ms);
-					string path = Path.Combine(_hostEnvironment.ContentRootPath, "/Content/Strats");
+					string path;
+					if (_hostEnvironment.WebRootPath != null)
+						path = Path.Combine(_hostEnvironment.WebRootPath, "/Content/Strats");
+					else
+						path = Path.Combine(_hostEnvironment.ContentRootPath, "/Content/Strats");
 					if (!Directory.Exists(path))
 					{
 						Directory.CreateDirectory(path);
