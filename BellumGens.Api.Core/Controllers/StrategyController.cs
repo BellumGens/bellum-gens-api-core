@@ -107,17 +107,17 @@ namespace BellumGens.Api.Controllers
                 ApplicationUser user = await GetAuthUser();
                 strategy.UserId = user.Id;
 				strategy.UniqueCustomUrl(_dbContext);
-				if (!Uri.IsWellFormedUriString(strategy.StratImage, UriKind.Absolute))
-				{
-					try
-					{
-						strategy.StratImage = _fileService.SaveImageFile(strategy.StratImage, strategy.CustomUrl);
-					}
-					catch (Exception e)
-					{
-						return BadRequest(e.Message);
-					}
-				}
+				//if (!Uri.IsWellFormedUriString(strategy.StratImage, UriKind.Absolute))
+				//{
+				//	try
+				//	{
+				//		strategy.StratImage = _fileService.SaveImageFile(strategy.StratImage, strategy.CustomUrl);
+				//	}
+				//	catch (Exception e)
+				//	{
+				//		return BadRequest(e.Message);
+				//	}
+				//}
 				_dbContext.Attach(strategy).State = EntityState.Added;
 			}
 			else
@@ -128,17 +128,17 @@ namespace BellumGens.Api.Controllers
                     strategy.UserId = user.Id;
                 }
 				strategy.LastUpdated = DateTimeOffset.Now;
-				if (!Uri.IsWellFormedUriString(strategy.StratImage, UriKind.Absolute))
-				{
-					try
-					{
-						strategy.StratImage = _fileService.SaveImageFile(strategy.StratImage, strategy.CustomUrl);
-					}
-					catch (Exception e)
-					{
-						return BadRequest(e.Message);
-					}
-				}
+				//if (!Uri.IsWellFormedUriString(strategy.StratImage, UriKind.Absolute))
+				//{
+				//	try
+				//	{
+				//		strategy.StratImage = _fileService.SaveImageFile(strategy.StratImage, strategy.CustomUrl);
+				//	}
+				//	catch (Exception e)
+				//	{
+				//		return BadRequest(e.Message);
+				//	}
+				//}
 				_dbContext.Entry(entity).CurrentValues.SetValues(strategy);
 			}
 
