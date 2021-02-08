@@ -18,7 +18,7 @@ namespace BellumGens.Api.Core.Providers
             MailMessage msg = new MailMessage();
             msg.To.Add(new MailAddress(destination));
             msg.Bcc.Add(new MailAddress("info@eb-league.com"));
-            msg.From = new MailAddress(_appInfo.Config.email, "Bellum Gens");
+            msg.From = new MailAddress(_appInfo.Config.Email, "Bellum Gens");
             msg.Subject = subject;
             msg.Body = body;
             msg.IsBodyHtml = true;
@@ -26,7 +26,7 @@ namespace BellumGens.Api.Core.Providers
             SmtpClient client = new SmtpClient
             {
                 UseDefaultCredentials = false,
-                Credentials = new NetworkCredential(_appInfo.Config.emailUsername, _appInfo.Config.emailPassword),
+                Credentials = new NetworkCredential(_appInfo.Config.EmailUsername, _appInfo.Config.EmailPassword),
                 Port = 587,
                 Host = "smtp.office365.com",
                 DeliveryMethod = SmtpDeliveryMethod.Network,

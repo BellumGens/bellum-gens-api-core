@@ -11,7 +11,6 @@ using BellumGens.Api.Core.Models;
 using BellumGens.Api.Core.Providers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
-using BellumGens.Api.Core.Models.Extensions;
 using Microsoft.EntityFrameworkCore;
 using BellumGens.Api.Core;
 using Microsoft.AspNetCore.Http.Extensions;
@@ -591,7 +590,7 @@ namespace BellumGens.Api.Controllers
 
         private static class RandomOAuthStateGenerator
         {
-            private static RandomNumberGenerator _random = new RNGCryptoServiceProvider();
+            private static readonly RandomNumberGenerator _random = new RNGCryptoServiceProvider();
 
             public static string Generate(int strengthInBits)
             {

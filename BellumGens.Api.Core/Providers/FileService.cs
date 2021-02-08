@@ -18,23 +18,21 @@ namespace BellumGens.Api.Core.Providers
 			string resultPath = "";
 			if (!string.IsNullOrEmpty(blob) && !Uri.IsWellFormedUriString(blob, UriKind.Absolute))
 			{
-				string base64 = blob.Substring(blob.IndexOf(',') + 1);
+				string base64 = blob[(blob.IndexOf(',') + 1)..];
 				byte[] bytes = Convert.FromBase64String(base64);
 
 				Image image;
-				using (MemoryStream ms = new MemoryStream(bytes))
-				{
-					image = Image.FromStream(ms);
-					string path = Path.Combine(_hostEnvironment.ContentRootPath, "/Content/Strats");
-					if (!Directory.Exists(path))
-					{
-						Directory.CreateDirectory(path);
-					}
-					path = Path.Combine(path, $"{name}.png");
-					image.Save(path);
-					resultPath = CORSConfig.apiDomain + $"/Content/Strats/{name}.png";
-				}
-			}
+                using MemoryStream ms = new MemoryStream(bytes);
+                image = Image.FromStream(ms);
+                string path = Path.Combine(_hostEnvironment.ContentRootPath, "/Content/Strats");
+                if (!Directory.Exists(path))
+                {
+                    Directory.CreateDirectory(path);
+                }
+                path = Path.Combine(path, $"{name}.png");
+                image.Save(path);
+                resultPath = CORSConfig.apiDomain + $"/Content/Strats/{name}.png";
+            }
 			return resultPath;
 		}
     }

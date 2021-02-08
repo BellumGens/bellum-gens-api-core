@@ -16,7 +16,7 @@ namespace BellumGens.Api.Controllers
 	[Authorize]
 	public class StrategyController : BaseController
 	{
-		private readonly IFileService _fileService;
+		//private readonly IFileService _fileService;
 		private readonly INotificationService _notificationService;
 		public StrategyController(IFileService fileService,
 								  INotificationService notificationService,

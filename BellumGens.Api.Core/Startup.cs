@@ -20,14 +20,14 @@ namespace BellumGens.Api.Core
     {
         public static string PublicClientId { get; private set; }
 
-        public static string[] devCors = new string[] {
+        private static readonly string[] devCors = new string[] {
                                       "http://localhost:4200",
                                       "http://localhost:4000",
                                       "http://localhost:4201",
                                       "http://localhost:4001"
                                   };
 
-        public static string[] prodCors = new string[] {
+        private static readonly string[] prodCors = new string[] {
                                       "https://bellumgens.com",
                                       "https://www.bellumgens.com",
                                       "https://eb-league.com",

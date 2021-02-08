@@ -13,8 +13,8 @@ namespace BellumGens.Api.Core.Providers
 
 		public NotificationsService(AppConfiguration appInfo)
         {
-			_publicVapidKey = appInfo.Config.publicVapidKey;
-			_privateVapidKey = appInfo.Config.privateVapidKey;
+			_publicVapidKey = appInfo.Config.PublicVapidKey;
+			_privateVapidKey = appInfo.Config.PrivateVapidKey;
 		}
 
 		public async Task SendNotificationAsync(List<BellumGensPushSubscription> subs, TeamInvite notification)
