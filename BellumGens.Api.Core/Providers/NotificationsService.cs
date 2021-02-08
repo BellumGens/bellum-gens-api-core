@@ -8,8 +8,8 @@ namespace BellumGens.Api.Core.Providers
 {
 	public class NotificationsService : INotificationService
 	{
-		private string _publicVapidKey;
-		private string _privateVapidKey;
+		private readonly string _publicVapidKey;
+		private readonly string _privateVapidKey;
 
 		public NotificationsService(AppConfiguration appInfo)
         {

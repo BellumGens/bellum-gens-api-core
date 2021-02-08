@@ -18,7 +18,7 @@ namespace BellumGens.Api.Controllers
 	{
 		//private readonly IFileService _fileService;
 		private readonly INotificationService _notificationService;
-		public StrategyController(IFileService fileService,
+		public StrategyController(//IFileService fileService,
 								  INotificationService notificationService,
 								  UserManager<ApplicationUser> userManager,
 								  RoleManager<IdentityRole> roleManager,
@@ -27,7 +27,7 @@ namespace BellumGens.Api.Controllers
 								  BellumGensDbContext context,
 								  ILogger<StrategyController> logger) : base(userManager, roleManager, signInManager, sender, context, logger)
 		{
-			_fileService = fileService;
+			// _fileService = fileService;
 			_notificationService = notificationService;
 		}
 
