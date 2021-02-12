@@ -193,7 +193,7 @@ namespace BellumGens.Api.Controllers
 				System.Diagnostics.Trace.TraceError($"User team invite accept error: ${e.Message}");
 				return BadRequest("Something went wrong...");
 			}
-			List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.userId == entity.InvitingUser.Id).ToListAsync();
+			List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.UserId == entity.InvitingUser.Id).ToListAsync();
 			await _notificationService.SendNotificationAsync(subs, entity, NotificationState.Accepted);
 			return Ok(entity);
 		}

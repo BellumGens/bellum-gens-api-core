@@ -214,7 +214,7 @@ namespace BellumGens.Api.Controllers
 			}
             await _signInManager.SignOutAsync();
 
-            List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.userId == userid).ToListAsync();
+            List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.UserId == userid).ToListAsync();
             foreach (var sub in subs)
             {
                 _dbContext.BellumGensPushSubscriptions.Remove(sub);

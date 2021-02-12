@@ -21,11 +21,11 @@ namespace BellumGens.Api.Controllers
         {
             BellumGensPushSubscription push = new BellumGensPushSubscription()
             {
-				endpoint = sub.endpoint,
-				expirationTime = sub.expirationTime,
-				userId = (await GetAuthUser())?.Id,
-				p256dh = sub.keys.p256dh,
-				auth = sub.keys.auth
+				Endpoint = sub.Endpoint,
+				ExpirationTime = sub.ExpirationTime,
+				UserId = (await GetAuthUser())?.Id,
+				P256dh = sub.Keys.P256dh,
+				Auth = sub.Keys.Auth
 			};
 			_dbContext.BellumGensPushSubscriptions.Add(push);
 

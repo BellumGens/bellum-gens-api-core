@@ -260,7 +260,7 @@ namespace BellumGens.Api.Controllers
 
 			if (strat != null && strat.UserId != user.Id)
 			{
-				List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.userId == comment.Strategy.UserId).ToListAsync();
+				List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.UserId == comment.Strategy.UserId).ToListAsync();
 				await _notificationService.SendNotificationAsync(subs, comment);
 			}
 			return Ok(comment);

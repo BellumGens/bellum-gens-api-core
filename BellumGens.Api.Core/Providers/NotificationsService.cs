@@ -23,7 +23,7 @@ namespace BellumGens.Api.Core.Providers
 
 			foreach (BellumGensPushSubscription sub in subs)
 			{
-				var subscription = new PushSubscription(sub.endpoint, sub.p256dh, sub.auth);
+				var subscription = new PushSubscription(sub.Endpoint, sub.P256dh, sub.Auth);
 				var vapidDetails = new VapidDetails(subject, _publicVapidKey, _privateVapidKey);
 
 				var webPushClient = new WebPushClient();
@@ -45,7 +45,7 @@ namespace BellumGens.Api.Core.Providers
 
 			foreach (BellumGensPushSubscription sub in subs)
 			{
-				var subscription = new PushSubscription(sub.endpoint, sub.p256dh, sub.auth);
+				var subscription = new PushSubscription(sub.Endpoint, sub.P256dh, sub.Auth);
 				var vapidDetails = new VapidDetails(subject, _publicVapidKey, _privateVapidKey);
 
 				var webPushClient = new WebPushClient();
@@ -66,7 +66,7 @@ namespace BellumGens.Api.Core.Providers
 
 			foreach (BellumGensPushSubscription sub in subs)
 			{
-				var subscription = new PushSubscription(sub.endpoint, sub.p256dh, sub.auth);
+				var subscription = new PushSubscription(sub.Endpoint, sub.P256dh, sub.Auth);
 				var vapidDetails = new VapidDetails(subject, _publicVapidKey, _privateVapidKey);
 
 				var webPushClient = new WebPushClient();
@@ -87,7 +87,7 @@ namespace BellumGens.Api.Core.Providers
 
 			foreach (BellumGensPushSubscription sub in subs)
 			{
-				var subscription = new PushSubscription(sub.endpoint, sub.p256dh, sub.auth);
+				var subscription = new PushSubscription(sub.Endpoint, sub.P256dh, sub.Auth);
 				var vapidDetails = new VapidDetails(subject, _publicVapidKey, _privateVapidKey);
 
 				var webPushClient = new WebPushClient();
@@ -108,7 +108,7 @@ namespace BellumGens.Api.Core.Providers
 
 			foreach (BellumGensPushSubscription sub in subs)
 			{
-				var subscription = new PushSubscription(sub.endpoint, sub.p256dh, sub.auth);
+				var subscription = new PushSubscription(sub.Endpoint, sub.P256dh, sub.Auth);
 				var vapidDetails = new VapidDetails(subject, _publicVapidKey, _privateVapidKey);
 
 				var webPushClient = new WebPushClient();
