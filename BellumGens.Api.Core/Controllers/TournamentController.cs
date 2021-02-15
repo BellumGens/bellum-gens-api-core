@@ -138,7 +138,7 @@ namespace BellumGens.Api.Controllers
         [Route("AllRegistrations")]
         public async Task<IActionResult> GetAllApplications()
         {
-            return await UserIsInRole("admin") ? Ok(await _dbContext.TournamentApplications.Where(a => a.Tournament.Active).ToListAsync()) : Unauthorized();
+            return await UserIsInRole("admin") ? Ok(await _dbContext.TournamentApplications.Include(a => a.Tournament).ToListAsync()) : Unauthorized();
         }
 
         [HttpPut]
