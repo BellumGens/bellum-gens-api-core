@@ -289,13 +289,13 @@ namespace BellumGens.Api.Controllers
 		[HttpPost]
 		public async Task<IActionResult> InviteToTeam(InviteModel model)
 		{
-			if (!await UserIsTeamAdmin(model.teamId))
+			if (!await UserIsTeamAdmin(model.TeamId))
 			{
 				return BadRequest("User is not team admin...");
 			}
 
 			ApplicationUser invitingUserEntity = await GetAuthUser();
-			TeamInvite invite = await _dbContext.TeamInvites.FindAsync(invitingUserEntity.Id, model.userId, model.teamId);
+			TeamInvite invite = await _dbContext.TeamInvites.FindAsync(invitingUserEntity.Id, model.UserId, model.TeamId);
 			
 			if (invite != null)
 			{
@@ -308,9 +308,9 @@ namespace BellumGens.Api.Controllers
 			{
 				invite = new TeamInvite()
 				{
-					InvitedUserId = model.userId,
+					InvitedUserId = model.UserId,
 					InvitingUserId = invitingUserEntity.Id,
-					TeamId = model.teamId
+					TeamId = model.TeamId
 				};
 				_dbContext.TeamInvites.Add(invite);
 			}
@@ -323,9 +323,9 @@ namespace BellumGens.Api.Controllers
 				System.Diagnostics.Trace.TraceError($"Team invite error: ${e.Message}");
 				return BadRequest("Something went wrong...");
 			}
-			List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(sub => sub.userId == model.userId).ToListAsync();
+			List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(sub => sub.UserId == model.UserId).ToListAsync();
 			await _notificationService.SendNotificationAsync(subs, invite);
-			return Ok(model.userId);
+			return Ok(model.UserId);
 		}
 
 		[Route("Apply")]
@@ -358,7 +358,7 @@ namespace BellumGens.Api.Controllers
 				TeamMember admin = await _dbContext.TeamMembers.Where(m => m.TeamId == application.TeamId && m.IsAdmin).FirstOrDefaultAsync();
 				try
 				{
-					List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.userId == admin.UserId).ToListAsync();
+					List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.UserId == admin.UserId).ToListAsync();
 					await _notificationService.SendNotificationAsync(subs, application);
 				}
 				catch (Exception e)
@@ -413,7 +413,7 @@ namespace BellumGens.Api.Controllers
 
 			try
 			{
-				List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.userId == entity.ApplicantId).ToListAsync();
+				List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.UserId == entity.ApplicantId).ToListAsync();
 				await _notificationService.SendNotificationAsync(subs, application, NotificationState.Accepted);
 			}
 			catch (Exception e)
@@ -507,7 +507,7 @@ namespace BellumGens.Api.Controllers
 
 	public class InviteModel
 	{
-		public string userId { get; set; }
-		public Guid teamId { get; set; }
+		public string UserId { get; set; }
+		public Guid TeamId { get; set; }
 	}
 }

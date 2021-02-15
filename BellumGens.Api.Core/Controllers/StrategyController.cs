@@ -16,9 +16,9 @@ namespace BellumGens.Api.Controllers
 	[Authorize]
 	public class StrategyController : BaseController
 	{
-		private readonly IFileService _fileService;
+		//private readonly IFileService _fileService;
 		private readonly INotificationService _notificationService;
-		public StrategyController(IFileService fileService,
+		public StrategyController(//IFileService fileService,
 								  INotificationService notificationService,
 								  UserManager<ApplicationUser> userManager,
 								  RoleManager<IdentityRole> roleManager,
@@ -27,7 +27,7 @@ namespace BellumGens.Api.Controllers
 								  BellumGensDbContext context,
 								  ILogger<StrategyController> logger) : base(userManager, roleManager, signInManager, sender, context, logger)
 		{
-			_fileService = fileService;
+			// _fileService = fileService;
 			_notificationService = notificationService;
 		}
 
@@ -260,7 +260,7 @@ namespace BellumGens.Api.Controllers
 
 			if (strat != null && strat.UserId != user.Id)
 			{
-				List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.userId == comment.Strategy.UserId).ToListAsync();
+				List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.UserId == comment.Strategy.UserId).ToListAsync();
 				await _notificationService.SendNotificationAsync(subs, comment);
 			}
 			return Ok(comment);

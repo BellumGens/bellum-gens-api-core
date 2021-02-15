@@ -94,10 +94,10 @@ namespace BellumGens.Api.Controllers
                                     <p>Успешно получихме вашата регистрация за Esports Бизнес Лигата. В регистрацията сте посочили, че текущо работите в <b>{ application.CompanyId }</b>. {gameMsg}. Регистрация ще бъде потвърдена след като преведете таксата за участие (60лв. с ДДС за лигата по StarCraft II, или 300лв. с ДДС за лигата по CS:GO).</p>
                                     <p>Банковата ни сметка е</p>
                                     <ul>
-                                        <li>Име на Банката: <b>{ _appInfo.Config.bank }</b></li>
-                                        <li>Титуляр: <b>{ _appInfo.Config.bankAccountOwner }</b></li>
-                                        <li>Сметка: <b>{ _appInfo.Config.bankAccount }</b></span></li>
-                                        <li>BIC: <b>{ _appInfo.Config.bic }</b></li>
+                                        <li>Име на Банката: <b>{ _appInfo.Config.Bank }</b></li>
+                                        <li>Титуляр: <b>{ _appInfo.Config.BankAccountOwner }</b></li>
+                                        <li>Сметка: <b>{ _appInfo.Config.BankAccount }</b></span></li>
+                                        <li>BIC: <b>{ _appInfo.Config.BIC }</b></li>
                                     </ul>
                                     <p>Моля при превода да сложите в основанието уникалния код, който сме генерирали за вашата регистрация: <b>{ application.Hash }</b>. Можете да намерите кода и през вашият профил на сайта ни.</p>
                                     <p>Ако ви е нужна фактура, моля да се свържете с нас на <a href='mailto:info@eb-league.com'>info@eb-league.com</a>!</p>
@@ -138,7 +138,7 @@ namespace BellumGens.Api.Controllers
         [Route("AllRegistrations")]
         public async Task<IActionResult> GetAllApplications()
         {
-            return await UserIsInRole("admin") ? Ok(await _dbContext.TournamentApplications.Where(a => a.Tournament.Active).ToListAsync()) : Unauthorized();
+            return await UserIsInRole("admin") ? Ok(await _dbContext.TournamentApplications.Include(a => a.Tournament).ToListAsync()) : Unauthorized();
         }
 
         [HttpPut]

@@ -241,7 +241,7 @@ namespace BellumGens.Api.Core.Models
 						.IsUnique();
 
 			modelBuilder.Entity<BellumGensPushSubscription>()
-						.HasKey(c => new { c.p256dh, c.auth });
+						.HasKey(c => new { c.P256dh, c.Auth });
 
 			modelBuilder.Entity<StrategyVote>()
 						.HasKey(c => new { c.StratId, c.UserId });

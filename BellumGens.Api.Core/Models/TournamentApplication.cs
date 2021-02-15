@@ -40,6 +40,14 @@ namespace BellumGens.Api.Core.Models
 
         public Guid? TournamentSC2GroupId { get; set; }
 
+        [NotMapped]
+        public string TournamentName {
+            get
+            {
+                return Tournament?.Name;
+            } 
+        }
+
         [ForeignKey("TournamentCSGOGroupId")]
         [JsonIgnore]
         public virtual TournamentCSGOGroup CSGOGroup { get; set; }

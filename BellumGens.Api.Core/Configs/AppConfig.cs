@@ -4,45 +4,45 @@ namespace BellumGens.Api.Core
 {
 	public class AppKeysDescriptior
 	{
-		public string steamApiKey { get; set; }
-		public string battleNetClientId { get; set; }
-		public string battleNetClientSecret { get; set; }
-		public string csgoGameId { get; set; } = "730";
-		public string twitchClientId { get; set; }
-		public string twitchSecret { get; set; }
-		public string publicVapidKey { get; set; }
-		public string privateVapidKey { get; set; }
-		public string email { get; set; }
-		public string emailUsername { get; set; }
-		public string emailPassword { get; set; }
-        public string bank { get; set; }
-        public string bankAccountOwner { get; set; }
-        public string bic { get; set; }
-        public string bankAccount { get; set; }
+		public string SteamApiKey { get; set; }
+		public string BattleNetClientId { get; set; }
+		public string BattleNetClientSecret { get; set; }
+		public string CSGOGameId { get; set; } = "730";
+		public string TwitchClientId { get; set; }
+		public string TwitchSecret { get; set; }
+		public string PublicVapidKey { get; set; }
+		public string PrivateVapidKey { get; set; }
+		public string Email { get; set; }
+		public string EmailUsername { get; set; }
+		public string EmailPassword { get; set; }
+        public string Bank { get; set; }
+        public string BankAccountOwner { get; set; }
+        public string BIC { get; set; }
+        public string BankAccount { get; set; }
 	}
 
 	public class AppConfiguration
 	{
-		private AppKeysDescriptior _config;
+		private readonly AppKeysDescriptior _config;
 
 		public AppConfiguration(IConfiguration configuration)
         {
 			_config = new AppKeysDescriptior()
 			{
-				steamApiKey = configuration["steamApiKey"],
-				battleNetClientId = configuration.GetValue<string>("battleNet:clientId"),
-				battleNetClientSecret = configuration.GetValue<string>("battleNet:secret"),
-				twitchClientId = configuration.GetValue<string>("twitch:clientId"),
-				twitchSecret = configuration.GetValue<string>("twitch:secret"),
-				publicVapidKey = configuration.GetValue<string>("vapid:public"),
-				privateVapidKey = configuration.GetValue<string>("vapid:private"),
-				email = configuration.GetValue<string>("email:username"),
-				emailUsername = configuration.GetValue<string>("email:username"),
-				emailPassword = configuration.GetValue<string>("email:password"),
-				bank = configuration.GetValue<string>("bank:name"),
-				bankAccountOwner = configuration.GetValue<string>("bank:owner"),
-				bic = configuration.GetValue<string>("bank:bic"),
-				bankAccount = configuration.GetValue<string>("bank:account")
+				SteamApiKey = configuration["steamApiKey"],
+				BattleNetClientId = configuration.GetValue<string>("battleNet:clientId"),
+				BattleNetClientSecret = configuration.GetValue<string>("battleNet:secret"),
+				TwitchClientId = configuration.GetValue<string>("twitch:clientId"),
+				TwitchSecret = configuration.GetValue<string>("twitch:secret"),
+				PublicVapidKey = configuration.GetValue<string>("vapid:public"),
+				PrivateVapidKey = configuration.GetValue<string>("vapid:private"),
+				Email = configuration.GetValue<string>("email:username"),
+				EmailUsername = configuration.GetValue<string>("email:username"),
+				EmailPassword = configuration.GetValue<string>("email:password"),
+				Bank = configuration.GetValue<string>("bank:name"),
+				BankAccountOwner = configuration.GetValue<string>("bank:owner"),
+				BIC = configuration.GetValue<string>("bank:bic"),
+				BankAccount = configuration.GetValue<string>("bank:account")
 			};
 		}
 

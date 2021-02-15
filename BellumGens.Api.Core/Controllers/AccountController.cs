@@ -11,7 +11,6 @@ using BellumGens.Api.Core.Models;
 using BellumGens.Api.Core.Providers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
-using BellumGens.Api.Core.Models.Extensions;
 using Microsoft.EntityFrameworkCore;
 using BellumGens.Api.Core;
 using Microsoft.AspNetCore.Http.Extensions;
@@ -215,7 +214,7 @@ namespace BellumGens.Api.Controllers
 			}
             await _signInManager.SignOutAsync();
 
-            List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.userId == userid).ToListAsync();
+            List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.UserId == userid).ToListAsync();
             foreach (var sub in subs)
             {
                 _dbContext.BellumGensPushSubscriptions.Remove(sub);
@@ -591,7 +590,7 @@ namespace BellumGens.Api.Controllers
 
         private static class RandomOAuthStateGenerator
         {
-            private static RandomNumberGenerator _random = new RNGCryptoServiceProvider();
+            private static readonly RandomNumberGenerator _random = new RNGCryptoServiceProvider();
 
             public static string Generate(int strengthInBits)
             {
