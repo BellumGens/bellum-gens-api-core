@@ -107,6 +107,7 @@ namespace BellumGens.Api.Core
 
                 // User settings.
                 options.User.RequireUniqueEmail = false;
+                options.User.AllowedUserNameCharacters = string.Empty;
             });
 
             services.AddSingleton<AppConfiguration>();

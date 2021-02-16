@@ -433,7 +433,7 @@ namespace BellumGens.Api.Controllers
                         UserName = username,
                         Email = email,
                         EmailConfirmed = true,
-                        SteamID = _steamService.SteamUserId(providerId)
+                        BattleNetId = username
                     };
                     break;
                 default:
