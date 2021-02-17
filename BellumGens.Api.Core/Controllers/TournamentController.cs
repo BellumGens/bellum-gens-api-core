@@ -215,7 +215,7 @@ namespace BellumGens.Api.Controllers
         {
             ApplicationUser user = await GetAuthUser();
             TournamentApplication application = await _dbContext.TournamentApplications.FindAsync(id);
-            if (application?.UserId == user.Id)
+            if (application?.UserId == user.Id || await UserIsInRole("admin"))
             {
                 _dbContext.TournamentApplications.Remove(application);
                 try
