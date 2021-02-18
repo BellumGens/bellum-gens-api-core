@@ -15,7 +15,7 @@ namespace BellumGens.Api.Controllers
     public class ShopController : BaseController
     {
         private const int baseJerseyPrice = 60;
-        private const decimal baseDiscount = .5M;
+        private const decimal baseDiscount = .3M;
         public ShopController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, IEmailSender sender, BellumGensDbContext context, ILogger<ShopController> logger)
             : base(userManager, roleManager, signInManager, sender, context, logger)
         {
@@ -122,6 +122,38 @@ namespace BellumGens.Api.Controllers
                 return Ok(order);
             }
             return BadRequest("Order couldn't be validated...");
+        }
+
+        [HttpDelete]
+        [Route("Order")]
+        public async Task<IActionResult> DeleteOrder(Guid orderId)
+        {
+            if (await UserIsInRole("admin"))
+            {
+                var order = await _dbContext.JerseyOrders.FindAsync(orderId);
+                
+                if (order != null)
+                {
+                    _dbContext.JerseyOrders.Remove(order);
+                }
+                else
+                {
+                    return NotFound();
+                }
+
+                try
+                {
+                    await _dbContext.SaveChangesAsync();
+                }
+                catch (DbUpdateException e)
+                {
+                    System.Diagnostics.Trace.TraceError("Order submit exception: " + e.Message);
+                    return BadRequest("Something went wrong...");
+                }
+
+                return Ok(orderId);
+            }
+            return Unauthorized();
         }
     }
 }
