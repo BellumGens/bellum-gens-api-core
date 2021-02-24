@@ -35,7 +35,7 @@ namespace BellumGens.Api.Core.Providers
             string connectionString = _config["BlobService:ConnectionString"];
             BlobServiceClient blobServiceClient = new BlobServiceClient(connectionString);
 
-            BlobContainerClient containerClient = blobServiceClient.GetBlobContainerClient("bellumgens-strats");
+            BlobContainerClient containerClient = blobServiceClient.GetBlobContainerClient(_config["BlobService:Container"]);
             BlobClient blobClient = containerClient.GetBlobClient(name + ".png");
 
             string base64 = blob[(blob.IndexOf(',') + 1)..];
