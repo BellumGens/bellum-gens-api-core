@@ -53,7 +53,7 @@ namespace BellumGens.Api.Controllers
 		{
 			if (overlap <= 0 && role == null)
 			{
-				return Ok(await _dbContext.CSGOTeams.Where(t => t.Visible).OrderBy(t => t.TeamId).ToListAsync());
+				return Ok(await _dbContext.CSGOTeams.Where(t => t.Visible).ToListAsync());
 			}
 
 			List<CSGOTeam> teams;
@@ -90,7 +90,7 @@ namespace BellumGens.Api.Controllers
             List<UserStatsViewModel> players = new List<UserStatsViewModel>();
             if (overlap <= 0 && role == null)
 			{
-				users = await _dbContext.Users.Where(u => u.SearchVisible).OrderBy(u => u.Id).ToListAsync();
+				users = await _dbContext.Users.Where(u => u.SearchVisible).ToListAsync();
 
 				foreach (ApplicationUser user in users)
 				{

@@ -555,6 +555,19 @@ namespace BellumGens.Api.Controllers
         {
             if (await UserIsInRole("event-admin"))
             {
+                foreach (CSGOMatchMap map in match.Maps)
+                {
+                    CSGOMatchMap mapEntity = await _dbContext.CSGOMatchMaps.FindAsync(id);
+                    if (mapEntity != null)
+                    {
+                        _dbContext.Entry(mapEntity).CurrentValues.SetValues(map);
+                    }
+                    else
+                    {
+                        _dbContext.CSGOMatchMaps.Add(map);
+                    }
+                }
+
                 TournamentCSGOMatch entity = await _dbContext.TournamentCSGOMatches.FindAsync(id);
 
                 if (entity != null)
@@ -673,6 +686,19 @@ namespace BellumGens.Api.Controllers
         {
             if (await UserIsInRole("event-admin"))
             {
+                foreach (SC2MatchMap map in match.Maps)
+                {
+                    SC2MatchMap mapEntity = await _dbContext.SC2MatchMaps.FindAsync(map.Id);
+                    if (mapEntity != null)
+                    {
+                        _dbContext.Entry(mapEntity).CurrentValues.SetValues(map);
+                    }
+                    else
+                    {
+                        _dbContext.SC2MatchMaps.Add(map);
+                    }
+                }
+
                 TournamentSC2Match entity = await _dbContext.TournamentSC2Matches.FindAsync(id);
                 if (entity != null)
                 {
