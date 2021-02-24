@@ -46,6 +46,12 @@ namespace BellumGens.Api.Controllers
         {
             if (await UserIsInRole("admin"))
             {
+                JerseyOrder entity = await _dbContext.JerseyOrders.FindAsync(orderId);
+                if (entity == null)
+                {
+                    return NotFound();
+                }
+
                 _dbContext.Entry(order).State = EntityState.Modified;
 
                 try

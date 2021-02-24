@@ -16,9 +16,9 @@ namespace BellumGens.Api.Controllers
 	[Authorize]
 	public class StrategyController : BaseController
 	{
-		//private readonly IFileService _fileService;
+		private readonly IStorageService _fileService;
 		private readonly INotificationService _notificationService;
-		public StrategyController(//IFileService fileService,
+		public StrategyController(IStorageService fileService,
 								  INotificationService notificationService,
 								  UserManager<ApplicationUser> userManager,
 								  RoleManager<IdentityRole> roleManager,
@@ -27,7 +27,7 @@ namespace BellumGens.Api.Controllers
 								  BellumGensDbContext context,
 								  ILogger<StrategyController> logger) : base(userManager, roleManager, signInManager, sender, context, logger)
 		{
-			// _fileService = fileService;
+			_fileService = fileService;
 			_notificationService = notificationService;
 		}
 
@@ -107,18 +107,18 @@ namespace BellumGens.Api.Controllers
                 ApplicationUser user = await GetAuthUser();
                 strategy.UserId = user.Id;
 				strategy.UniqueCustomUrl(_dbContext);
-				//if (!Uri.IsWellFormedUriString(strategy.StratImage, UriKind.Absolute))
-				//{
-				//	try
-				//	{
-				//		strategy.StratImage = _fileService.SaveImageFile(strategy.StratImage, strategy.CustomUrl);
-				//	}
-				//	catch (Exception e)
-				//	{
-				//		return BadRequest(e.Message);
-				//	}
-				//}
-				_dbContext.Attach(strategy).State = EntityState.Added;
+                if (!Uri.IsWellFormedUriString(strategy.StratImage, UriKind.Absolute))
+                {
+                    try
+                    {
+                        strategy.StratImage = await _fileService.SaveImage(strategy.StratImage, strategy.CustomUrl);
+                    }
+                    catch (Exception e)
+                    {
+                        return BadRequest(e.Message);
+                    }
+                }
+                _dbContext.Attach(strategy).State = EntityState.Added;
 			}
 			else
 			{
@@ -128,18 +128,18 @@ namespace BellumGens.Api.Controllers
                     strategy.UserId = user.Id;
                 }
 				strategy.LastUpdated = DateTimeOffset.Now;
-				//if (!Uri.IsWellFormedUriString(strategy.StratImage, UriKind.Absolute))
-				//{
-				//	try
-				//	{
-				//		strategy.StratImage = _fileService.SaveImageFile(strategy.StratImage, strategy.CustomUrl);
-				//	}
-				//	catch (Exception e)
-				//	{
-				//		return BadRequest(e.Message);
-				//	}
-				//}
-				_dbContext.Entry(entity).CurrentValues.SetValues(strategy);
+                if (!Uri.IsWellFormedUriString(strategy.StratImage, UriKind.Absolute))
+                {
+                    try
+                    {
+                        strategy.StratImage = await _fileService.SaveImage(strategy.StratImage, strategy.CustomUrl);
+                    }
+                    catch (Exception e)
+                    {
+                        return BadRequest(e.Message);
+                    }
+                }
+                _dbContext.Entry(entity).CurrentValues.SetValues(strategy);
 			}
 
 			try
@@ -312,7 +312,9 @@ namespace BellumGens.Api.Controllers
 
 		private async Task<CSGOStrategy> ResolveStrategy(string stratId)
 		{
+#pragma warning disable CA1806 // Do not ignore method results
 			Guid.TryParse(stratId, out Guid id);
+#pragma warning restore CA1806 // Do not ignore method results
 			return await _dbContext.CSGOStrategies.Include(s => s.Comments).Include(s => s.Votes).FirstOrDefaultAsync(s => s.CustomUrl == stratId || s.Id == id);
 		}
 	}
