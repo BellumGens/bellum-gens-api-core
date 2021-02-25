@@ -107,17 +107,6 @@ namespace BellumGens.Api.Controllers
                 ApplicationUser user = await GetAuthUser();
                 strategy.UserId = user.Id;
 				strategy.UniqueCustomUrl(_dbContext);
-                if (!Uri.IsWellFormedUriString(strategy.StratImage, UriKind.Absolute))
-                {
-                    try
-                    {
-                        strategy.StratImage = await _fileService.SaveImage(strategy.StratImage, strategy.CustomUrl);
-                    }
-                    catch (Exception e)
-                    {
-                        return BadRequest(e.Message);
-                    }
-                }
                 _dbContext.Attach(strategy).State = EntityState.Added;
 			}
 			else
@@ -132,7 +121,7 @@ namespace BellumGens.Api.Controllers
                 {
                     try
                     {
-                        strategy.StratImage = await _fileService.SaveImage(strategy.StratImage, strategy.CustomUrl);
+                        strategy.StratImage = await _fileService.SaveImage(strategy.StratImage, strategy.Id.ToString());
                     }
                     catch (Exception e)
                     {
