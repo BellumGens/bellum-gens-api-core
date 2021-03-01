@@ -284,7 +284,7 @@ namespace BellumGens.Api.Controllers
 		private async Task<CSGOStrategy> UserCanEdit(Guid id)
 		{
 			ApplicationUser user = await GetAuthUser();
-            CSGOStrategy strat = await _dbContext.CSGOStrategies.FindAsync(id);
+            CSGOStrategy strat = await _dbContext.CSGOStrategies.Include(s => s.Team).ThenInclude(t => t.Members).FirstOrDefaultAsync(s => s.Id == id);
             if (strat?.TeamId != null)
             {
                 if (strat.Team.Members.Any(m => m.UserId == user.Id && m.IsEditor || m.IsAdmin))
