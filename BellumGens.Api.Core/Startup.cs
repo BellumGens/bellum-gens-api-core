@@ -114,7 +114,7 @@ namespace BellumGens.Api.Core
             services.AddScoped<ISteamService, SteamServiceProvider>();
             services.AddScoped<INotificationService, NotificationsService>();
             services.AddScoped<IEmailSender, EmailServiceProvider>();
-            services.AddScoped<IFileService, FileService>();
+            services.AddScoped<IStorageService, StorageService>();
 
             services.Configure<GzipCompressionProviderOptions>(options => options.Level = CompressionLevel.Optimal);
             services.AddResponseCompression(options =>

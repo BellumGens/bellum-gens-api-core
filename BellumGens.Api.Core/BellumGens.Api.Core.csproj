@@ -10,7 +10,8 @@
     <PackageReference Include="AspNet.Security.OAuth.BattleNet" Version="5.0.1" />
     <PackageReference Include="AspNet.Security.OAuth.Twitch" Version="5.0.1" />
     <PackageReference Include="AspNet.Security.OpenId.Steam" Version="5.0.0" />
-    <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.15.0" />
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.8.0" />
+    <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.17.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Cookies" Version="2.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="5.0.3" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="5.0.3" />
@@ -26,7 +27,6 @@
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="5.0.0" />
     <PackageReference Include="SteamModelsDotNetCore" Version="5.0.2" />
-    <PackageReference Include="System.Drawing.Common" Version="5.0.1" />
     <PackageReference Include="WebPush" Version="1.0.11" />
   </ItemGroup>
 
