@@ -297,20 +297,20 @@ namespace BellumGens.Api.Controllers
         {
             if (error != null)
             {
-                return Redirect(returnUrl + "/unauthorized");
+                if (ValidateReturnURL(returnUrl))
+                    return Redirect(returnUrl + "/unauthorized");
+                return Redirect(CORSConfig.returnOrigin + "/unauthorized");
             }
 
             ExternalLoginInfo info = await _signInManager.GetExternalLoginInfoAsync();
             Uri returnUri = new Uri(!string.IsNullOrEmpty(returnUrl) ? returnUrl : CORSConfig.returnOrigin);
             string returnHost = returnUri.GetLeftPart(UriPartial.Authority);
             string returnPath = returnUri.AbsolutePath;
-            ApplicationUser user;
             IdentityResult result;
 
             if (userId != null)
             {
-                user = await _userManager.FindByIdAsync(userId);
-                result = await AddLogin(user, info);
+                result = await AddLogin(userId, info);
                 if (!result.Succeeded)
                 {
                     string loginError = result.Errors.First().Description;
@@ -319,14 +319,16 @@ namespace BellumGens.Api.Controllers
                 return Redirect(returnHost + returnPath);
             }
 
-            user = await _userManager.FindByLoginAsync(info.LoginProvider, info.ProviderKey);
+            ApplicationUser user = await _userManager.FindByLoginAsync(info.LoginProvider, info.ProviderKey);
 
             if (user == null)
             {
                 result = await Register(info);
                 if (!result.Succeeded)
                 {
-                    return Redirect(returnUrl + "/unauthorized");
+                    if (ValidateReturnURL(returnUrl))
+                        return Redirect(returnUrl + "/unauthorized");
+                    return Redirect(CORSConfig.returnOrigin + "/unauthorized");
                 }
                 returnPath = "/register";
             }
@@ -448,8 +450,9 @@ namespace BellumGens.Api.Controllers
 		
 			return await _userManager.AddLoginAsync(user, new UserLoginInfo(info.LoginProvider, info.ProviderKey, info.LoginProvider));
 		}
-        private async Task<IdentityResult> AddLogin(ApplicationUser user, ExternalLoginInfo info)
+        private async Task<IdentityResult> AddLogin(string userId, ExternalLoginInfo info)
         {
+            ApplicationUser user = await _userManager.FindByIdAsync(userId);
             var providerId = info.ProviderKey;
             IdentityResult result = await _userManager.AddLoginAsync(user, new UserLoginInfo(info.LoginProvider, info.ProviderKey, info.ProviderDisplayName));
             if (result.Succeeded)
@@ -537,6 +540,16 @@ namespace BellumGens.Api.Controllers
 
             return null;
         }
+
+        private bool ValidateReturnURL(string returnUrl)
+        {
+            foreach (string endpoint in CORSConfig.validOrigins)
+            {
+                if (returnUrl.StartsWith(endpoint))
+                    return true;
+            }
+            return false;
+        } 
 
         private class ExternalLoginData
         {
