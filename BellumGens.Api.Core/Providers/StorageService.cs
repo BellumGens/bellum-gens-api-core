@@ -33,14 +33,14 @@ namespace BellumGens.Api.Core.Providers
 		private async Task<string> UploadToStorage(string blob, string name)
         {
             string connectionString = _config["BlobService:ConnectionString"];
-            BlobServiceClient blobServiceClient = new BlobServiceClient(connectionString);
+            BlobServiceClient blobServiceClient = new(connectionString);
 
             BlobContainerClient containerClient = blobServiceClient.GetBlobContainerClient(_config["BlobService:Container"]);
             BlobClient blobClient = containerClient.GetBlobClient(name + ".png");
 
             string base64 = blob[(blob.IndexOf(',') + 1)..];
             byte[] bytes = Convert.FromBase64String(base64);
-            using MemoryStream ms = new MemoryStream(bytes);
+            using MemoryStream ms = new(bytes);
 
             await blobClient.UploadAsync(ms, true);
             return blobClient.Uri.ToString();

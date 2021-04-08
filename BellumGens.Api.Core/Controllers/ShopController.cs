@@ -102,7 +102,7 @@ namespace BellumGens.Api.Controllers
                         discount += order.Promo.Discount;
                     }
 
-                    StringBuilder builder = new StringBuilder();
+                    StringBuilder builder = new();
                     builder.Append($@"Здравейте {order.FirstName} {order.LastName},
                                 <p>Успешно получихме вашата поръчка. Очаквайте обаждане на посоченият от вас телефонен номер за потвърждение!</p>
                                 <p>Детайли за вашата поръчка:</p>");

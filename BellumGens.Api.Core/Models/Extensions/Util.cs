@@ -10,7 +10,7 @@ namespace BellumGens.Api.Core.Common
 		{
 			string text = "";
 			string possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-			Random random = new Random();
+			Random random = new();
 
 			for (int i = 0; i < length; i++)
 			{
@@ -20,13 +20,13 @@ namespace BellumGens.Api.Core.Common
 			return text;
 		}
 
-		public static Dictionary<JerseyCut, string> JerseyCutNames = new Dictionary<JerseyCut, string>()
+		public static Dictionary<JerseyCut, string> JerseyCutNames = new()
 		{
 			{ JerseyCut.Male, "Мъжка" },
 			{ JerseyCut.Female, "Дамска" }
 		};
 
-		public static Dictionary<JerseySize, string> JerseySizeNames = new Dictionary<JerseySize, string>()
+		public static Dictionary<JerseySize, string> JerseySizeNames = new()
 		{
 			{ JerseySize.XS, "XS" },
 			{ JerseySize.S, "S" },

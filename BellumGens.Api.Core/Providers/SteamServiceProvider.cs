@@ -35,9 +35,9 @@ namespace BellumGens.Api.Core.Providers
 		public async Task<CSGOPlayerStats> GetStatsForCSGOUser(string username)
 		{
 			CSGOPlayerStats statsForUser;
-			using (HttpClient client = new HttpClient())
+			using (HttpClient client = new())
 			{
-				Uri endpoint = new Uri(string.Format(_statsForGameUrl, _appInfo.Config.CSGOGameId, _appInfo.Config.SteamApiKey, username));
+				Uri endpoint = new(string.Format(_statsForGameUrl, _appInfo.Config.CSGOGameId, _appInfo.Config.SteamApiKey, username));
 				var statsForGameResponse = await client.GetStringAsync(endpoint);
 				statsForUser = JsonSerializer.Deserialize<CSGOPlayerStats>(statsForGameResponse);
 
@@ -54,10 +54,10 @@ namespace BellumGens.Api.Core.Providers
 			}
 
 			SteamUser user;
-			using (HttpClient client = new HttpClient())
+			using (HttpClient client = new())
 			{
 				var playerDetailsResponse = await client.GetStreamAsync(NormalizeUsername(name));
-				XmlSerializer serializer = new XmlSerializer(typeof(SteamUser));
+				XmlSerializer serializer = new(typeof(SteamUser));
 				user = (SteamUser)serializer.Deserialize(playerDetailsResponse);
 			}
 			return user;
@@ -66,7 +66,7 @@ namespace BellumGens.Api.Core.Providers
 		public async Task<List<SteamUserSummary>> GetSteamUsersSummary(string users)
 		{
 			SteamUsersSummary result;
-			using (HttpClient client = new HttpClient())
+			using (HttpClient client = new())
 			{
 				var playerDetailsResponse = await client.GetStringAsync(string.Format(_steamUserUrl, _appInfo.Config.SteamApiKey, users));
 				result = JsonSerializer.Deserialize<SteamUsersSummary>(playerDetailsResponse);
@@ -81,14 +81,14 @@ namespace BellumGens.Api.Core.Providers
 				return _cache.Get(name) as UserStatsViewModel;
 			}
 
-			UserStatsViewModel model = new UserStatsViewModel();
-			using (HttpClient client = new HttpClient())
+			UserStatsViewModel model = new();
+			using (HttpClient client = new())
 			{
 				var playerDetailsResponse = await client.GetAsync(NormalizeUsername(name));
 
 				if (playerDetailsResponse.IsSuccessStatusCode)
 				{
-					XmlSerializer serializer = new XmlSerializer(typeof(SteamUser));
+					XmlSerializer serializer = new(typeof(SteamUser));
 
 					try
 					{
@@ -106,7 +106,7 @@ namespace BellumGens.Api.Core.Providers
 					return model;
 				}
 
-				Uri endpoint = new Uri(string.Format(_statsForGameUrl, _appInfo.Config.CSGOGameId, _appInfo.Config.SteamApiKey, model.steamUser.steamID64));
+				Uri endpoint = new(string.Format(_statsForGameUrl, _appInfo.Config.CSGOGameId, _appInfo.Config.SteamApiKey, model.steamUser.steamID64));
 				var statsForGameResponse = await client.GetAsync(endpoint);
 				if (statsForGameResponse.IsSuccessStatusCode)
 				{
@@ -134,12 +134,12 @@ namespace BellumGens.Api.Core.Providers
 				return _cache.Get(groupid) as SteamGroup;
 			}
 
-			HttpClient client = new HttpClient();
+			HttpClient client = new();
 			SteamGroup group = null;
 			var playerDetailsResponse = await client.GetAsync(string.Format(_groupMembersUrl, groupid));
 			if (playerDetailsResponse.IsSuccessStatusCode)
 			{
-				XmlSerializer serializer = new XmlSerializer(typeof(SteamGroup));
+				XmlSerializer serializer = new(typeof(SteamGroup));
 				group = (SteamGroup)serializer.Deserialize(await playerDetailsResponse.Content.ReadAsStreamAsync());
 
 				_cache.Set(groupid, group, DateTime.Now.AddDays(7));

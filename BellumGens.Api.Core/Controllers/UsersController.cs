@@ -59,7 +59,7 @@ namespace BellumGens.Api.Controllers
 		[AllowAnonymous]
 		public async Task<IActionResult> GetUserTeams(string userid)
 		{
-			List<CSGOTeamSummaryViewModel> teams = new List<CSGOTeamSummaryViewModel>();
+			List<CSGOTeamSummaryViewModel> teams = new();
 			await _dbContext.TeamMembers.Where(m => m.UserId == userid).Include(m => m.Team).Select(m => m.Team)
 				.ForEachAsync(team =>
 				{

@@ -6,7 +6,7 @@ namespace BellumGens.Api.Core.Models
 {
     public class TeamTournamentViewModel
     {
-        private Tournament _tournament;
+        private readonly Tournament _tournament;
         private Guid _teamid;
         private List<TournamentCSGOMatch> _matches;
         public TeamTournamentViewModel(Tournament tournament, Guid teamid)

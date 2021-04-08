@@ -51,7 +51,7 @@ namespace BellumGens.Api.Controllers
 		public async Task<IActionResult> GetTournaments(string teamid)
 		{
 			CSGOTeam team = await ResolveTeam(teamid);
-			List<TeamTournamentViewModel> model = new List<TeamTournamentViewModel>();
+			List<TeamTournamentViewModel> model = new();
 			await _dbContext.Tournaments
 							.Include(t => t.CSGOMatches)
 								.ThenInclude(m => m.Team1)
@@ -116,7 +116,7 @@ namespace BellumGens.Api.Controllers
 				return BadRequest("User is not a steam group owner for " + group.groupName);
 			}
 
-			CSGOTeam team = new CSGOTeam()
+			CSGOTeam team = new()
 			{
 				SteamGroupId = group.groupID64,
 				TeamName = group.groupName,

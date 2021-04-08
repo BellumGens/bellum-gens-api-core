@@ -19,7 +19,7 @@ namespace BellumGens.Api.Controllers
 		[Route("Subscribe")]
 		public async Task<IActionResult> Subscribe(BellumGensPushSubscriptionViewModel sub)
         {
-            BellumGensPushSubscription push = new BellumGensPushSubscription()
+            BellumGensPushSubscription push = new()
             {
 				Endpoint = sub.Endpoint,
 				ExpirationTime = sub.ExpirationTime,

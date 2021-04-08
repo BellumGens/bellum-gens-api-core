@@ -47,7 +47,7 @@ namespace BellumGens.Api.Controllers
 			{
                 ApplicationUser user = await GetAuthUser();
 
-                UserStatsViewModel model = new UserStatsViewModel(user, true);
+                UserStatsViewModel model = new(user, true);
                 if (string.IsNullOrEmpty(user.AvatarFull) && user.SteamID != null)
                 {
                     model = await _steamService.GetSteamUserDetails(user.Id);
@@ -72,7 +72,7 @@ namespace BellumGens.Api.Controllers
         public async Task<IActionResult> GetUserTeams()
         {
             ApplicationUser user = await GetAuthUser();
-            List<CSGOTeamSummaryViewModel> teams = new List<CSGOTeamSummaryViewModel>();
+            List<CSGOTeamSummaryViewModel> teams = new();
             await _dbContext.TeamMembers.Include(m => m.Team).Where(m => m.UserId == user.Id && m.IsAdmin).Select(m => m.Team).ForEachAsync(t => teams.Add(new CSGOTeamSummaryViewModel(t)));
             return Ok(teams);
         }
@@ -180,7 +180,7 @@ namespace BellumGens.Api.Controllers
             if (result.Succeeded)
             {
                 var user = await _userManager.FindByNameAsync(login.UserName);
-                UserStatsViewModel model = new UserStatsViewModel(user, true);
+                UserStatsViewModel model = new(user, true);
                 if (string.IsNullOrEmpty(user.AvatarFull) && user.SteamID != null)
                 {
                     model = await _steamService.GetSteamUserDetails(user.Id);
@@ -303,7 +303,7 @@ namespace BellumGens.Api.Controllers
             }
 
             ExternalLoginInfo info = await _signInManager.GetExternalLoginInfoAsync();
-            Uri returnUri = new Uri(!string.IsNullOrEmpty(returnUrl) ? returnUrl : CORSConfig.returnOrigin);
+            Uri returnUri = new(!string.IsNullOrEmpty(returnUrl) ? returnUrl : CORSConfig.returnOrigin);
             string returnHost = returnUri.GetLeftPart(UriPartial.Authority);
             string returnPath = returnUri.AbsolutePath;
             IdentityResult result;
@@ -363,7 +363,7 @@ namespace BellumGens.Api.Controllers
         public async Task<IEnumerable<ExternalLoginViewModel>> GetExternalLogins(string returnUrl, string routeName = "ExternalLogin", bool generateState = false)
         {
             IEnumerable<AuthenticationScheme> descriptions = await _signInManager.GetExternalAuthenticationSchemesAsync();
-            List<ExternalLoginViewModel> logins = new List<ExternalLoginViewModel>();
+            List<ExternalLoginViewModel> logins = new();
 
             string state;
 
@@ -379,7 +379,7 @@ namespace BellumGens.Api.Controllers
 
             foreach (AuthenticationScheme description in descriptions)
             {
-                ExternalLoginViewModel login = new ExternalLoginViewModel
+                ExternalLoginViewModel login = new()
                 {
                     Name = description.DisplayName,
                     Url = Url.RouteUrl(routeName, new
@@ -541,7 +541,7 @@ namespace BellumGens.Api.Controllers
             return null;
         }
 
-        private bool ValidateReturnURL(string returnUrl)
+        private static bool ValidateReturnURL(string returnUrl)
         {
             foreach (string endpoint in CORSConfig.validOrigins)
             {
