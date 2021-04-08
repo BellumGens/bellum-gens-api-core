@@ -557,7 +557,7 @@ namespace BellumGens.Api.Controllers
             {
                 foreach (CSGOMatchMap map in match.Maps)
                 {
-                    CSGOMatchMap mapEntity = await _dbContext.CSGOMatchMaps.FindAsync(id);
+                    CSGOMatchMap mapEntity = await _dbContext.CSGOMatchMaps.FindAsync(map.Id);
                     if (mapEntity != null)
                     {
                         _dbContext.Entry(mapEntity).CurrentValues.SetValues(map);
