@@ -31,6 +31,13 @@ namespace BellumGens.Api.Controllers
             return Ok(await _dbContext.Tournaments.FirstOrDefaultAsync(t => t.Active));
         }
 
+        [HttpGet]
+        [AllowAnonymous]
+        public async Task<IActionResult> Get(Guid id)
+        {
+            return Ok(await _dbContext.Tournaments.FindAsync(id));
+        }
+
         [HttpPost]
         [Route("Register")]
         public async Task<IActionResult> Register(TournamentApplication application)
@@ -127,7 +134,7 @@ namespace BellumGens.Api.Controllers
         public async Task<IActionResult> GetTotalRegistrationsCount(Guid tournamentId)
         {
             List<TournamentApplication> registrations = await _dbContext.TournamentApplications.Where(a => a.Tournament.ID == tournamentId).ToListAsync();
-            List<RegistrationCountViewModel> model = new List<RegistrationCountViewModel>()
+            List<RegistrationCountViewModel> model = new()
             {
                 new RegistrationCountViewModel(registrations.Where(r => r.Game == Game.CSGO).Count(), Game.CSGO),
                 new RegistrationCountViewModel(registrations.Where(r => r.Game == Game.StarCraft2).Count(), Game.StarCraft2)
@@ -180,7 +187,7 @@ namespace BellumGens.Api.Controllers
                 await _dbContext.TournamentCSGOMatches.Where(m => m.TournamentId == tournamentId).ToListAsync() :
                 await _dbContext.TournamentCSGOMatches.Where(m => m.Tournament.Active).ToListAsync();
 
-            List<TournamentCSGOParticipant> registrations = new List<TournamentCSGOParticipant>();
+            List<TournamentCSGOParticipant> registrations = new();
             foreach (TournamentApplication app in entities)
             {
                 registrations.Add(new TournamentCSGOParticipant(app, matches.FindAll(m => m.Team1Id == app.TeamId || m.Team2Id == app.TeamId)));
@@ -200,7 +207,7 @@ namespace BellumGens.Api.Controllers
                 await _dbContext.TournamentSC2Matches.Where(m => m.TournamentId == tournamentId).ToListAsync() :
                 await _dbContext.TournamentSC2Matches.Where(m => m.Tournament.Active).ToListAsync();
 
-            List<TournamentSC2Participant> registrations = new List<TournamentSC2Participant>();
+            List<TournamentSC2Participant> registrations = new();
             
             foreach (TournamentApplication app in entities)
             {
@@ -577,10 +584,6 @@ namespace BellumGens.Api.Controllers
                 }
                 else
                 {
-                    if (match.TournamentId == null)
-                    {
-                        match.TournamentId = (await _dbContext.Tournaments.FirstOrDefaultAsync(t => t.Active)).ID;
-                    }
                     _dbContext.TournamentCSGOMatches.Add(match);
                 }
 
@@ -707,10 +710,6 @@ namespace BellumGens.Api.Controllers
                 }
                 else
                 {
-                    if (match.TournamentId == null)
-                    {
-                        match.TournamentId = _dbContext.Tournaments.Where(t => t.Active).First().ID;
-                    }
                     _dbContext.TournamentSC2Matches.Add(match);
                 }
 

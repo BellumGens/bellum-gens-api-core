@@ -6,27 +6,13 @@ namespace BellumGens.Api.Core.Common
 {
 	public static class Util
 	{
-		public static string GenerateHashString(int length = 0)
-		{
-			string text = "";
-			string possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-			Random random = new Random();
-
-			for (int i = 0; i < length; i++)
-			{
-				text += possible[(int)Math.Floor(random.NextDouble() * possible.Length)];
-			}
-
-			return text;
-		}
-
-		public static Dictionary<JerseyCut, string> JerseyCutNames = new Dictionary<JerseyCut, string>()
+		private static readonly Dictionary<JerseyCut, string> _jerseyCutNames = new()
 		{
 			{ JerseyCut.Male, "Мъжка" },
 			{ JerseyCut.Female, "Дамска" }
 		};
 
-		public static Dictionary<JerseySize, string> JerseySizeNames = new Dictionary<JerseySize, string>()
+		private static readonly Dictionary<JerseySize, string> _jerseySizeNames = new()
 		{
 			{ JerseySize.XS, "XS" },
 			{ JerseySize.S, "S" },
@@ -36,5 +22,35 @@ namespace BellumGens.Api.Core.Common
 			{ JerseySize.XXL, "XXL" },
 			{ JerseySize.XXXL, "XXXL" }
 		};
+
+		public static string GenerateHashString(int length = 0)
+		{
+			string text = "";
+			string possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+			Random random = new();
+
+			for (int i = 0; i < length; i++)
+			{
+				text += possible[(int)Math.Floor(random.NextDouble() * possible.Length)];
+			}
+
+			return text;
+		}
+
+		public static Dictionary<JerseyCut, string> JerseyCutNames
+        {
+			get
+            {
+				return _jerseyCutNames;
+            }
+        }
+
+		public static Dictionary<JerseySize, string> JerseySizeNames
+		{
+			get
+			{
+				return _jerseySizeNames;
+			}
+		}
 	}
 }

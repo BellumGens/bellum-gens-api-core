@@ -26,7 +26,7 @@ namespace BellumGens.Api.Controllers
 		[HttpGet]
 		public async Task<IActionResult> Get(string name)
 		{
-			SearchResultViewModel results = new SearchResultViewModel();
+			SearchResultViewModel results = new();
 			if (!string.IsNullOrEmpty(name))
 			{
 				results.Teams = await _dbContext.CSGOTeams.Where(t => t.Visible && t.TeamName.Contains(name)).ToListAsync();
@@ -86,8 +86,8 @@ namespace BellumGens.Api.Controllers
 		[HttpGet]
 		public async Task<IActionResult> SearchPlayers(PlaystyleRole? role, double overlap, Guid? teamid)
         {
-            List<ApplicationUser> users = new List<ApplicationUser>();
-            List<UserStatsViewModel> players = new List<UserStatsViewModel>();
+            List<ApplicationUser> users = new();
+            List<UserStatsViewModel> players = new();
             if (overlap <= 0 && role == null)
 			{
 				users = await _dbContext.Users.Where(u => u.SearchVisible).ToListAsync();
