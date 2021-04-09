@@ -649,9 +649,6 @@ namespace BellumGens.Api.Core.Migrations
                     b.Property<DateTimeOffset>("EndDate")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<string>("ExternalBracket")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("Logo")
                         .HasColumnType("nvarchar(max)");
 

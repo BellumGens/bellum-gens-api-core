@@ -31,6 +31,13 @@ namespace BellumGens.Api.Controllers
             return Ok(await _dbContext.Tournaments.FirstOrDefaultAsync(t => t.Active));
         }
 
+        [HttpGet]
+        [AllowAnonymous]
+        public async Task<IActionResult> Get(Guid id)
+        {
+            return Ok(await _dbContext.Tournaments.FindAsync(id));
+        }
+
         [HttpPost]
         [Route("Register")]
         public async Task<IActionResult> Register(TournamentApplication application)

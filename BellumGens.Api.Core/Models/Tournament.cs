@@ -22,8 +22,6 @@ namespace BellumGens.Api.Core.Models
 
 		public bool Active { get; set; } = false;
 
-		public string ExternalBracket { get; set; }
-
 		[JsonIgnore]
 		public virtual ICollection<TournamentCSGOMatch> CSGOMatches { get; set; } = new HashSet<TournamentCSGOMatch>();
 
