@@ -23,6 +23,9 @@ jobs:
     - name: Clean
       run: dotnet clean --configuration Release && dotnet nuget locals all --clear
 
+    - name: Install dependencies
+      run: dotnet restore
+
     - name: Build with dotnet
       run: dotnet build --configuration Release
 
