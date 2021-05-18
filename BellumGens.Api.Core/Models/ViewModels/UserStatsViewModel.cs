@@ -10,57 +10,57 @@ namespace BellumGens.Api.Core.Models
 		public UserStatsViewModel(ApplicationUser user, bool isAuthUser = false)
 			: base(user, isAuthUser) { }
 
-        public SteamUser steamUser { get; set; }
-        public bool steamUserException { get; set; }
-		public CSGOPlayerStats userStats { get; set; }
-		public bool userStatsException { get; set; }
-        public bool registered
+        public SteamUser SteamUser { get; set; }
+        public bool SteamUserException { get; set; }
+		public CSGOPlayerStats UserStats { get; set; }
+		public bool UserStatsException { get; set; }
+        public bool Registered
         {
             get { return user != null; }
         }
-        public bool? steamPrivate
+        public bool? SteamPrivate
         {
             get
             {
                 return user?.SteamPrivate;
             }
         }
-        public decimal? headshotPercentage
+        public decimal? HeadshotPercentage
         {
             get
             {
                 return user?.HeadshotPercentage;
             }
         }
-        public decimal? killDeathRatio
+        public decimal? KillDeathRatio
         {
             get
             {
                 return user?.KillDeathRatio;
             }
         }
-        public decimal? accuracy
+        public decimal? Accuracy
         {
             get
             {
                 return user?.Accuracy;
             }
         }
-        public string country
+        public string Country
         {
             get
             {
                 return user?.Country;
             }
         }
-        public PlaystyleRole? primaryRole
+        public PlaystyleRole? PrimaryRole
         {
             get
             {
                 return user?.PreferredPrimaryRole;
             }
         }
-        public PlaystyleRole? secondaryRole
+        public PlaystyleRole? SecondaryRole
         {
             get
             {
@@ -77,66 +77,66 @@ namespace BellumGens.Api.Core.Models
         public void RefreshAppUserValues(BellumGensDbContext context)
         {
             bool changes = false;
-            if (steamUser?.avatarFull != user.AvatarFull)
+            if (SteamUser?.avatarFull != user.AvatarFull)
             {
-                user.AvatarFull = steamUser.avatarFull;
+                user.AvatarFull = SteamUser.avatarFull;
                 changes = true;
             }
-            if (steamUser?.steamID != user.UserName)
+            if (SteamUser?.steamID != user.UserName)
             {
-                user.UserName = steamUser.steamID;
+                user.UserName = SteamUser.steamID;
                 changes = true;
             }
-            if (steamUser?.avatarIcon != user.AvatarIcon)
+            if (SteamUser?.avatarIcon != user.AvatarIcon)
             {
-                user.AvatarIcon = steamUser.avatarIcon;
+                user.AvatarIcon = SteamUser.avatarIcon;
                 changes = true;
             }
-            if (steamUser?.realname != user.RealName)
+            if (SteamUser?.realname != user.RealName)
             {
-                user.RealName = steamUser.realname;
+                user.RealName = SteamUser.realname;
                 changes = true;
             }
-            if (steamUser?.avatarMedium != user.AvatarMedium)
+            if (SteamUser?.avatarMedium != user.AvatarMedium)
             {
-                user.AvatarMedium = steamUser.avatarMedium;
+                user.AvatarMedium = SteamUser.avatarMedium;
                 changes = true;
             }
-            if (steamUser?.customURL != user.CustomUrl)
+            if (SteamUser?.customURL != user.CustomUrl)
             {
-                user.CustomUrl = steamUser.customURL;
+                user.CustomUrl = SteamUser.customURL;
                 changes = true;
             }
-            if (steamUser?.country != user.Country)
+            if (SteamUser?.country != user.Country)
             {
-                user.Country = steamUser.country;
+                user.Country = SteamUser.country;
                 changes = true;
             }
-            if (userStatsException != user.SteamPrivate)
+            if (UserStatsException != user.SteamPrivate)
             {
-                user.SteamPrivate = userStatsException;
+                user.SteamPrivate = UserStatsException;
                 changes = true;
             }
-            if (!userStatsException)
+            if (!UserStatsException)
             {
-                if (userStats?.headshotPercentage != user.HeadshotPercentage)
+                if (UserStats?.headshotPercentage != user.HeadshotPercentage)
                 {
-                    user.HeadshotPercentage = userStats.headshotPercentage;
+                    user.HeadshotPercentage = UserStats.headshotPercentage;
                     changes = true;
                 }
-                if (userStats?.killDeathRatio != user.KillDeathRatio)
+                if (UserStats?.killDeathRatio != user.KillDeathRatio)
                 {
-                    user.KillDeathRatio = userStats.killDeathRatio;
+                    user.KillDeathRatio = UserStats.killDeathRatio;
                     changes = true;
                 }
-                if (userStats?.accuracy != user.Accuracy)
+                if (UserStats?.accuracy != user.Accuracy)
                 {
-                    user.Accuracy = userStats.accuracy;
+                    user.Accuracy = UserStats.accuracy;
                     changes = true;
                 }
                 // Populate weapons and don't serialize stats again...
-                if (userStats.weapons != null)
-                    userStats.playerstats = null;
+                if (UserStats.weapons != null)
+                    UserStats.playerstats = null;
             }
             if (changes)
             {

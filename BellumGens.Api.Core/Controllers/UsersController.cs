@@ -36,9 +36,9 @@ namespace BellumGens.Api.Controllers
 		{
 			UserStatsViewModel user = await _steamService.GetSteamUserDetails(userid);
             ApplicationUser registered = null;
-            if (user.steamUser != null)
+            if (user.SteamUser != null)
             {
-				registered = await _dbContext.Users.Include(u => u.MemberOf).ThenInclude(m => m.Team).FirstOrDefaultAsync(u => u.SteamID == user.steamUser.steamID64);
+				registered = await _dbContext.Users.Include(u => u.MemberOf).ThenInclude(m => m.Team).FirstOrDefaultAsync(u => u.SteamID == user.SteamUser.steamID64);
             }
 			if (registered != null)
 			{
@@ -52,7 +52,7 @@ namespace BellumGens.Api.Controllers
         public async Task<IActionResult> GetUserGroups(string userid)
         {
             UserStatsViewModel user = await _steamService.GetSteamUserDetails(userid);
-            return Ok(user?.steamUser?.groups);
+            return Ok(user?.SteamUser?.groups);
         }
 
 		[Route("UserTeams")]
