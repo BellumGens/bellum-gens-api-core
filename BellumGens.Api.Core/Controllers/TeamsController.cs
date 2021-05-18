@@ -222,7 +222,7 @@ namespace BellumGens.Api.Controllers
 				System.Diagnostics.Trace.TraceError($"Team member update error: ${e.Message}");
 				return BadRequest("Something went wrong...");
 			}
-			return Ok("ok");
+			return Ok();
 		}
 
 		[Route("RemoveMember")]
@@ -244,7 +244,7 @@ namespace BellumGens.Api.Controllers
 				System.Diagnostics.Trace.TraceError($"Team member delete error: ${e.Message}");
 				return BadRequest("Something went wrong...");
 			}
-			return Ok("ok");
+			return Ok();
 		}
 
 		[Route("Abandon")]

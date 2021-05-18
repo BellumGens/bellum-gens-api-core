@@ -50,7 +50,7 @@ namespace BellumGens.Api.Core.Providers
 			if (_cache.Get(name) is UserStatsViewModel)
 			{
 				UserStatsViewModel viewModel = _cache.Get(name) as UserStatsViewModel;
-				return viewModel.steamUser;
+				return viewModel.SteamUser;
 			}
 
 			SteamUser user;
@@ -92,37 +92,37 @@ namespace BellumGens.Api.Core.Providers
 
 					try
 					{
-						model.steamUser = (SteamUser)serializer.Deserialize(await playerDetailsResponse.Content.ReadAsStreamAsync());
+						model.SteamUser = (SteamUser)serializer.Deserialize(await playerDetailsResponse.Content.ReadAsStreamAsync());
 					}
 					catch
 					{
-						model.steamUserException = true;
+						model.SteamUserException = true;
 						return model;
 					}
 				}
 				else
 				{
-					model.steamUserException = true;
+					model.SteamUserException = true;
 					return model;
 				}
 
-				Uri endpoint = new(string.Format(_statsForGameUrl, _appInfo.Config.CSGOGameId, _appInfo.Config.SteamApiKey, model.steamUser.steamID64));
+				Uri endpoint = new(string.Format(_statsForGameUrl, _appInfo.Config.CSGOGameId, _appInfo.Config.SteamApiKey, model.SteamUser.steamID64));
 				var statsForGameResponse = await client.GetAsync(endpoint);
 				if (statsForGameResponse.IsSuccessStatusCode)
 				{
 					try
 					{
-						model.userStats = JsonSerializer.Deserialize<CSGOPlayerStats>(await statsForGameResponse.Content.ReadAsStringAsync());
+						model.UserStats = JsonSerializer.Deserialize<CSGOPlayerStats>(await statsForGameResponse.Content.ReadAsStringAsync());
 						_cache.Set(name, model, DateTime.Now.AddDays(5));
 						return model;
 					}
 					catch
 					{
-						model.userStatsException = true;
+						model.UserStatsException = true;
 						return model;
 					}
 				}
-				model.userStatsException = true;
+				model.UserStatsException = true;
 			}
 			return model;
 		}
