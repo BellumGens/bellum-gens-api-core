@@ -116,9 +116,9 @@ namespace BellumGens.Api.Core
             services.AddScoped<IEmailSender, EmailServiceProvider>();
             services.AddScoped<IStorageService, StorageService>();
 
-            services.Configure<GzipCompressionProviderOptions>(options => options.Level = CompressionLevel.Optimal);
             services.AddResponseCompression(options =>
             {
+                options.Providers.Add<BrotliCompressionProvider>();
                 options.Providers.Add<GzipCompressionProvider>();
                 options.EnableForHttps = true;
                 options.MimeTypes = new[]
@@ -178,6 +178,7 @@ namespace BellumGens.Api.Core
 
             app.UseAuthentication();
             app.UseAuthorization();
+            app.UseResponseCompression();
 
             app.UseEndpoints(endpoints =>
             {
