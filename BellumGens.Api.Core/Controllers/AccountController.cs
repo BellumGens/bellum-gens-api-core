@@ -335,6 +335,15 @@ namespace BellumGens.Api.Controllers
             else if (!user.EmailConfirmed)
             {
                 user.EmailConfirmed = true;
+                if (info.LoginProvider == "BattleNet")
+                {
+                    string battletag = info.Principal.FindFirstValue(ClaimTypes.Name);
+                    if (user.BattleNetBattleTag != battletag || user.BattleNetId != info.ProviderKey)
+                    {
+                        user.BattleNetBattleTag = battletag;
+                        user.BattleNetId = info.ProviderKey;
+                    }
+                }
             }
 
             var signInResult = await _signInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, isPersistent: true, bypassTwoFactor: true);
@@ -435,7 +444,8 @@ namespace BellumGens.Api.Controllers
                         UserName = username,
                         Email = email,
                         EmailConfirmed = true,
-                        BattleNetId = username
+                        BattleNetBattleTag = username,
+                        BattleNetId = providerId
                     };
                     break;
                 default:
@@ -476,9 +486,10 @@ namespace BellumGens.Api.Controllers
                         break;
                     case "BattleNet":
                         var username = info.Principal.FindFirstValue(ClaimTypes.Name);
-                        if (user.BattleNetId != username)
+                        if (user.BattleNetBattleTag != username || user.BattleNetId != providerId)
                         {
-                            user.BattleNetId = username;
+                            user.BattleNetBattleTag = username;
+                            user.BattleNetId = providerId;
                             await _dbContext.SaveChangesAsync();
                         }
                         break;

@@ -106,6 +106,8 @@ namespace BellumGens.Api.Core.Models
 
 		public string BattleNetId { get; set; }
 
+		public string BattleNetBattleTag { get; set; }
+
 		public string SteamID { get; set; }
 
 		public string TwitchId { get; set; }
