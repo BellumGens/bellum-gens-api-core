@@ -20,12 +20,14 @@ namespace BellumGens.Api.Core.Providers
 
         private static OAuthResponse _oauth;
         private static DateTimeOffset _tokenIssueStamp;
-        private readonly IConfiguration _configuration;
+        private static string _clientId;
+        private static string _secret;
 
         public BattleNetServiceProvider(IMemoryCache cache, IConfiguration config)
         {
             _cache = cache;
-            _configuration = config;
+            _clientId = config.GetValue<string>("battleNet:clientId");
+            _secret = config.GetValue<string>("battleNet:secret");
         }
 
         public async Task<Player> GetStarCraft2Player(string playerid, string region = "eu", int regionid = 2, int realmid = 1)
@@ -38,7 +40,7 @@ namespace BellumGens.Api.Core.Providers
 
             if (_oauth == null || DateTimeOffset.Now > _tokenIssueStamp.AddSeconds(_oauth.expires_in))
             {
-                _oauth = await this.GetAccessToken();
+                _oauth = await GetAccessToken();
             }
 
             using HttpClient client = new();
@@ -54,21 +56,17 @@ namespace BellumGens.Api.Core.Providers
 
         //}
 
-        private async Task<OAuthResponse> GetAccessToken()
+        private static async Task<OAuthResponse> GetAccessToken()
         {
             using HttpClient client = new();
             Uri endpoint = new(_tokenEndpoint);
-            var values = new List<KeyValuePair<string, string>>();
-
-            values.Add(new KeyValuePair<string, string>("grant_type", "client_credentials"));
-            var content = new FormUrlEncodedContent(values);
-
-            var authenticationString = $"{_configuration.GetValue<string>("battleNet:clientId")}:{_configuration.GetValue<string>("battleNet:secret")}";
-            var base64EncodedAuthenticationString = Convert.ToBase64String(Encoding.UTF8.GetBytes(authenticationString));
 
             var requestMessage = new HttpRequestMessage(HttpMethod.Post, endpoint);
-            requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Basic", base64EncodedAuthenticationString);
-            requestMessage.Content = content;
+            requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.UTF8.GetBytes($"{_clientId}:{_secret}")));
+            requestMessage.Content = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("grant_type", "client_credentials")
+            });
 
             var response = await client.SendAsync(requestMessage);
             if (response.IsSuccessStatusCode)
