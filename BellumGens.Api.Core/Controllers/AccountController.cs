@@ -614,8 +614,6 @@ namespace BellumGens.Api.Controllers
 
         private static class RandomOAuthStateGenerator
         {
-            private static readonly RandomNumberGenerator _random = new RNGCryptoServiceProvider();
-
             public static string Generate(int strengthInBits)
             {
                 const int bitsPerByte = 8;
@@ -628,7 +626,7 @@ namespace BellumGens.Api.Controllers
                 int strengthInBytes = strengthInBits / bitsPerByte;
 
                 byte[] data = new byte[strengthInBytes];
-                _random.GetBytes(data);
+                RandomNumberGenerator.Fill(data);
                 return Base64UrlTextEncoder.Encode(data);
             }
         }
