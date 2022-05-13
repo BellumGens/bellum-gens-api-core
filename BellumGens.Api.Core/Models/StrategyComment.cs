@@ -31,7 +31,7 @@ namespace BellumGens.Api.Core.Models
 		{
 			get
 			{
-				return User?.AvatarIcon;
+				return User?.CSGODetails.AvatarIcon;
 			}
 		}
 

@@ -38,7 +38,7 @@ namespace BellumGens.Api.Controllers
             ApplicationUser registered = null;
             if (user.SteamUser != null)
             {
-				registered = await _dbContext.Users.Include(u => u.MemberOf).ThenInclude(m => m.Team).FirstOrDefaultAsync(u => u.SteamID == user.SteamUser.steamID64);
+				registered = await _dbContext.Users.Include(u => u.CSGODetails).Include(u => u.MemberOf).ThenInclude(m => m.Team).FirstOrDefaultAsync(u => u.SteamID == user.SteamUser.steamID64);
             }
 			if (registered != null)
 			{

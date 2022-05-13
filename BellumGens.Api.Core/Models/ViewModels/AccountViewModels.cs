@@ -25,42 +25,42 @@ namespace BellumGens.Api.Core.Models
             this.user = user;
         }
 
-        public string id
+        public string Id
         {
             get
             {
                 return user?.Id;
             }
         }
-        public string steamId
+        public string SteamId
         {
             get
             {
                 return user?.SteamID;
             }
         }
-        public string username
+        public string Username
         {
             get
             {
                 return user?.UserName;
             }
         }
-        public string avatarMedium
+        public string AvatarMedium
         {
             get
             {
-                return user?.AvatarMedium;
+                return user?.CSGODetails?.AvatarMedium;
             }
         }
-        public string customURL
+        public string CustomURL
         {
             get
             {
-                return user?.CustomUrl;
+                return user?.CSGODetails?.CustomUrl;
             }
         }
-        public string battleNetId
+        public string BattleNetId
         {
             get
             {
@@ -79,41 +79,41 @@ namespace BellumGens.Api.Core.Models
         {
             _isAuthUser = isAuthUser;
         }
-        public List<string> externalLogins { get; set; }
-        public string email
+        public List<string> ExternalLogins { get; set; }
+        public string Email
         {
             get
             {
                 return _isAuthUser ? user?.Email : null;
             }
         }
-        public bool? searchVisible
+        public bool? SearchVisible
         {
             get
             {
                 return user?.SearchVisible;
             }
         }
-        public string avatarIcon
+        public string AvatarIcon
         {
             get
             {
-                return user?.AvatarIcon;
+                return user?.CSGODetails?.AvatarIcon;
             }
         }
-        public string avatarFull
+        public string AvatarFull
         {
             get
             {
-                return user?.AvatarFull;
+                return user?.CSGODetails?.AvatarFull;
             }
         }
 
-        public string realname
+        public string Realname
         {
             get
             {
-                return user?.RealName;
+                return user?.CSGODetails?.RealName;
             }
         }
     }

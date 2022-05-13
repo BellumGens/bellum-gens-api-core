@@ -65,7 +65,7 @@ namespace BellumGens.Api.Core.Models
 				Notification = new BellumGensNotification()
 				{
 					Title = $"{invite.InvitedUser.UserName} has accepted your invitation to join {invite.TeamInfo.TeamName}!",
-					Icon = invite.InvitedUser.AvatarFull,
+					Icon = invite.InvitedUser.CSGODetails.AvatarFull,
 					Data = invite.InvitedUserId,
 					Renotify = true,
 					Actions = new List<BellumGensNotificationAction>()
@@ -85,7 +85,7 @@ namespace BellumGens.Api.Core.Models
 			Notification = new BellumGensNotification()
 			{
 				Title = $"{application.User.UserName} has applied to join {application.Team.TeamName}",
-				Icon = application.User.AvatarFull,
+				Icon = application.User.CSGODetails.AvatarFull,
 				Data = application.ApplicantId,
 				Renotify = true,
 				Actions = new List<BellumGensNotificationAction>()

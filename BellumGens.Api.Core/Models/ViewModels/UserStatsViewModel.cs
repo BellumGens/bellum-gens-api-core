@@ -8,7 +8,12 @@ namespace BellumGens.Api.Core.Models
 		public UserStatsViewModel() : base() { }
 
 		public UserStatsViewModel(ApplicationUser user, bool isAuthUser = false)
-			: base(user, isAuthUser) { }
+			: base(user, isAuthUser)
+        {
+            _details = user.CSGODetails;
+        }
+
+        private CSGODetails _details;
 
         public SteamUser SteamUser { get; set; }
         public bool SteamUserException { get; set; }
@@ -22,35 +27,35 @@ namespace BellumGens.Api.Core.Models
         {
             get
             {
-                return user?.SteamPrivate;
+                return _details?.SteamPrivate;
             }
         }
         public decimal? HeadshotPercentage
         {
             get
             {
-                return user?.HeadshotPercentage;
+                return _details?.HeadshotPercentage;
             }
         }
         public decimal? KillDeathRatio
         {
             get
             {
-                return user?.KillDeathRatio;
+                return _details?.KillDeathRatio;
             }
         }
         public decimal? Accuracy
         {
             get
             {
-                return user?.Accuracy;
+                return _details?.Accuracy;
             }
         }
         public string Country
         {
             get
             {
-                return user?.Country;
+                return _details?.Country;
             }
         }
         public PlaystyleRole? PrimaryRole
@@ -71,79 +76,94 @@ namespace BellumGens.Api.Core.Models
         public void SetUser(ApplicationUser user, BellumGensDbContext context)
         {
             this.user = user;
+            _details = user.CSGODetails;
             RefreshAppUserValues(context);
         }
 
         public void RefreshAppUserValues(BellumGensDbContext context)
         {
             bool changes = false;
-            if (SteamUser?.avatarFull != user.AvatarFull)
+            bool userchange = false;
+            if (SteamUser?.avatarFull != _details.AvatarFull)
             {
-                user.AvatarFull = SteamUser.avatarFull;
+                _details.AvatarFull = SteamUser.avatarFull;
                 changes = true;
             }
             if (SteamUser?.steamID != user.UserName)
             {
                 user.UserName = SteamUser.steamID;
+                userchange = true;
+            }
+            if (SteamUser?.avatarIcon != _details.AvatarIcon)
+            {
+                _details.AvatarIcon = SteamUser.avatarIcon;
                 changes = true;
             }
-            if (SteamUser?.avatarIcon != user.AvatarIcon)
+            if (SteamUser?.realname != _details.RealName)
             {
-                user.AvatarIcon = SteamUser.avatarIcon;
+                _details.RealName = SteamUser.realname;
                 changes = true;
             }
-            if (SteamUser?.realname != user.RealName)
+            if (SteamUser?.avatarMedium != _details.AvatarMedium)
             {
-                user.RealName = SteamUser.realname;
+                _details.AvatarMedium = SteamUser.avatarMedium;
                 changes = true;
             }
-            if (SteamUser?.avatarMedium != user.AvatarMedium)
+            if (SteamUser?.customURL != _details.CustomUrl)
             {
-                user.AvatarMedium = SteamUser.avatarMedium;
+                _details.CustomUrl = SteamUser.customURL;
                 changes = true;
             }
-            if (SteamUser?.customURL != user.CustomUrl)
+            if (SteamUser?.country != _details.Country)
             {
-                user.CustomUrl = SteamUser.customURL;
+                _details.Country = SteamUser.country;
                 changes = true;
             }
-            if (SteamUser?.country != user.Country)
+            if (UserStatsException != _details.SteamPrivate)
             {
-                user.Country = SteamUser.country;
-                changes = true;
-            }
-            if (UserStatsException != user.SteamPrivate)
-            {
-                user.SteamPrivate = UserStatsException;
+                _details.SteamPrivate = UserStatsException;
                 changes = true;
             }
             if (!UserStatsException)
             {
-                if (UserStats?.headshotPercentage != user.HeadshotPercentage)
+                if (UserStats?.headshotPercentage != _details.HeadshotPercentage)
                 {
-                    user.HeadshotPercentage = UserStats.headshotPercentage;
+                    _details.HeadshotPercentage = UserStats.headshotPercentage;
                     changes = true;
                 }
-                if (UserStats?.killDeathRatio != user.KillDeathRatio)
+                if (UserStats?.killDeathRatio != _details.KillDeathRatio)
                 {
-                    user.KillDeathRatio = UserStats.killDeathRatio;
+                    _details.KillDeathRatio = UserStats.killDeathRatio;
                     changes = true;
                 }
-                if (UserStats?.accuracy != user.Accuracy)
+                if (UserStats?.accuracy != _details.Accuracy)
                 {
-                    user.Accuracy = UserStats.accuracy;
+                    _details.Accuracy = UserStats.accuracy;
                     changes = true;
                 }
                 // Populate weapons and don't serialize stats again...
                 if (UserStats.weapons != null)
                     UserStats.playerstats = null;
             }
-            if (changes)
+            if (userchange)
             {
                 try
                 {
                     ApplicationUser appuser = context.Users.Find(user.Id);
                     context.Entry(appuser).CurrentValues.SetValues(user);
+                    context.SaveChanges();
+                }
+                catch
+                {
+
+                }
+            }
+            if (changes)
+            {
+                try
+                {
+                    CSGODetails csgouser = context.CSGODetails.Find(user.SteamID);
+                    context.Entry(csgouser).CurrentValues.SetValues(_details);
                     context.SaveChanges();
                 }
                 catch

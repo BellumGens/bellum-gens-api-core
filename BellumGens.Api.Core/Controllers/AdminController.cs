@@ -59,7 +59,7 @@ namespace BellumGens.Api.Controllers
         {
             if (await UserIsInRole("admin"))
             {
-                var users = _dbContext.Users.Select(s => new { s.Id, s.UserName, s.AvatarMedium }).ToList();
+                var users = _dbContext.Users.Select(s => new { s.Id, s.UserName }).ToList();
                 return Ok(users);
             }
             return Unauthorized();

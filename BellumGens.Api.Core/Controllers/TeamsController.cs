@@ -43,7 +43,7 @@ namespace BellumGens.Api.Controllers
 		[AllowAnonymous]
 		public async Task<List<TeamMember>> GetTeamMembers(Guid teamId)
 		{
-			return await _dbContext.TeamMembers.Include(m => m.Member).Where(m => m.TeamId == teamId).ToListAsync();
+			return await _dbContext.TeamMembers.Include(m => m.Member).ThenInclude(u => u.CSGODetails).Where(m => m.TeamId == teamId).ToListAsync();
 		}
 
 		[Route("Tournaments")]

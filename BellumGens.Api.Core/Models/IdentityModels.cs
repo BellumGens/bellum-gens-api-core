@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -86,41 +87,25 @@ namespace BellumGens.Api.Core.Models
 
         public bool SearchVisible { get; set; } = true;
 
-        public string AvatarFull { get; set; }
-
-        public string AvatarMedium { get; set; }
-
-        public string AvatarIcon { get; set; }
-
-        public string RealName { get; set; }
-
-        public string CustomUrl { get; set; }
-
-        public string Country { get; set; }
-
-        public decimal HeadshotPercentage { get; set; }
-
-        public decimal KillDeathRatio { get; set; }
-
-        public decimal Accuracy { get; set; }
-
 		public string BattleNetId { get; set; }
 
-		public string BattleNetBattleTag { get; set; }
-
+		public string TwitchId { get; set; }
+		
 		public string SteamID { get; set; }
 
-		public string TwitchId { get; set; }
-
-		public bool SteamPrivate { get; set; } = false;
-
-        public DateTimeOffset RegisteredOn { get; set; } = DateTimeOffset.Now;
+		public DateTimeOffset RegisteredOn { get; set; } = DateTimeOffset.Now;
 
 		public DateTimeOffset LastSeen { get; set; } = DateTimeOffset.Now;
 
 		public PlaystyleRole PreferredPrimaryRole { get; set; }
 
 		public PlaystyleRole PreferredSecondaryRole { get; set; }
+
+		[ForeignKey("SteamID")]
+		public virtual CSGODetails CSGODetails { get; set; }
+
+		[ForeignKey("BattleNetId")]
+		public virtual StarCraft2Details StarCraft2Details { get; set; }
 
 		public virtual ICollection<UserAvailability> Availability { get; set; } = new HashSet<UserAvailability>();
 
@@ -136,6 +121,10 @@ namespace BellumGens.Api.Core.Models
 	public class BellumGensDbContext : IdentityDbContext<ApplicationUser>
 	{
 		public DbSet<UserAvailability> UserAvailabilities { get; set; }
+
+		public DbSet<CSGODetails> CSGODetails { get; set; }
+
+		public DbSet<StarCraft2Details> StarCraft2Details { get; set; }
 
 		public DbSet<UserMapPool> UserMapPool { get; set; }
 
@@ -194,15 +183,15 @@ namespace BellumGens.Api.Core.Models
 		{
 			base.OnModelCreating(modelBuilder);
 
-			modelBuilder.Entity<ApplicationUser>()
+			modelBuilder.Entity<CSGODetails>()
 						.Property(p => p.Accuracy)
 						.HasPrecision(5, 2);
 
-			modelBuilder.Entity<ApplicationUser>()
+			modelBuilder.Entity<CSGODetails>()
 						.Property(p => p.HeadshotPercentage)
 						.HasPrecision(5, 2);
 
-			modelBuilder.Entity<ApplicationUser>()
+			modelBuilder.Entity<CSGODetails>()
 						.Property(p => p.KillDeathRatio)
 						.HasPrecision(4, 2);
 
