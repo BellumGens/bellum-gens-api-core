@@ -378,7 +378,10 @@ namespace BellumGens.Api.Controllers
 				return BadRequest("You need to be team admin.");
 			}
 
-			return Ok(await _dbContext.TeamApplications.Where(a => a.TeamId == teamId).OrderByDescending(n => n.Sent).ToListAsync());
+			return Ok(await _dbContext.TeamApplications
+										.Include(a => a.User)
+											.ThenInclude(u => u.CSGODetails)
+										.Where(a => a.TeamId == teamId).OrderByDescending(n => n.Sent).ToListAsync());
 		}
 
 		[Route("ApproveApplication")]
