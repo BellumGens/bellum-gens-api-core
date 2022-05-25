@@ -46,7 +46,8 @@
         Overpass,
         Train,
         Vertigo,
-        Cobblestone
+        Cobblestone,
+        Ancient
     }
 
     public enum SC2Map

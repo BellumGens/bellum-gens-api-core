@@ -79,6 +79,10 @@ namespace BellumGens.Api.Core.Models
 				new UserMapPool
 				{
 					Map = CSGOMap.Cobblestone
+				},
+				new UserMapPool
+				{
+					Map = CSGOMap.Ancient
 				}
 			};
 		}

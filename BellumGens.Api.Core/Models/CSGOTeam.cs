@@ -88,6 +88,11 @@ namespace BellumGens.Api.Core.Models
 				{
 					Map = CSGOMap.Cobblestone,
 					IsPlayed = true
+				},
+				new TeamMapPool
+				{
+					Map = CSGOMap.Ancient,
+					IsPlayed = true
 				}
 			};
 		}
