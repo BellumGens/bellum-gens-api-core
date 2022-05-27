@@ -50,7 +50,7 @@ namespace BellumGens.Api.Controllers
                 UserStatsViewModel model = new(user, true);
                 if (user.SteamID != null)
                 {
-                    _dbContext.Entry(user).Reference(u => u.CSGODetails).Load();
+                    await _dbContext.Entry(user).Reference(u => u.CSGODetails).LoadAsync();
                     if (string.IsNullOrEmpty(user.CSGODetails.AvatarFull))
                     {
                         model = await _steamService.GetSteamUserDetails(user.Id);

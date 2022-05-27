@@ -31,7 +31,7 @@ namespace BellumGens.Api.Controllers
 			{
 				results.Teams = await _dbContext.CSGOTeams.Where(t => t.Visible && t.TeamName.Contains(name)).ToListAsync();
 				results.Strategies = await _dbContext.CSGOStrategies.Where(s => s.Visible && s.Title.Contains(name) || s.Description.Contains(name)).ToListAsync();
-				List<ApplicationUser> activeUsers = await _dbContext.Users.Where(u => u.SearchVisible && u.UserName.Contains(name)).ToListAsync();
+				List<ApplicationUser> activeUsers = await _dbContext.Users.Include(u => u.CSGODetails).Where(u => u.SearchVisible && u.UserName.Contains(name)).ToListAsync();
 
 				foreach (ApplicationUser user in activeUsers)
 				{
@@ -59,11 +59,11 @@ namespace BellumGens.Api.Controllers
 			List<CSGOTeam> teams;
 			if (role != null)
 			{
-				teams = await _dbContext.CSGOTeams.Where(t => t.Visible && !t.Members.Any(m => m.Role == role) && t.PracticeSchedule.Any(d => d.Available)).ToListAsync();
+				teams = await _dbContext.CSGOTeams.Include(t => t.PracticeSchedule).Where(t => t.Visible && !t.Members.Any(m => m.Role == role) && t.PracticeSchedule.Any(d => d.Available)).ToListAsync();
 			}
 			else
 			{
-				teams = await _dbContext.CSGOTeams.Where(t => t.Visible && t.PracticeSchedule.Any(d => d.Available)).ToListAsync();
+				teams = await _dbContext.CSGOTeams.Include(t => t.PracticeSchedule).Where(t => t.Visible && t.PracticeSchedule.Any(d => d.Available)).ToListAsync();
 			}
 			if (overlap > 0)
 			{
@@ -72,11 +72,12 @@ namespace BellumGens.Api.Controllers
 					return BadRequest("You must sign in to perform search by availability...");
 				}
                 ApplicationUser user = await GetAuthUser();
-				if (!user.Availability.Any(a => a.Available))
+				List<UserAvailability> availabilities = await _dbContext.UserAvailabilities.Where(a => a.UserId == user.Id).ToListAsync();
+				if (!availabilities.Any(a => a.Available))
 				{
 					return BadRequest("You must provide your availability in your user profile...");
 				}
-				overlap = Math.Min(overlap, user.GetTotalAvailability());
+				overlap = Math.Min(overlap, availabilities.GetTotalAvailability());
 				return Ok(teams.Where(t => t.GetTotalAvailability() >= overlap && t.GetTotalOverlap(user) >= overlap));
 			}
 			return Ok(teams);
@@ -102,11 +103,17 @@ namespace BellumGens.Api.Controllers
 
 			if (role != null)
 			{
-				users = await _dbContext.Users.Where(u => u.SearchVisible && (u.PreferredPrimaryRole == role || u.PreferredSecondaryRole == role)).ToListAsync();
+				users = await _dbContext.Users
+										.Include(u => u.Availability)
+										.Include(u => u.CSGODetails)
+										.Where(u => u.SearchVisible && (u.PreferredPrimaryRole == role || u.PreferredSecondaryRole == role)).ToListAsync();
 			}
 			else
 			{
-				users = await _dbContext.Users.Where(u => u.SearchVisible && u.Availability.Any(d => d.Available)).ToListAsync();
+				users = await _dbContext.Users
+										.Include(u => u.Availability)
+										.Include(u => u.CSGODetails)
+										.Where(u => u.SearchVisible && u.Availability.Any(d => d.Available)).ToListAsync();
 			}
 			if (overlap > 0)
 			{
@@ -117,15 +124,16 @@ namespace BellumGens.Api.Controllers
 				
 				if (teamid != null)
 				{
-					CSGOTeam team = _dbContext.CSGOTeams.Find(teamid);
-					overlap = Math.Min(overlap, team.GetTotalAvailability());
-					users = users.Where(u => u.GetTotalAvailability() >= overlap && team.GetTotalOverlap(u) >= overlap).ToList();
+					List<TeamAvailability> availabilities = await _dbContext.TeamAvailabilities.Where(t => t.TeamId == teamid).ToListAsync();
+					overlap = Math.Min(overlap, availabilities.GetTotalAvailability());
+					users = users.Where(u => u.GetTotalAvailability() >= overlap && availabilities.GetTotalOverlap(u) >= overlap).ToList();
 				}
 				else
 				{
 					ApplicationUser user = await GetAuthUser();
-					overlap = Math.Min(overlap, user.GetTotalAvailability());
-					if (!user.Availability.Any(a => a.Available))
+					List<UserAvailability> availability = await _dbContext.UserAvailabilities.Where(a => a.UserId == user.Id).ToListAsync();
+					overlap = Math.Min(overlap, availability.GetTotalAvailability());
+					if (!availability.Any(a => a.Available))
 					{
 						return BadRequest("You must provide your availability in your user profile...");
 					}
