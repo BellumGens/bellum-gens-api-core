@@ -109,9 +109,15 @@ namespace BellumGens.Api.Controllers
 		[HttpPut]
 		public async Task<IActionResult> SetMapPool(UserMapPool mapPool)
 		{
-			ApplicationUser user = await GetAuthUser();
-			UserMapPool userMap = await _dbContext.UserMapPool.FindAsync(user.Id, mapPool.Map);
-			_dbContext.Entry(userMap).CurrentValues.SetValues(mapPool);
+			if (mapPool.IsPlayed)
+            {
+				_dbContext.UserMapPool.Add(mapPool);
+            }
+			else
+            {
+				_dbContext.UserMapPool.Remove(mapPool);
+            }
+
 			try
 			{
 				await _dbContext.SaveChangesAsync();
@@ -121,7 +127,7 @@ namespace BellumGens.Api.Controllers
 				System.Diagnostics.Trace.TraceError($"User map pool error: ${e.Message}");
 				return BadRequest("Something went wrong... ");
 			}
-			return Ok(userMap);
+			return Ok(mapPool);
 		}
 		
 		[Route("PrimaryRole")]
