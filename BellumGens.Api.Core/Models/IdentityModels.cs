@@ -42,49 +42,6 @@ namespace BellumGens.Api.Core.Models
 					Day = DayOfWeek.Sunday
 				}
 			};
-			MapPool = new HashSet<UserMapPool>()
-			{
-				new UserMapPool
-				{
-					Map = CSGOMap.Cache
-				},
-				new UserMapPool
-				{
-					Map = CSGOMap.Dust2
-				},
-				new UserMapPool
-				{
-					Map = CSGOMap.Inferno
-				},
-				new UserMapPool
-				{
-					Map = CSGOMap.Mirage
-				},
-				new UserMapPool
-				{
-					Map = CSGOMap.Nuke
-				},
-				new UserMapPool
-				{
-					Map = CSGOMap.Overpass
-				},
-				new UserMapPool
-				{
-					Map = CSGOMap.Train
-				},
-				new UserMapPool
-				{
-					Map = CSGOMap.Vertigo
-				},
-				new UserMapPool
-				{
-					Map = CSGOMap.Cobblestone
-				},
-				new UserMapPool
-				{
-					Map = CSGOMap.Ancient
-				}
-			};
 		}
 
         public string ESEA { get; set; }

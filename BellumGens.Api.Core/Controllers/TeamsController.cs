@@ -454,16 +454,16 @@ namespace BellumGens.Api.Controllers
 		[HttpPut]
 		public async Task<IActionResult> SetTeamMapPool(List<TeamMapPool> maps)
 		{
-			if (!await UserIsTeamAdmin(maps[0].TeamId))
+			Guid? teamId = maps.First()?.TeamId;
+			if (!await UserIsTeamAdmin(teamId))
 			{
 				return BadRequest("You need to be team admin.");
 			}
 
-			foreach (TeamMapPool mapPool in maps)
-			{
-				TeamMapPool entity = await _dbContext.TeamMapPools.FindAsync(mapPool.TeamId, mapPool.Map);
-				_dbContext.Entry(entity).CurrentValues.SetValues(mapPool);
-			}
+			List<TeamMapPool> pool = await _dbContext.TeamMapPools.Where(map => map.TeamId == teamId).ToListAsync();
+			_dbContext.TeamMapPools.RemoveRange(pool);
+			_dbContext.TeamMapPools.AddRange(maps.Where(map => map.IsPlayed));
+			
 			try
 			{
 				await _dbContext.SaveChangesAsync();

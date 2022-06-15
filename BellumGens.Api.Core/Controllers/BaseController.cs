@@ -41,7 +41,7 @@ namespace BellumGens.Api.Controllers
 			return await _userManager.IsInRoleAsync(await GetAuthUser(), role);
 		}
 
-		protected async Task<bool> UserIsTeamAdmin(Guid teamId)
+		protected async Task<bool> UserIsTeamAdmin(Guid? teamId)
 		{
 			ApplicationUser user = await GetAuthUser();
 			TeamMember member = await _dbContext.TeamMembers.FindAsync(teamId, user.Id);
