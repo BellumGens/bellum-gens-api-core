@@ -123,7 +123,6 @@ namespace BellumGens.Api.Controllers
 				TeamAvatar = group.avatarFull
 			};
 			_dbContext.CSGOTeams.Add(team);
-			team.InitializeDefaults();
 			team.UniqueCustomUrl(_dbContext);
 
 			team.Members.Add(new TeamMember()
@@ -188,7 +187,6 @@ namespace BellumGens.Api.Controllers
 				IsAdmin = true,
 				IsEditor = true
 			});
-			team.InitializeDefaults();
 			team.UniqueCustomUrl(_dbContext);
 
 			try
@@ -493,8 +491,23 @@ namespace BellumGens.Api.Controllers
 				return BadRequest("You need to be team admin.");
 			}
 
-			TeamAvailability entity = await _dbContext.TeamAvailabilities.FindAsync(day.TeamId, day.Day);
-			_dbContext.Entry(entity).CurrentValues.SetValues(day);
+			if (day.Available)
+			{
+				bool exists = _dbContext.TeamAvailabilities.Any(a => a.TeamId == day.TeamId && a.Day == day.Day);
+				if (exists)
+				{
+					_dbContext.TeamAvailabilities.Update(day);
+				}
+				else
+				{
+					_dbContext.TeamAvailabilities.Add(day);
+				}
+			}
+			else
+            {
+				_dbContext.TeamAvailabilities.Remove(day);
+            }
+
 			try
 			{
 				await _dbContext.SaveChangesAsync();
@@ -504,7 +517,7 @@ namespace BellumGens.Api.Controllers
 				System.Diagnostics.Trace.TraceError($"Team availability error: ${e.Message}");
 				return BadRequest("Something went wrong...");
 			}
-			return Ok(entity);
+			return Ok(day);
 		}
 	}
 

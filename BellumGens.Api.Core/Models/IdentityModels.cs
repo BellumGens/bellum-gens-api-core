@@ -10,40 +10,6 @@ namespace BellumGens.Api.Core.Models
     // You can add profile data for the user by adding more properties to your ApplicationUser class, please visit https://go.microsoft.com/fwlink/?LinkID=317594 to learn more.
     public class ApplicationUser : IdentityUser
     {
-		public void InitializeDefaults()
-        {
-			Availability = new HashSet<UserAvailability>() {
-				new UserAvailability
-				{
-					Day = DayOfWeek.Monday
-				},
-				new UserAvailability
-				{
-					Day = DayOfWeek.Tuesday
-				},
-				new UserAvailability
-				{
-					Day = DayOfWeek.Wednesday
-				},
-				new UserAvailability
-				{
-					Day = DayOfWeek.Thursday
-				},
-				new UserAvailability
-				{
-					Day = DayOfWeek.Friday
-				},
-				new UserAvailability
-				{
-					Day = DayOfWeek.Saturday
-				},
-				new UserAvailability
-				{
-					Day = DayOfWeek.Sunday
-				}
-			};
-		}
-
         public string ESEA { get; set; }
 
         public bool SearchVisible { get; set; } = true;

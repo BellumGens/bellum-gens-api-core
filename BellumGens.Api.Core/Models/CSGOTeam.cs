@@ -10,93 +10,6 @@ namespace BellumGens.Api.Core.Models
 {
 	public class CSGOTeam
 	{
-		public void InitializeDefaults()
-		{
-			PracticeSchedule = new HashSet<TeamAvailability>() {
-				new TeamAvailability
-				{
-					Day = DayOfWeek.Monday
-				},
-				new TeamAvailability
-				{
-					Day = DayOfWeek.Tuesday
-				},
-				new TeamAvailability
-				{
-					Day = DayOfWeek.Wednesday
-				},
-				new TeamAvailability
-				{
-					Day = DayOfWeek.Thursday
-				},
-				new TeamAvailability
-				{
-					Day = DayOfWeek.Friday
-				},
-				new TeamAvailability
-				{
-					Day = DayOfWeek.Saturday
-				},
-				new TeamAvailability
-				{
-					Day = DayOfWeek.Sunday
-				}
-			};
-			MapPool = new HashSet<TeamMapPool>()
-			{
-				new TeamMapPool
-				{
-					Map = CSGOMap.Cache,
-					IsPlayed = true
-				},
-				new TeamMapPool
-				{
-					Map = CSGOMap.Dust2,
-					IsPlayed = true
-				},
-				new TeamMapPool
-				{
-					Map = CSGOMap.Inferno,
-					IsPlayed = true
-				},
-				new TeamMapPool
-				{
-					Map = CSGOMap.Mirage,
-					IsPlayed = true
-				},
-				new TeamMapPool
-				{
-					Map = CSGOMap.Nuke,
-					IsPlayed = true
-				},
-				new TeamMapPool
-				{
-					Map = CSGOMap.Overpass,
-					IsPlayed = true
-				},
-				new TeamMapPool
-				{
-					Map = CSGOMap.Train,
-					IsPlayed = true
-				},
-				new TeamMapPool
-				{
-					Map = CSGOMap.Vertigo,
-					IsPlayed = true
-				},
-				new TeamMapPool
-				{
-					Map = CSGOMap.Cobblestone,
-					IsPlayed = true
-				},
-				new TeamMapPool
-				{
-					Map = CSGOMap.Ancient,
-					IsPlayed = true
-				}
-			};
-		}
-
 		public void UniqueCustomUrl(BellumGensDbContext context)
 		{
 			if (string.IsNullOrEmpty(CustomUrl))
@@ -106,7 +19,7 @@ namespace BellumGens.Api.Core.Models
 				while (context.CSGOTeams.Where(t => t.CustomUrl == url).SingleOrDefault() != null)
 				{
 					if (url.Length > 58)
-						url = url.Substring(0, 58);
+						url = url[..58];
 					url += '-' + Util.GenerateHashString(6);
 				}
 				CustomUrl = url;
