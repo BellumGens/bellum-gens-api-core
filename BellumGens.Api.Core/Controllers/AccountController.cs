@@ -48,13 +48,17 @@ namespace BellumGens.Api.Controllers
                 ApplicationUser user = await GetAuthUser();
 
                 UserStatsViewModel model = new(user, true);
-                if (string.IsNullOrEmpty(user.AvatarFull) && user.SteamID != null)
+                if (user.SteamID != null)
                 {
-                    model = await _steamService.GetSteamUserDetails(user.Id);
-                    model.SetUser(user, _dbContext);
+                    await _dbContext.Entry(user).Reference(u => u.CSGODetails).LoadAsync();
+                    if (string.IsNullOrEmpty(user.CSGODetails.AvatarFull))
+                    {
+                        model = await _steamService.GetSteamUserDetails(user.Id);
+                        model.SetUser(user, _dbContext);
+                    }
                 }
                 var logins = await _userManager.GetLoginsAsync(user);
-                model.externalLogins = logins.Select(t => t.LoginProvider).ToList();
+                model.ExternalLogins = logins.Select(t => t.LoginProvider).ToList();
                 return Ok(model);
 			}
             return Unauthorized("Have to login first");
@@ -181,13 +185,16 @@ namespace BellumGens.Api.Controllers
             {
                 var user = await _userManager.FindByNameAsync(login.UserName);
                 UserStatsViewModel model = new(user, true);
-                if (string.IsNullOrEmpty(user.AvatarFull) && user.SteamID != null)
+                if (user.SteamID != null)
                 {
-                    model = await _steamService.GetSteamUserDetails(user.Id);
-                    model.SetUser(user, _dbContext);
+                    if (string.IsNullOrEmpty(user.CSGODetails.AvatarFull))
+                    {
+                        model = await _steamService.GetSteamUserDetails(user.Id);
+                        model.SetUser(user, _dbContext);
+                    }
                 }
                 var logins = await _userManager.GetLoginsAsync(user);
-                model.externalLogins = logins.Select(t => t.LoginProvider).ToList();
+                model.ExternalLogins = logins.Select(t => t.LoginProvider).ToList();
                 return Ok(model);
             }
             return BadRequest("Invalid username or password, or email not verified.");
@@ -335,6 +342,15 @@ namespace BellumGens.Api.Controllers
             else if (!user.EmailConfirmed)
             {
                 user.EmailConfirmed = true;
+                if (info.LoginProvider == "BattleNet")
+                {
+                    string battletag = info.Principal.FindFirstValue(ClaimTypes.Name);
+                    if (user.StarCraft2Details.BattleNetBattleTag != battletag || user.BattleNetId != info.ProviderKey)
+                    {
+                        user.StarCraft2Details.BattleNetBattleTag = battletag;
+                        user.StarCraft2Details.BattleNetId = info.ProviderKey;
+                    }
+                }
             }
 
             var signInResult = await _signInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, isPersistent: true, bypassTwoFactor: true);
@@ -425,7 +441,10 @@ namespace BellumGens.Api.Controllers
                         UserName = username,
                         Email = email,
                         EmailConfirmed = true,
-                        SteamID = _steamService.SteamUserId(providerId)
+                        CSGODetails = new CSGODetails()
+                        {
+                            SteamId = _steamService.SteamUserId(providerId)
+                        }
                     };
                     break;
                 case "BattleNet":
@@ -435,7 +454,11 @@ namespace BellumGens.Api.Controllers
                         UserName = username,
                         Email = email,
                         EmailConfirmed = true,
-                        BattleNetId = username
+                        StarCraft2Details = new StarCraft2Details()
+                        {
+                            BattleNetBattleTag = username,
+                            BattleNetId = providerId
+                        }
                     };
                     break;
                 default:
@@ -470,15 +493,16 @@ namespace BellumGens.Api.Controllers
                         string steamid = _steamService.SteamUserId(providerId);
                         if (user.SteamID != steamid)
                         {
-                            user.SteamID = steamid;
+                            user.CSGODetails.SteamId = steamid;
                             await _dbContext.SaveChangesAsync();
                         }
                         break;
                     case "BattleNet":
                         var username = info.Principal.FindFirstValue(ClaimTypes.Name);
-                        if (user.BattleNetId != username)
+                        if (user.StarCraft2Details.BattleNetBattleTag != username || user.BattleNetId != providerId)
                         {
-                            user.BattleNetId = username;
+                            user.StarCraft2Details.BattleNetBattleTag = username;
+                            user.StarCraft2Details.BattleNetId = providerId;
                             await _dbContext.SaveChangesAsync();
                         }
                         break;
@@ -603,8 +627,6 @@ namespace BellumGens.Api.Controllers
 
         private static class RandomOAuthStateGenerator
         {
-            private static readonly RandomNumberGenerator _random = new RNGCryptoServiceProvider();
-
             public static string Generate(int strengthInBits)
             {
                 const int bitsPerByte = 8;
@@ -617,7 +639,7 @@ namespace BellumGens.Api.Controllers
                 int strengthInBytes = strengthInBits / bitsPerByte;
 
                 byte[] data = new byte[strengthInBytes];
-                _random.GetBytes(data);
+                RandomNumberGenerator.Fill(data);
                 return Base64UrlTextEncoder.Encode(data);
             }
         }

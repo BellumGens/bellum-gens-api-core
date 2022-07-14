@@ -43,7 +43,7 @@ namespace BellumGens.Api.Controllers
 		[AllowAnonymous]
 		public async Task<List<TeamMember>> GetTeamMembers(Guid teamId)
 		{
-			return await _dbContext.TeamMembers.Include(m => m.Member).Where(m => m.TeamId == teamId).ToListAsync();
+			return await _dbContext.TeamMembers.Include(m => m.Member).ThenInclude(u => u.CSGODetails).Where(m => m.TeamId == teamId).ToListAsync();
 		}
 
 		[Route("Tournaments")]
@@ -123,7 +123,6 @@ namespace BellumGens.Api.Controllers
 				TeamAvatar = group.avatarFull
 			};
 			_dbContext.CSGOTeams.Add(team);
-			team.InitializeDefaults();
 			team.UniqueCustomUrl(_dbContext);
 
 			team.Members.Add(new TeamMember()
@@ -188,7 +187,6 @@ namespace BellumGens.Api.Controllers
 				IsAdmin = true,
 				IsEditor = true
 			});
-			team.InitializeDefaults();
 			team.UniqueCustomUrl(_dbContext);
 
 			try
@@ -378,7 +376,10 @@ namespace BellumGens.Api.Controllers
 				return BadRequest("You need to be team admin.");
 			}
 
-			return Ok(await _dbContext.TeamApplications.Where(a => a.TeamId == teamId).OrderByDescending(n => n.Sent).ToListAsync());
+			return Ok(await _dbContext.TeamApplications
+										.Include(a => a.User)
+											.ThenInclude(u => u.CSGODetails)
+										.Where(a => a.TeamId == teamId).OrderByDescending(n => n.Sent).ToListAsync());
 		}
 
 		[Route("ApproveApplication")]
@@ -451,16 +452,16 @@ namespace BellumGens.Api.Controllers
 		[HttpPut]
 		public async Task<IActionResult> SetTeamMapPool(List<TeamMapPool> maps)
 		{
-			if (!await UserIsTeamAdmin(maps[0].TeamId))
+			Guid? teamId = maps.First()?.TeamId;
+			if (!await UserIsTeamAdmin(teamId))
 			{
 				return BadRequest("You need to be team admin.");
 			}
 
-			foreach (TeamMapPool mapPool in maps)
-			{
-				TeamMapPool entity = await _dbContext.TeamMapPools.FindAsync(mapPool.TeamId, mapPool.Map);
-				_dbContext.Entry(entity).CurrentValues.SetValues(mapPool);
-			}
+			List<TeamMapPool> pool = await _dbContext.TeamMapPools.Where(map => map.TeamId == teamId).ToListAsync();
+			_dbContext.TeamMapPools.RemoveRange(pool);
+			_dbContext.TeamMapPools.AddRange(maps.Where(map => map.IsPlayed));
+			
 			try
 			{
 				await _dbContext.SaveChangesAsync();
@@ -490,8 +491,23 @@ namespace BellumGens.Api.Controllers
 				return BadRequest("You need to be team admin.");
 			}
 
-			TeamAvailability entity = await _dbContext.TeamAvailabilities.FindAsync(day.TeamId, day.Day);
-			_dbContext.Entry(entity).CurrentValues.SetValues(day);
+			if (day.Available)
+			{
+				bool exists = _dbContext.TeamAvailabilities.Any(a => a.TeamId == day.TeamId && a.Day == day.Day);
+				if (exists)
+				{
+					_dbContext.TeamAvailabilities.Update(day);
+				}
+				else
+				{
+					_dbContext.TeamAvailabilities.Add(day);
+				}
+			}
+			else
+            {
+				_dbContext.TeamAvailabilities.Remove(day);
+            }
+
 			try
 			{
 				await _dbContext.SaveChangesAsync();
@@ -501,7 +517,7 @@ namespace BellumGens.Api.Controllers
 				System.Diagnostics.Trace.TraceError($"Team availability error: ${e.Message}");
 				return BadRequest("Something went wrong...");
 			}
-			return Ok(entity);
+			return Ok(day);
 		}
 	}
 

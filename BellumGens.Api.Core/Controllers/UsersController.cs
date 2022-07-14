@@ -38,7 +38,7 @@ namespace BellumGens.Api.Controllers
             ApplicationUser registered = null;
             if (user.SteamUser != null)
             {
-				registered = await _dbContext.Users.Include(u => u.MemberOf).ThenInclude(m => m.Team).FirstOrDefaultAsync(u => u.SteamID == user.SteamUser.steamID64);
+				registered = await _dbContext.Users.Include(u => u.CSGODetails).Include(u => u.MemberOf).ThenInclude(m => m.Team).FirstOrDefaultAsync(u => u.SteamID == user.SteamUser.steamID64);
             }
 			if (registered != null)
 			{
@@ -81,9 +81,23 @@ namespace BellumGens.Api.Controllers
 		[HttpPut]
 		public async Task<IActionResult> SetAvailability(UserAvailability newAvailability)
 		{
-			ApplicationUser user = await GetAuthUser();
-			UserAvailability entity = await _dbContext.UserAvailabilities.FindAsync(user.Id, newAvailability.Day);
-			_dbContext.Entry(entity).CurrentValues.SetValues(newAvailability);
+			if (newAvailability.Available)
+            {
+				bool exists = _dbContext.UserAvailabilities.Any(a => a.UserId == newAvailability.UserId && a.Day == newAvailability.Day);
+				if (exists)
+                {
+					_dbContext.UserAvailabilities.Update(newAvailability);
+                }
+				else
+                {
+					_dbContext.UserAvailabilities.Add(newAvailability);
+				}
+            }
+			else
+            {
+				_dbContext.UserAvailabilities.Remove(newAvailability);
+            }
+
 			try
 			{
 				await _dbContext.SaveChangesAsync();
@@ -93,7 +107,7 @@ namespace BellumGens.Api.Controllers
 				System.Diagnostics.Trace.TraceError($"User availability error: ${e.Message}");
 				return BadRequest("Something went wrong... ");
 			}
-			return Ok(entity);
+			return Ok(newAvailability);
 		}
 
 		[Route("MapPool")]
@@ -109,9 +123,15 @@ namespace BellumGens.Api.Controllers
 		[HttpPut]
 		public async Task<IActionResult> SetMapPool(UserMapPool mapPool)
 		{
-			ApplicationUser user = await GetAuthUser();
-			UserMapPool userMap = await _dbContext.UserMapPool.FindAsync(user.Id, mapPool.Map);
-			_dbContext.Entry(userMap).CurrentValues.SetValues(mapPool);
+			if (mapPool.IsPlayed)
+            {
+				_dbContext.UserMapPool.Add(mapPool);
+            }
+			else
+            {
+				_dbContext.UserMapPool.Remove(mapPool);
+            }
+
 			try
 			{
 				await _dbContext.SaveChangesAsync();
@@ -121,7 +141,7 @@ namespace BellumGens.Api.Controllers
 				System.Diagnostics.Trace.TraceError($"User map pool error: ${e.Message}");
 				return BadRequest("Something went wrong... ");
 			}
-			return Ok(userMap);
+			return Ok(mapPool);
 		}
 		
 		[Route("PrimaryRole")]

@@ -4,23 +4,22 @@ using BellumGens.Api.Core.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-
-#nullable disable
 
 namespace BellumGens.Api.Core.Migrations
 {
     [DbContext(typeof(BellumGensDbContext))]
-    partial class BellumGensDbContextModelSnapshot : ModelSnapshot
+    [Migration("20211001134528_BattleNetBattleTag")]
+    partial class BattleNetBattleTag
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "6.0.2")
-                .HasAnnotation("Relational:MaxIdentifierLength", 128);
-
-            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder, 1L, 1);
+                .HasAnnotation("Relational:MaxIdentifierLength", 128)
+                .HasAnnotation("ProductVersion", "5.0.10")
+                .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.ApplicationUser", b =>
                 {
@@ -30,11 +29,33 @@ namespace BellumGens.Api.Core.Migrations
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("int");
 
+                    b.Property<decimal>("Accuracy")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<string>("AvatarFull")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AvatarIcon")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AvatarMedium")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BattleNetBattleTag")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("BattleNetId")
-                        .HasColumnType("nvarchar(450)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Country")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CustomUrl")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ESEA")
@@ -46,6 +67,14 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("bit");
+
+                    b.Property<decimal>("HeadshotPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal>("KillDeathRatio")
+                        .HasPrecision(4, 2)
+                        .HasColumnType("decimal(4,2)");
 
                     b.Property<DateTimeOffset>("LastSeen")
                         .HasColumnType("datetimeoffset");
@@ -79,6 +108,9 @@ namespace BellumGens.Api.Core.Migrations
                     b.Property<int>("PreferredSecondaryRole")
                         .HasColumnType("int");
 
+                    b.Property<string>("RealName")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTimeOffset>("RegisteredOn")
                         .HasColumnType("datetimeoffset");
 
@@ -89,7 +121,10 @@ namespace BellumGens.Api.Core.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("SteamID")
-                        .HasColumnType("nvarchar(450)");
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("SteamPrivate")
+                        .HasColumnType("bit");
 
                     b.Property<string>("TwitchId")
                         .HasColumnType("nvarchar(max)");
@@ -103,8 +138,6 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BattleNetId");
-
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("EmailIndex");
 
@@ -113,9 +146,7 @@ namespace BellumGens.Api.Core.Migrations
                         .HasDatabaseName("UserNameIndex")
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
 
-                    b.HasIndex("SteamID");
-
-                    b.ToTable("AspNetUsers", (string)null);
+                    b.ToTable("AspNetUsers");
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.BellumGensPushSubscription", b =>
@@ -143,71 +174,6 @@ namespace BellumGens.Api.Core.Migrations
                     b.HasIndex("userId");
 
                     b.ToTable("BellumGensPushSubscriptions");
-                });
-
-            modelBuilder.Entity("BellumGens.Api.Core.Models.Company", b =>
-                {
-                    b.Property<string>("Name")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Logo")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Website")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Name");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("Companies");
-                });
-
-            modelBuilder.Entity("BellumGens.Api.Core.Models.CSGODetails", b =>
-                {
-                    b.Property<string>("SteamId")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<decimal>("Accuracy")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("decimal(5,2)");
-
-                    b.Property<string>("AvatarFull")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("AvatarIcon")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("AvatarMedium")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Country")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("CustomUrl")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal>("HeadshotPercentage")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("decimal(5,2)");
-
-                    b.Property<decimal>("KillDeathRatio")
-                        .HasPrecision(4, 2)
-                        .HasColumnType("decimal(4,2)");
-
-                    b.Property<string>("RealName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("SteamPrivate")
-                        .HasColumnType("bit");
-
-                    b.HasKey("SteamId");
-
-                    b.ToTable("CSGODetails");
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.CSGOMatchMap", b =>
@@ -346,13 +312,34 @@ namespace BellumGens.Api.Core.Migrations
                     b.ToTable("CSGOTeams");
                 });
 
+            modelBuilder.Entity("BellumGens.Api.Core.Models.Company", b =>
+                {
+                    b.Property<string>("Name")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Logo")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Website")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Name");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Companies");
+                });
+
             modelBuilder.Entity("BellumGens.Api.Core.Models.JerseyDetails", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+                        .HasColumnType("int")
+                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
 
                     b.Property<int>("Cut")
                         .HasColumnType("int");
@@ -469,19 +456,6 @@ namespace BellumGens.Api.Core.Migrations
                     b.HasIndex("Sc2MatchId");
 
                     b.ToTable("SC2MatchMaps");
-                });
-
-            modelBuilder.Entity("BellumGens.Api.Core.Models.StarCraft2Details", b =>
-                {
-                    b.Property<string>("BattleNetId")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("BattleNetBattleTag")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("BattleNetId");
-
-                    b.ToTable("StarCraft2Details");
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.StrategyComment", b =>
@@ -979,16 +953,15 @@ namespace BellumGens.Api.Core.Migrations
                         .HasDatabaseName("RoleNameIndex")
                         .HasFilter("[NormalizedName] IS NOT NULL");
 
-                    b.ToTable("AspNetRoles", (string)null);
+                    b.ToTable("AspNetRoles");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+                        .HasColumnType("int")
+                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
 
                     b.Property<string>("ClaimType")
                         .HasColumnType("nvarchar(max)");
@@ -1004,16 +977,15 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasIndex("RoleId");
 
-                    b.ToTable("AspNetRoleClaims", (string)null);
+                    b.ToTable("AspNetRoleClaims");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+                        .HasColumnType("int")
+                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
 
                     b.Property<string>("ClaimType")
                         .HasColumnType("nvarchar(max)");
@@ -1029,7 +1001,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AspNetUserClaims", (string)null);
+                    b.ToTable("AspNetUserClaims");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
@@ -1051,7 +1023,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AspNetUserLogins", (string)null);
+                    b.ToTable("AspNetUserLogins");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<string>", b =>
@@ -1066,7 +1038,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasIndex("RoleId");
 
-                    b.ToTable("AspNetUserRoles", (string)null);
+                    b.ToTable("AspNetUserRoles");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
@@ -1085,22 +1057,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasKey("UserId", "LoginProvider", "Name");
 
-                    b.ToTable("AspNetUserTokens", (string)null);
-                });
-
-            modelBuilder.Entity("BellumGens.Api.Core.Models.ApplicationUser", b =>
-                {
-                    b.HasOne("BellumGens.Api.Core.Models.StarCraft2Details", "StarCraft2Details")
-                        .WithMany()
-                        .HasForeignKey("BattleNetId");
-
-                    b.HasOne("BellumGens.Api.Core.Models.CSGODetails", "CSGODetails")
-                        .WithMany()
-                        .HasForeignKey("SteamID");
-
-                    b.Navigation("CSGODetails");
-
-                    b.Navigation("StarCraft2Details");
+                    b.ToTable("AspNetUserTokens");
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.BellumGensPushSubscription", b =>
@@ -1346,9 +1303,9 @@ namespace BellumGens.Api.Core.Migrations
                         .WithMany()
                         .HasForeignKey("UserId");
 
-                    b.Navigation("CSGOGroup");
-
                     b.Navigation("Company");
+
+                    b.Navigation("CSGOGroup");
 
                     b.Navigation("SC2Group");
 
