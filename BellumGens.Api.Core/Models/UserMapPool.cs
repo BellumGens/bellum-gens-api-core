@@ -6,6 +6,7 @@ namespace BellumGens.Api.Core.Models
 	public class UserMapPool
 	{
 		public string UserId { get; set; }
+		[JsonPropertyName("mapId")]
 		public CSGOMap Map { get; set; }
 		public bool IsPlayed { get; set; }
 
