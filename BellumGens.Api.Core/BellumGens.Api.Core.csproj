@@ -23,8 +23,8 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="7.0.0" />
-    <PackageReference Include="StarCraft2Models" Version="6.0.0" />
-    <PackageReference Include="SteamModels" Version="6.0.0" />
+    <PackageReference Include="StarCraft2Models" Version="7.0.0" />
+    <PackageReference Include="SteamModels" Version="7.0.0" />
     <PackageReference Include="WebPush" Version="1.0.12" />
   </ItemGroup>
 
