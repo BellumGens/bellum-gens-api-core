@@ -17,7 +17,7 @@ namespace BellumGens.Api.Core.Models
 
 		public string Auth { get; set; }
 
-		[ForeignKey("userId")]
+		[ForeignKey("UserId")]
 		public virtual ApplicationUser User { get; set; }
 	}
 
