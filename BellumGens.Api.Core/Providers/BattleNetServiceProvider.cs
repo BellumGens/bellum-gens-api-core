@@ -16,7 +16,7 @@ namespace BellumGens.Api.Core.Providers
         private readonly IMemoryCache _cache;
 
         private static readonly string _playerAccountEndpoint = "https://{0}.api.blizzard.com/sc2/player/{1}&access_token={2}";
-        private static readonly string _profileEndpoint = "https://{0}.api.blizzard.com/sc2/metadata/profile/{1}/{2}/{3}?locale=en_US&access_token={4}";
+        // private static readonly string _profileEndpoint = "https://{0}.api.blizzard.com/sc2/metadata/profile/{1}/{2}/{3}?locale=en_US&access_token={4}";
         private static readonly string _tokenEndpoint = "https://eu.battle.net/oauth/token";
 
         private static OAuthResponse _oauth;
