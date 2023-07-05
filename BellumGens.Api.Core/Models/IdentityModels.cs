@@ -148,15 +148,19 @@ namespace BellumGens.Api.Core.Models
 						.HasMany(e => e.Strategies)
 						.WithOne(e => e.Team);
 
-			modelBuilder.Entity<Company>()
+            modelBuilder.Entity<CSGOTeam>()
+                        .HasIndex(c => c.CustomUrl)
+                        .IsUnique();
+
+			modelBuilder.Entity<CSGOTeam>()
+						.HasIndex(c => c.SteamGroupId)
+						.IsUnique();
+
+            modelBuilder.Entity<Company>()
 						.HasIndex(c => c.Name)
 						.IsUnique();
 
 			modelBuilder.Entity<CSGOStrategy>()
-						.HasIndex(c => c.CustomUrl)
-						.IsUnique();
-
-			modelBuilder.Entity<CSGOTeam>()
 						.HasIndex(c => c.CustomUrl)
 						.IsUnique();
 

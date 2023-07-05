@@ -32,7 +32,7 @@ namespace BellumGens.Api.Core.Models
         {
             get
             {
-                return Member?.CSGODetails.AvatarIcon;
+                return Member?.CSGODetails?.AvatarIcon;
             }
         }
 
@@ -41,7 +41,7 @@ namespace BellumGens.Api.Core.Models
         {
             get
             {
-                return Member?.CSGODetails.AvatarMedium;
+                return Member?.CSGODetails?.AvatarMedium;
             }
         }
 
@@ -50,7 +50,7 @@ namespace BellumGens.Api.Core.Models
         {
             get
             {
-                return Member?.CSGODetails.CustomUrl;
+                return Member?.CSGODetails?.CustomUrl;
             }
         }
 
@@ -59,7 +59,7 @@ namespace BellumGens.Api.Core.Models
         {
             get
             {
-                return Member?.CSGODetails.AvatarFull;
+                return Member?.CSGODetails?.AvatarFull;
             }
         }
 
@@ -68,7 +68,7 @@ namespace BellumGens.Api.Core.Models
         {
             get
             {
-                return Member?.CSGODetails.Country;
+                return Member?.CSGODetails?.Country;
             }
         }
 
@@ -77,7 +77,7 @@ namespace BellumGens.Api.Core.Models
         {
             get
             {
-                return Member?.CSGODetails.RealName;
+                return Member?.CSGODetails?.RealName;
             }
         }
 
