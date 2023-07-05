@@ -53,7 +53,7 @@ namespace BellumGens.Api.Controllers
                     await _dbContext.Entry(user).Reference(u => u.CSGODetails).LoadAsync();
                     if (string.IsNullOrEmpty(user.CSGODetails.AvatarFull))
                     {
-                        model = await _steamService.GetSteamUserDetails(user.Id);
+                        model = await _steamService.GetSteamUserDetails(user.SteamID);
                         model.SetUser(user, _dbContext);
                     }
                 }

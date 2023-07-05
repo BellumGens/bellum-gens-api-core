@@ -139,7 +139,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("BellumGensPushSubscriptions");
+                    b.ToTable("BellumGensPushSubscriptions", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.CSGODetails", b =>
@@ -182,7 +182,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasKey("SteamId");
 
-                    b.ToTable("CSGODetails");
+                    b.ToTable("CSGODetails", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.CSGOMatchMap", b =>
@@ -217,7 +217,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasIndex("TeamPickId");
 
-                    b.ToTable("CSGOMatchMaps");
+                    b.ToTable("CSGOMatchMaps", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.CSGOStrategy", b =>
@@ -277,7 +277,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("CSGOStrategies");
+                    b.ToTable("CSGOStrategies", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.CSGOTeam", b =>
@@ -318,7 +318,7 @@ namespace BellumGens.Api.Core.Migrations
                         .IsUnique()
                         .HasFilter("[CustomUrl] IS NOT NULL");
 
-                    b.ToTable("CSGOTeams");
+                    b.ToTable("CSGOTeams", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.Company", b =>
@@ -340,7 +340,7 @@ namespace BellumGens.Api.Core.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Companies");
+                    b.ToTable("Companies", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.JerseyDetails", b =>
@@ -364,7 +364,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasIndex("OrderId");
 
-                    b.ToTable("JerseyDetails");
+                    b.ToTable("JerseyDetails", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.JerseyOrder", b =>
@@ -413,7 +413,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasIndex("PromoCode");
 
-                    b.ToTable("JerseyOrders");
+                    b.ToTable("JerseyOrders", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.Promo", b =>
@@ -433,7 +433,7 @@ namespace BellumGens.Api.Core.Migrations
                     b.HasIndex("Code")
                         .IsUnique();
 
-                    b.ToTable("PromoCodes");
+                    b.ToTable("PromoCodes", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.SC2MatchMap", b =>
@@ -465,7 +465,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasIndex("Sc2MatchId");
 
-                    b.ToTable("SC2MatchMaps");
+                    b.ToTable("SC2MatchMaps", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.StarCraft2Details", b =>
@@ -478,7 +478,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasKey("BattleNetId");
 
-                    b.ToTable("StarCraft2Details");
+                    b.ToTable("StarCraft2Details", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.StrategyComment", b =>
@@ -505,7 +505,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("StrategyComments");
+                    b.ToTable("StrategyComments", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.StrategyVote", b =>
@@ -523,7 +523,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("StrategyVotes");
+                    b.ToTable("StrategyVotes", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.Subscriber", b =>
@@ -539,7 +539,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasKey("Email");
 
-                    b.ToTable("Subscribers");
+                    b.ToTable("Subscribers", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.TeamApplication", b =>
@@ -568,7 +568,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasIndex("TeamId");
 
-                    b.ToTable("TeamApplications");
+                    b.ToTable("TeamApplications", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.TeamAvailability", b =>
@@ -590,7 +590,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasKey("TeamId", "Day");
 
-                    b.ToTable("TeamAvailabilities");
+                    b.ToTable("TeamAvailabilities", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.TeamInvite", b =>
@@ -626,7 +626,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasIndex("TeamId");
 
-                    b.ToTable("TeamInvites");
+                    b.ToTable("TeamInvites", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.TeamMapPool", b =>
@@ -642,7 +642,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasKey("TeamId", "Map");
 
-                    b.ToTable("TeamMapPools");
+                    b.ToTable("TeamMapPools", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.TeamMember", b =>
@@ -669,7 +669,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("TeamMembers");
+                    b.ToTable("TeamMembers", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.Tournament", b =>
@@ -698,7 +698,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasKey("ID");
 
-                    b.ToTable("Tournaments");
+                    b.ToTable("Tournaments", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.TournamentApplication", b =>
@@ -758,7 +758,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("TournamentApplications");
+                    b.ToTable("TournamentApplications", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.TournamentCSGOGroup", b =>
@@ -777,7 +777,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasIndex("TournamentId");
 
-                    b.ToTable("TournamentCSGOGroups");
+                    b.ToTable("TournamentCSGOGroups", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.TournamentCSGOMatch", b =>
@@ -826,7 +826,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasIndex("TournamentId");
 
-                    b.ToTable("TournamentCSGOMatches");
+                    b.ToTable("TournamentCSGOMatches", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.TournamentSC2Group", b =>
@@ -845,7 +845,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasIndex("TournamentId");
 
-                    b.ToTable("TournamentSC2Groups");
+                    b.ToTable("TournamentSC2Groups", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.TournamentSC2Match", b =>
@@ -894,7 +894,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasIndex("TournamentId");
 
-                    b.ToTable("TournamentSC2Matches");
+                    b.ToTable("TournamentSC2Matches", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.UserAvailability", b =>
@@ -916,7 +916,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasKey("UserId", "Day");
 
-                    b.ToTable("UserAvailabilities");
+                    b.ToTable("UserAvailabilities", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.UserMapPool", b =>
@@ -933,7 +933,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasKey("UserId", "Map");
 
-                    b.ToTable("UserMapPool");
+                    b.ToTable("UserMapPool", (string)null);
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.UserMessage", b =>
@@ -960,7 +960,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.HasIndex("To");
 
-                    b.ToTable("Messages");
+                    b.ToTable("Messages", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>

@@ -7,12 +7,10 @@ using BellumGens.Api.Core.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.ResponseCompression;
-using System.IO.Compression;
 using BellumGens.Api.Core.Providers;
 using System;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity.UI.Services;
-using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace BellumGens.Api.Core
 {
@@ -21,20 +19,20 @@ namespace BellumGens.Api.Core
         public static string PublicClientId { get; private set; }
 
         private static readonly string[] devCors = new string[] {
-                                      "http://localhost:4200",
-                                      "http://localhost:4000",
-                                      "http://localhost:4201",
-                                      "http://localhost:4001"
-                                  };
+            "http://localhost:4200",
+            "http://localhost:4000",
+            "http://localhost:4201",
+            "http://localhost:4001"
+        };
 
         private static readonly string[] prodCors = new string[] {
-                                      "https://bellumgens.com",
-                                      "https://www.bellumgens.com",
-                                      "https://eb-league.com",
-                                      "https://www.eb-league.com",
-                                      "http://staging.bellumgens.com",
-                                      "http://staging.eb-league.com"
-                                  };
+            "https://bellumgens.com",
+            "https://www.bellumgens.com",
+            "https://eb-league.com",
+            "https://www.eb-league.com",
+            "http://staging.bellumgens.com",
+            "http://staging.eb-league.com"
+        };
 
         public Startup(IConfiguration configuration)
         {
@@ -55,7 +53,7 @@ namespace BellumGens.Api.Core
 
             services.AddMemoryCache();
 
-            services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+            services.AddAuthentication("Cookies")
                 .AddCookie(options =>
                 {
                     options.Cookie.HttpOnly = true;
