@@ -111,7 +111,7 @@ namespace BellumGens.Api.Controllers
 		public async Task<IActionResult> TeamFromSteamGroup(SteamUserGroup group)
 		{
             ApplicationUser user = await GetAuthUser();
-            if (!await _steamService.VerifyUserIsGroupAdmin(user.Id, group.groupID64))
+            if (!await _steamService.VerifyUserIsGroupAdmin(user.SteamID, group.groupID64))
 			{
 				return BadRequest("User is not a steam group owner for " + group.groupName);
 			}

@@ -40,9 +40,11 @@ namespace BellumGens.Api.Core.Models
 
 		public virtual ICollection<TeamInvite> Notifications { get; set; } = new HashSet<TeamInvite>();
 
-		public ICollection<TeamMember> MemberOf { get; set; } = new HashSet<TeamMember>();
+		public virtual ICollection<TeamMember> MemberOf { get; set; } = new HashSet<TeamMember>();
 
-		public virtual ICollection<TeamApplication> TeamApplications { get; set; }
+		public virtual ICollection<TeamApplication> TeamApplications { get; set; } = new HashSet<TeamApplication>();
+
+        public virtual ICollection<TeamInvite> InvitesSent { get; set; } = new HashSet<TeamInvite>();
     }
 
 	public class BellumGensDbContext : IdentityDbContext<ApplicationUser>
@@ -130,7 +132,11 @@ namespace BellumGens.Api.Core.Models
 						.HasMany(e => e.Notifications)
 						.WithOne(e => e.InvitedUser);
 
-			modelBuilder.Entity<ApplicationUser>()
+            modelBuilder.Entity<ApplicationUser>()
+                        .HasMany(c => c.InvitesSent)
+                        .WithOne(c => c.InvitingUser);
+
+            modelBuilder.Entity<ApplicationUser>()
 						.HasMany(e => e.TeamApplications)
 						.WithOne(e => e.User);
 
@@ -142,15 +148,19 @@ namespace BellumGens.Api.Core.Models
 						.HasMany(e => e.Strategies)
 						.WithOne(e => e.Team);
 
-			modelBuilder.Entity<Company>()
+            modelBuilder.Entity<CSGOTeam>()
+                        .HasIndex(c => c.CustomUrl)
+                        .IsUnique();
+
+			modelBuilder.Entity<CSGOTeam>()
+						.HasIndex(c => c.SteamGroupId)
+						.IsUnique();
+
+            modelBuilder.Entity<Company>()
 						.HasIndex(c => c.Name)
 						.IsUnique();
 
 			modelBuilder.Entity<CSGOStrategy>()
-						.HasIndex(c => c.CustomUrl)
-						.IsUnique();
-
-			modelBuilder.Entity<CSGOTeam>()
 						.HasIndex(c => c.CustomUrl)
 						.IsUnique();
 
@@ -183,7 +193,24 @@ namespace BellumGens.Api.Core.Models
 						.HasKey(c => new { c.TeamId, c.UserId });
 
 			modelBuilder.Entity<TeamInvite>()
-						.HasKey(c => new { c.InvitingUserId, c.InvitedUserId, c.TeamId });
-		}
+						.HasOne(c => c.InvitingUser)
+						.WithMany(c => c.InvitesSent)
+						.OnDelete(DeleteBehavior.NoAction);
+
+			modelBuilder.Entity<TeamInvite>()
+						.HasOne(c => c.InvitedUser)
+						.WithMany(c => c.Notifications)
+                        .OnDelete(DeleteBehavior.NoAction);
+
+			modelBuilder.Entity<TournamentCSGOMatch>()
+						.HasOne(c => c.Team1)
+						.WithMany()
+						.OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<TournamentCSGOMatch>()
+                        .HasOne(c => c.Team2)
+                        .WithMany()
+                        .OnDelete(DeleteBehavior.NoAction);
+        }
 	}
 }
