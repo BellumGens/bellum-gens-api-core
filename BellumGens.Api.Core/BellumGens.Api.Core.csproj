@@ -1,35 +1,34 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net7.0</TargetFramework>
     <UserSecretsId>aspnet-BellumGens.Api.Core-C0EE3419-32A9-4E03-8E0D-3114052E661F</UserSecretsId>
     <ApplicationInsightsResourceId>/subscriptions/25231cff-a356-457e-8138-2327bfaf75ae/resourceGroups/BellumGens/providers/microsoft.insights/components/BellumGensAPI</ApplicationInsightsResourceId>
     <EnableNETAnalyzers>True</EnableNETAnalyzers>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AspNet.Security.OAuth.BattleNet" Version="6.0.6" />
-    <PackageReference Include="AspNet.Security.OAuth.Twitch" Version="6.0.6" />
-    <PackageReference Include="AspNet.Security.OpenId.Steam" Version="6.0.0" />
-    <PackageReference Include="Azure.Storage.Blobs" Version="12.13.0" />
-    <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.20.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.Cookies" Version="2.2.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="6.0.7" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="6.0.7" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="6.0.7" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="6.0.7" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="6.0.7">
+    <PackageReference Include="AspNet.Security.OAuth.BattleNet" Version="7.0.2" />
+    <PackageReference Include="AspNet.Security.OAuth.Twitch" Version="7.0.2" />
+    <PackageReference Include="AspNet.Security.OpenId.Steam" Version="7.0.0" />
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.16.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="7.0.8" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="7.0.8" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="7.0.8" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="7.0.8" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="7.0.8">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="6.0.1" />
-    <PackageReference Include="StarCraft2Models" Version="6.0.0" />
-    <PackageReference Include="SteamModels" Version="6.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="7.0.0" />
+    <PackageReference Include="StarCraft2Models" Version="7.0.0" />
+    <PackageReference Include="SteamModels" Version="7.0.0" />
     <PackageReference Include="WebPush" Version="1.0.12" />
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Configs\" />
+    <Folder Include="Migrations\" />
   </ItemGroup>
 
   <ItemGroup>

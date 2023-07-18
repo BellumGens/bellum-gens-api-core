@@ -47,7 +47,8 @@
         Train,
         Vertigo,
         Cobblestone,
-        Ancient
+        Ancient,
+        Anubis
     }
 
     public enum SC2Map
