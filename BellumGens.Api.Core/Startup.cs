@@ -139,6 +139,7 @@ namespace BellumGens.Api.Core
             });
 
             services.AddControllers();
+            services.AddOpenApiDocument();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -147,6 +148,9 @@ namespace BellumGens.Api.Core
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
+
+                app.UseOpenApi();
+                app.UseSwaggerUi3();
             }
 
             using (var serviceScope = app.ApplicationServices.GetService<IServiceScopeFactory>().CreateScope())

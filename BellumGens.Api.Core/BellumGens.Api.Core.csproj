@@ -8,19 +8,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AspNet.Security.OAuth.BattleNet" Version="7.0.2" />
-    <PackageReference Include="AspNet.Security.OAuth.Twitch" Version="7.0.2" />
+    <PackageReference Include="AspNet.Security.OAuth.BattleNet" Version="7.0.4" />
+    <PackageReference Include="AspNet.Security.OAuth.Twitch" Version="7.0.4" />
     <PackageReference Include="AspNet.Security.OpenId.Steam" Version="7.0.0" />
-    <PackageReference Include="Azure.Storage.Blobs" Version="12.16.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="7.0.8" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="7.0.8" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="7.0.8" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="7.0.8" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="7.0.8">
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.18.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="7.0.13" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="7.0.13" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="7.0.13" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="7.0.13" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="7.0.13">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="7.0.0" />
+    <PackageReference Include="NSwag.AspNetCore" Version="13.20.0" />
     <PackageReference Include="StarCraft2Models" Version="7.0.0" />
     <PackageReference Include="SteamModels" Version="7.0.0" />
     <PackageReference Include="WebPush" Version="1.0.12" />
