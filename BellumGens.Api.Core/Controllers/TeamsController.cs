@@ -7,7 +7,6 @@ using BellumGens.Api.Core.Providers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using BellumGens.Api.Core.Models;
-using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -24,7 +23,7 @@ namespace BellumGens.Api.Controllers
 							   UserManager<ApplicationUser> userManager,
 							   RoleManager<IdentityRole> roleManager,
 							   SignInManager<ApplicationUser> signInManager,
-							   IEmailSender sender,
+                               EmailServiceProvider sender,
 							   BellumGensDbContext context,
 							   ILogger<TeamsController> logger) : base(userManager, roleManager, signInManager, sender, context, logger)
 		{
@@ -210,6 +209,11 @@ namespace BellumGens.Api.Controllers
 				return BadRequest("User is not team admin...");
 			}
 			TeamMember entity = await _dbContext.TeamMembers.FindAsync(member.TeamId, member.UserId);
+			if (entity == null)
+			{
+                return NotFound("Team Member not found!");
+            }
+
 			_dbContext.Entry(entity).CurrentValues.SetValues(member);
 			try
 			{
@@ -232,6 +236,11 @@ namespace BellumGens.Api.Controllers
 				return BadRequest("User is not team admin...");
 			}
 			TeamMember entity = await _dbContext.TeamMembers.FindAsync(teamId, userId);
+			if (entity == null)
+			{
+                return NotFound("Team Member not found!");
+            }
+
 			_dbContext.TeamMembers.Remove(entity);
 			try
 			{
@@ -278,7 +287,7 @@ namespace BellumGens.Api.Controllers
 			catch (DbUpdateException e)
 			{
 				System.Diagnostics.Trace.TraceError($"Team abandon error: ${e.Message}");
-				return BadRequest("Could not remove team because there's an active tournament registration associated with it!");
+				return BadRequest("Could not remove team because there is an active tournament registration associated with it!");
 			}
 			return Ok(response);
 		}

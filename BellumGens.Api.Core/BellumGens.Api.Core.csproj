@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <UserSecretsId>aspnet-BellumGens.Api.Core-C0EE3419-32A9-4E03-8E0D-3114052E661F</UserSecretsId>
     <ApplicationInsightsResourceId>/subscriptions/25231cff-a356-457e-8138-2327bfaf75ae/resourceGroups/BellumGens/providers/microsoft.insights/components/BellumGensAPI</ApplicationInsightsResourceId>
     <EnableNETAnalyzers>True</EnableNETAnalyzers>

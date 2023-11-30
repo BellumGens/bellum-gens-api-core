@@ -112,7 +112,7 @@ namespace BellumGens.Api.Core
             services.AddScoped<ISteamService, SteamServiceProvider>();
             services.AddScoped<IBattleNetService, BattleNetServiceProvider>();
             services.AddScoped<INotificationService, NotificationsService>();
-            services.AddScoped<IEmailSender, EmailServiceProvider>();
+            services.AddScoped<EmailServiceProvider>();
             services.AddScoped<IStorageService, StorageService>();
 
             services.AddResponseCompression(options =>

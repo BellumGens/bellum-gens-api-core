@@ -2,7 +2,6 @@
 using BellumGens.Api.Core.Providers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -23,7 +22,7 @@ namespace BellumGens.Api.Controllers
 								  UserManager<ApplicationUser> userManager,
 								  RoleManager<IdentityRole> roleManager,
 								  SignInManager<ApplicationUser> signInManager,
-								  IEmailSender sender,
+                                  EmailServiceProvider sender,
 								  BellumGensDbContext context,
 								  ILogger<StrategyController> logger) : base(userManager, roleManager, signInManager, sender, context, logger)
 		{
