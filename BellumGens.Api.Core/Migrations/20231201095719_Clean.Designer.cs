@@ -4,6 +4,7 @@ using BellumGens.Api.Core.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BellumGens.Api.Core.Migrations
 {
     [DbContext(typeof(BellumGensDbContext))]
-    partial class BellumGensDbContextModelSnapshot : ModelSnapshot
+    [Migration("20231201095719_Clean")]
+    partial class Clean
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -599,15 +602,18 @@ namespace BellumGens.Api.Core.Migrations
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.TeamInvite", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<string>("InvitingUserId")
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("InvitedUserId")
                         .HasColumnType("nvarchar(450)");
 
-                    b.Property<string>("InvitingUserId")
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<Guid>("TeamId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Message")
                         .HasColumnType("nvarchar(max)");
@@ -619,14 +625,9 @@ namespace BellumGens.Api.Core.Migrations
                     b.Property<int>("State")
                         .HasColumnType("int");
 
-                    b.Property<Guid>("TeamId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
+                    b.HasKey("InvitingUserId", "InvitedUserId", "TeamId");
 
                     b.HasIndex("InvitedUserId");
-
-                    b.HasIndex("InvitingUserId");
 
                     b.HasIndex("TeamId");
 
@@ -1276,12 +1277,14 @@ namespace BellumGens.Api.Core.Migrations
                     b.HasOne("BellumGens.Api.Core.Models.ApplicationUser", "InvitedUser")
                         .WithMany("Notifications")
                         .HasForeignKey("InvitedUserId")
-                        .OnDelete(DeleteBehavior.NoAction);
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
 
                     b.HasOne("BellumGens.Api.Core.Models.ApplicationUser", "InvitingUser")
                         .WithMany("InvitesSent")
                         .HasForeignKey("InvitingUserId")
-                        .OnDelete(DeleteBehavior.NoAction);
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
 
                     b.HasOne("BellumGens.Api.Core.Models.CSGOTeam", "Team")
                         .WithMany("Invites")

@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using System;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
@@ -9,7 +11,9 @@ namespace BellumGens.Api.Core.Models
 		private CSGOTeamSummaryViewModel _teamInfo;
 
 		public string InvitingUserId { get; set; }
+
 		public string InvitedUserId { get; set; }
+
 		public Guid TeamId { get; set; }
 
 		[NotMapped]
