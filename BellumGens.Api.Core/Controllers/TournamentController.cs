@@ -1,8 +1,8 @@
 ﻿using BellumGens.Api.Core;
 using BellumGens.Api.Core.Models;
+using BellumGens.Api.Core.Providers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -17,7 +17,7 @@ namespace BellumGens.Api.Controllers
     public class TournamentController : BaseController
     {
         private readonly AppConfiguration _appInfo;
-        public TournamentController(AppConfiguration appInfo, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, IEmailSender sender, BellumGensDbContext context, ILogger<AccountController> logger)
+        public TournamentController(AppConfiguration appInfo, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, EmailServiceProvider sender, BellumGensDbContext context, ILogger<AccountController> logger)
             : base(userManager, roleManager, signInManager, sender, context, logger)
         {
             _appInfo = appInfo;
@@ -56,10 +56,7 @@ namespace BellumGens.Api.Controllers
                     {
                         return BadRequest($"Вече има направена регистрация с battle tag {application.BattleNetId}!");
                     }
-                    if (user.BattleNetId == null)
-                    {
-                        user.BattleNetId = application.BattleNetId;
-                    }
+                    user.BattleNetId ??= application.BattleNetId;
                 }
                 else
                 {

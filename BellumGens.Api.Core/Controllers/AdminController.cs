@@ -1,7 +1,7 @@
 ﻿using BellumGens.Api.Core.Models;
+using BellumGens.Api.Core.Providers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System.Linq;
@@ -12,7 +12,7 @@ namespace BellumGens.Api.Controllers
     [Authorize]
     public class AdminController : BaseController
     {
-        public AdminController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, IEmailSender sender, BellumGensDbContext context, ILogger<AdminController> logger)
+        public AdminController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, EmailServiceProvider sender, BellumGensDbContext context, ILogger<AdminController> logger)
             : base(userManager, roleManager, signInManager, sender, context, logger)
         {
         }

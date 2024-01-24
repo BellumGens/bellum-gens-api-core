@@ -1,6 +1,6 @@
 ﻿using BellumGens.Api.Core.Models;
+using BellumGens.Api.Core.Providers;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -10,7 +10,7 @@ namespace BellumGens.Api.Controllers
 {
 	public class PushController : BaseController
     {
-		public PushController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, IEmailSender sender, BellumGensDbContext context, ILogger<PushController> logger)
+		public PushController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, EmailServiceProvider sender, BellumGensDbContext context, ILogger<PushController> logger)
 			: base(userManager, roleManager, signInManager, sender, context, logger)
 		{
 		}

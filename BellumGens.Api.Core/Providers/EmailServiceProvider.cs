@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace BellumGens.Api.Core.Providers
 {
-	public class EmailServiceProvider : IEmailSender
+	public class EmailServiceProvider
 	{
         private readonly AppConfiguration _appInfo;
         public EmailServiceProvider(AppConfiguration appInfo)

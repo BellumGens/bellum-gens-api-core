@@ -10,7 +10,6 @@ using Microsoft.AspNetCore.ResponseCompression;
 using BellumGens.Api.Core.Providers;
 using System;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity.UI.Services;
 
 namespace BellumGens.Api.Core
 {
@@ -18,21 +17,21 @@ namespace BellumGens.Api.Core
     {
         public static string PublicClientId { get; private set; }
 
-        private static readonly string[] devCors = new string[] {
+        private static readonly string[] devCors = [
             "http://localhost:4200",
             "http://localhost:4000",
             "http://localhost:4201",
             "http://localhost:4001"
-        };
+        ];
 
-        private static readonly string[] prodCors = new string[] {
+        private static readonly string[] prodCors = [
             "https://bellumgens.com",
             "https://www.bellumgens.com",
             "https://eb-league.com",
             "https://www.eb-league.com",
             "http://staging.bellumgens.com",
             "http://staging.eb-league.com"
-        };
+        ];
 
         public Startup(IConfiguration configuration)
         {
@@ -112,7 +111,7 @@ namespace BellumGens.Api.Core
             services.AddScoped<ISteamService, SteamServiceProvider>();
             services.AddScoped<IBattleNetService, BattleNetServiceProvider>();
             services.AddScoped<INotificationService, NotificationsService>();
-            services.AddScoped<IEmailSender, EmailServiceProvider>();
+            services.AddScoped<EmailServiceProvider>();
             services.AddScoped<IStorageService, StorageService>();
 
             services.AddResponseCompression(options =>
@@ -139,6 +138,7 @@ namespace BellumGens.Api.Core
             });
 
             services.AddControllers();
+            // services.AddOpenApiDocument();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -147,6 +147,9 @@ namespace BellumGens.Api.Core
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
+
+                //app.UseOpenApi();
+                //app.UseSwaggerUi3();
             }
 
             using (var serviceScope = app.ApplicationServices.GetService<IServiceScopeFactory>().CreateScope())

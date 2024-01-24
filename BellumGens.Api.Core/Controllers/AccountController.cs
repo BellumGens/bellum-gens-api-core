@@ -10,7 +10,6 @@ using Microsoft.AspNetCore.Mvc;
 using BellumGens.Api.Core.Models;
 using BellumGens.Api.Core.Providers;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using BellumGens.Api.Core;
 using Microsoft.AspNetCore.Http.Extensions;
@@ -24,7 +23,7 @@ namespace BellumGens.Api.Controllers
 		private const string emailConfirmation = "Greetings,<br /><br />You have updated your account information on <a href='https://bellumgens.com' target='_blank'>bellumgens.com</a> with your email address.<br /><br />To confirm your email address click on this <a href='{0}' target='_blank'>link</a>.<br /><br />The Bellum Gens team<br /><br /><a href='https://bellumgens.com' target='_blank'>https://bellumgens.com</a>";
         private readonly ISteamService _steamService;
 
-		public AccountController(ISteamService steamService, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, IEmailSender sender, BellumGensDbContext context, ILogger<AccountController> logger)
+		public AccountController(ISteamService steamService, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, EmailServiceProvider sender, BellumGensDbContext context, ILogger<AccountController> logger)
             : base(userManager, roleManager, signInManager, sender, context, logger)
         {
             _steamService = steamService;
