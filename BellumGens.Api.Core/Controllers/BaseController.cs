@@ -1,7 +1,7 @@
 ﻿using BellumGens.Api.Core.Models;
 using BellumGens.Api.Core.Models.Extensions;
+using BellumGens.Api.Core.Providers;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -14,14 +14,14 @@ namespace BellumGens.Api.Controllers
 	[Route("api/[controller]")]
 	public class BaseController : ControllerBase
     {
-		protected readonly IEmailSender _sender;
+		protected readonly EmailServiceProvider _sender;
 		protected readonly BellumGensDbContext _dbContext;
 		protected readonly UserManager<ApplicationUser> _userManager;
 		protected readonly RoleManager<IdentityRole> _roleManager;
 		protected readonly SignInManager<ApplicationUser> _signInManager;
 		protected readonly ILogger<BaseController> _logger;
 
-		public BaseController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, IEmailSender sender, BellumGensDbContext context, ILogger<BaseController> logger)
+		public BaseController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, EmailServiceProvider sender, BellumGensDbContext context, ILogger<BaseController> logger)
         {
 			_userManager = userManager;
 			_roleManager = roleManager;

@@ -2,7 +2,6 @@
 using BellumGens.Api.Core.Models.Extensions;
 using BellumGens.Api.Core.Providers;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -17,7 +16,7 @@ namespace BellumGens.Api.Controllers
 	{
 		private readonly ISteamService _steamService;
 
-		public SearchController(ISteamService steamService, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, IEmailSender sender, BellumGensDbContext context, ILogger<SearchController> logger)
+		public SearchController(ISteamService steamService, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, EmailServiceProvider sender, BellumGensDbContext context, ILogger<SearchController> logger)
 			: base(userManager, roleManager, signInManager, sender, context, logger)
 		{
 			_steamService = steamService;

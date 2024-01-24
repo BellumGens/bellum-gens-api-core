@@ -192,6 +192,9 @@ namespace BellumGens.Api.Core.Models
 			modelBuilder.Entity<TeamMember>()
 						.HasKey(c => new { c.TeamId, c.UserId });
 
+			//modelBuilder.Entity<TeamInvite>()
+			//			.HasKey(c => new { c.InvitingUserId, c.InvitedUserId, c.TeamId });
+
 			modelBuilder.Entity<TeamInvite>()
 						.HasOne(c => c.InvitingUser)
 						.WithMany(c => c.InvitesSent)

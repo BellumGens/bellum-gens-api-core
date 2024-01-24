@@ -1,8 +1,8 @@
 ﻿using BellumGens.Api.Core.Common;
 using BellumGens.Api.Core.Models;
+using BellumGens.Api.Core.Providers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -16,7 +16,7 @@ namespace BellumGens.Api.Controllers
     {
         private const int baseJerseyPrice = 60;
         private const decimal baseDiscount = .3M;
-        public ShopController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, IEmailSender sender, BellumGensDbContext context, ILogger<ShopController> logger)
+        public ShopController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, EmailServiceProvider sender, BellumGensDbContext context, ILogger<ShopController> logger)
             : base(userManager, roleManager, signInManager, sender, context, logger)
         {
         }
