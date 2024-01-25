@@ -174,8 +174,8 @@ namespace BellumGens.Api.Core.Models
 			modelBuilder.Entity<StrategyVote>()
 						.HasKey(c => new { c.StratId, c.UserId });
 
-			modelBuilder.Entity<TeamApplication>()
-						.HasKey(c => new { c.ApplicantId, c.TeamId });
+			//modelBuilder.Entity<TeamApplication>()
+			//			.HasKey(c => new { c.ApplicantId, c.TeamId });
 
 			modelBuilder.Entity<TeamAvailability>()
 						.HasKey(c => new { c.TeamId, c.Day });
