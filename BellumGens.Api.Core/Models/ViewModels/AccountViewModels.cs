@@ -50,7 +50,7 @@ namespace BellumGens.Api.Core.Models
         {
             get
             {
-                return user?.CSGODetails?.AvatarMedium;
+                return !string.IsNullOrEmpty(user?.CSGODetails?.AvatarMedium) ? user.CSGODetails.AvatarMedium : user?.StarCraft2Details?.AvatarUrl;
             }
         }
         public string CustomURL
@@ -105,7 +105,7 @@ namespace BellumGens.Api.Core.Models
         {
             get
             {
-                return user?.CSGODetails?.AvatarFull;
+                return !string.IsNullOrEmpty(user?.CSGODetails?.AvatarFull) ? user.CSGODetails.AvatarFull : user?.StarCraft2Details?.AvatarUrl;
             }
         }
 
