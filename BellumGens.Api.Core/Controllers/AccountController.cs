@@ -22,11 +22,13 @@ namespace BellumGens.Api.Controllers
     {
 		private const string emailConfirmation = "Greetings,<br /><br />You have updated your account information on <a href='https://bellumgens.com' target='_blank'>bellumgens.com</a> with your email address.<br /><br />To confirm your email address click on this <a href='{0}' target='_blank'>link</a>.<br /><br />The Bellum Gens team<br /><br /><a href='https://bellumgens.com' target='_blank'>https://bellumgens.com</a>";
         private readonly ISteamService _steamService;
+        private readonly IBattleNetService _battleNetService;
 
-		public AccountController(ISteamService steamService, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, EmailServiceProvider sender, BellumGensDbContext context, ILogger<AccountController> logger)
+		public AccountController(ISteamService steamService, IBattleNetService battleNetService, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, EmailServiceProvider sender, BellumGensDbContext context, ILogger<AccountController> logger)
             : base(userManager, roleManager, signInManager, sender, context, logger)
         {
             _steamService = steamService;
+            _battleNetService = battleNetService;
         }
 
         // GET api/Account/Username
@@ -47,14 +49,25 @@ namespace BellumGens.Api.Controllers
                 ApplicationUser user = await GetAuthUser();
 
                 UserStatsViewModel model = new(user, true);
-                if (user.SteamID != null)
+                if (user.SteamID != null || user.BattleNetId != null)
                 {
-                    await _dbContext.Entry(user).Reference(u => u.CSGODetails).LoadAsync();
-                    if (string.IsNullOrEmpty(user.CSGODetails.AvatarFull))
+                    if (user.SteamID != null)
                     {
-                        model = await _steamService.GetSteamUserDetails(user.SteamID);
-                        model.SetUser(user, _dbContext);
+                        await _dbContext.Entry(user).Reference(u => u.CSGODetails).LoadAsync();
+                        if (string.IsNullOrEmpty(user.CSGODetails.AvatarFull))
+                        {
+                            model = await _steamService.GetSteamUserDetails(user.SteamID);
+                        }
                     }
+                    if (user.BattleNetId != null)
+                    {
+                        await _dbContext.Entry(user).Reference(u => u.StarCraft2Details).LoadAsync();
+                        if (string.IsNullOrEmpty(user.StarCraft2Details.AvatarUrl))
+                        {
+                            model.Player = await _battleNetService.GetStarCraft2Player(user.StarCraft2Details.BattleNetId);
+                        }
+                    }
+                    model.SetUser(user, _dbContext);
                 }
                 var logins = await _userManager.GetLoginsAsync(user);
                 model.ExternalLogins = logins.Select(t => t.LoginProvider).ToList();

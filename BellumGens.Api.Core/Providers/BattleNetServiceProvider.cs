@@ -15,9 +15,9 @@ namespace BellumGens.Api.Core.Providers
     {
         private readonly IMemoryCache _cache;
 
-        private static readonly string _playerAccountEndpoint = "https://{0}.api.blizzard.com/sc2/player/{1}&access_token={2}";
+        private static readonly string _playerAccountEndpoint = "https://{0}.api.blizzard.com/sc2/player/{1}?access_token={2}";
         // private static readonly string _profileEndpoint = "https://{0}.api.blizzard.com/sc2/metadata/profile/{1}/{2}/{3}?locale=en_US&access_token={4}";
-        private static readonly string _tokenEndpoint = "https://eu.battle.net/oauth/token";
+        private static readonly string _tokenEndpoint = "https://oauth.battle.net/token";
 
         private static OAuthResponse _oauth;
         private static DateTimeOffset _tokenIssueStamp;
@@ -33,7 +33,7 @@ namespace BellumGens.Api.Core.Providers
 
         public async Task<Player> GetStarCraft2Player(string playerid, string region = "eu")
         {
-            Player player;
+            Player [] player;
             if (_cache.Get(playerid) is Player)
             {
                 return _cache.Get(playerid) as Player;
@@ -47,9 +47,9 @@ namespace BellumGens.Api.Core.Providers
             using HttpClient client = new();
             Uri endpoint = new(string.Format(_playerAccountEndpoint, region, playerid, _oauth.access_token));
             var response = await client.GetStringAsync(endpoint);
-            player = JsonSerializer.Deserialize<Player>(response);
+            player = JsonSerializer.Deserialize<Player[]>(response);
             _cache.Set(playerid, player, DateTime.Now.AddDays(1));
-            return player;
+            return player?[0];
         }
 
         //public Task<PlayerProfile> GetStarCraft2PlayerProfile(string playerid, string region = "eu", int regionid = 2, int realmid = 1)
