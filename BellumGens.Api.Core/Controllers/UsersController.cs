@@ -126,7 +126,7 @@ namespace BellumGens.Api.Controllers
             {
 				_dbContext.UserMapPool.Add(mapPool);
             }
-			else
+			else if (_dbContext.UserMapPool.Contains(mapPool))
             {
 				_dbContext.UserMapPool.Remove(mapPool);
             }
