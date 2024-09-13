@@ -20,21 +20,21 @@ namespace BellumGens.Api.Core.Models
 
         [NotMapped]
         [JsonPropertyName("player1")]
-        public UserSummaryViewModel Player1Summary
+        public UserInfoViewModel Player1Summary
         {
             get
             {
-                return Player1 != null ? new UserSummaryViewModel(Player1) : null;
+                return Player1 != null ? new UserInfoViewModel(Player1) : null;
             }
         }
 
         [NotMapped]
         [JsonPropertyName("player2")]
-        public UserSummaryViewModel Player2Summary
+        public UserInfoViewModel Player2Summary
         {
             get
             {
-                return Player2 != null ? new UserSummaryViewModel(Player2) : null;
+                return Player2 != null ? new UserInfoViewModel(Player2) : null;
             }
         }
 

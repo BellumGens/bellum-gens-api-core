@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Newtonsoft.Json;
+using System.ComponentModel.DataAnnotations;
 
 namespace BellumGens.Api.Core.Models
 {
@@ -17,5 +18,11 @@ namespace BellumGens.Api.Core.Models
         public decimal Accuracy { get; set; }
 
         public bool SteamPrivate { get; set; } = false;
+
+        [JsonProperty("primaryRole")]
+        public PlaystyleRole PreferredPrimaryRole { get; set; }
+
+        [JsonProperty("secondaryRole")]
+        public PlaystyleRole PreferredSecondaryRole { get; set; }
     }
 }

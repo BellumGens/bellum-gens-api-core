@@ -148,7 +148,7 @@ namespace BellumGens.Api.Controllers
 		public async Task<IActionResult> SetPrimaryRole(PlaystyleRole id, Role role)
 		{
 			ApplicationUser user = await GetAuthUser();
-			user.PreferredPrimaryRole = id;
+			user.CSGODetails.PreferredPrimaryRole = id;
 			try
 			{
 				await _dbContext.SaveChangesAsync();
@@ -166,7 +166,7 @@ namespace BellumGens.Api.Controllers
 		public async Task<IActionResult> SetSecondaryRole(PlaystyleRole id, Role role)
 		{
 			ApplicationUser user = await GetAuthUser();
-			user.PreferredSecondaryRole = id;
+			user.CSGODetails.PreferredSecondaryRole = id;
 			try
 			{
 				await _dbContext.SaveChangesAsync();

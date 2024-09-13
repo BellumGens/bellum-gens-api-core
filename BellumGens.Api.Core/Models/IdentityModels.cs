@@ -24,10 +24,6 @@ namespace BellumGens.Api.Core.Models
 
 		public DateTimeOffset LastSeen { get; set; } = DateTimeOffset.Now;
 
-		public PlaystyleRole PreferredPrimaryRole { get; set; }
-
-		public PlaystyleRole PreferredSecondaryRole { get; set; }
-
 		[ForeignKey("SteamID")]
 		public virtual CSGODetails CSGODetails { get; set; }
 

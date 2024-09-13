@@ -14,15 +14,16 @@ namespace BellumGens.Api.Core.Models
         public string State { get; set; }
     }
 
-    public class UserSummaryViewModel
+    public class UserInfoViewModel
     {
+        protected bool _isAuthUser; 
         protected ApplicationUser user;
 
-        public UserSummaryViewModel() { }
+        public UserInfoViewModel() : base() { }
 
-        public UserSummaryViewModel(ApplicationUser user)
+        public UserInfoViewModel(ApplicationUser user, bool isAuthUser = false)
         {
-            this.user = user;
+            _isAuthUser = isAuthUser;
         }
 
         public string Id
@@ -46,38 +47,12 @@ namespace BellumGens.Api.Core.Models
                 return user?.UserName;
             }
         }
-        public string AvatarMedium
-        {
-            get
-            {
-                return !string.IsNullOrEmpty(user?.CSGODetails?.AvatarMedium) ? user.CSGODetails.AvatarMedium : user?.StarCraft2Details?.AvatarUrl;
-            }
-        }
-        public string CustomURL
-        {
-            get
-            {
-                return user?.CSGODetails?.CustomUrl;
-            }
-        }
         public string BattleNetId
         {
             get
             {
                 return user?.BattleNetId;
             }
-        }
-    }
-
-    public class UserInfoViewModel : UserSummaryViewModel
-    {
-        protected bool _isAuthUser;
-
-		public UserInfoViewModel() : base() { }
-
-        public UserInfoViewModel(ApplicationUser user, bool isAuthUser = false) : base(user)
-        {
-            _isAuthUser = isAuthUser;
         }
         public List<string> ExternalLogins { get; set; }
         public string Email
@@ -92,28 +67,6 @@ namespace BellumGens.Api.Core.Models
             get
             {
                 return user?.SearchVisible;
-            }
-        }
-        public string AvatarIcon
-        {
-            get
-            {
-                return user?.CSGODetails?.AvatarIcon;
-            }
-        }
-        public string AvatarFull
-        {
-            get
-            {
-                return !string.IsNullOrEmpty(user?.CSGODetails?.AvatarFull) ? user.CSGODetails.AvatarFull : user?.StarCraft2Details?.AvatarUrl;
-            }
-        }
-
-        public string Realname
-        {
-            get
-            {
-                return user?.CSGODetails?.RealName;
             }
         }
     }
