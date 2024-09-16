@@ -15,9 +15,9 @@ namespace BellumGens.Api.Core.Models
             SC2Details = user.StarCraft2Details;
         }
 
-        public CSGODetails CSGODetails;
+        public CSGODetails CSGODetails { get; set; }
 
-        private StarCraft2Details SC2Details;
+        public StarCraft2Details SC2Details { get; set; }
 
         public SteamUser SteamUser { get; set; }
         public Player Player { get; set; }
@@ -42,7 +42,7 @@ namespace BellumGens.Api.Core.Models
             bool changes = false;
             bool userchange = false;
             bool sc2change = false;
-            if (CSGODetails != null)
+            if (CSGODetails != null && SteamUser != null)
             {
                 if (SteamUser?.avatarFull != CSGODetails?.AvatarFull)
                 {

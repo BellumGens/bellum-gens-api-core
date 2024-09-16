@@ -53,18 +53,32 @@ namespace BellumGens.Api.Controllers
                 {
                     if (user.SteamID != null)
                     {
-                        await _dbContext.Entry(user).Reference(u => u.CSGODetails).LoadAsync();
-                        if (string.IsNullOrEmpty(user.CSGODetails.AvatarFull))
+                        try
                         {
-                            model = await _steamService.GetSteamUserDetails(user.SteamID);
+                            await _dbContext.Entry(user).Reference(u => u.CSGODetails).LoadAsync();
+                            if (string.IsNullOrEmpty(user.CSGODetails.AvatarFull))
+                            {
+                                model = await _steamService.GetSteamUserDetails(user.SteamID);
+                            }
+                        }
+                        catch
+                        {
+                            System.Diagnostics.Trace.TraceWarning($"Retrieval for ${user.SteamID} failed from Steam.");
                         }
                     }
                     if (user.BattleNetId != null)
                     {
-                        await _dbContext.Entry(user).Reference(u => u.StarCraft2Details).LoadAsync();
-                        if (string.IsNullOrEmpty(user.StarCraft2Details.AvatarUrl))
+                        try
                         {
-                            model.Player = await _battleNetService.GetStarCraft2Player(user.StarCraft2Details.BattleNetId);
+                            await _dbContext.Entry(user).Reference(u => u.StarCraft2Details).LoadAsync();
+                            if (string.IsNullOrEmpty(user.StarCraft2Details.AvatarUrl))
+                            {
+                                model.Player = await _battleNetService.GetStarCraft2Player(user.StarCraft2Details.BattleNetId);
+                            }
+                        }
+                        catch
+                        {
+                            System.Diagnostics.Trace.TraceWarning($"Retrieval for ${user.BattleNetId} failed from battle.net.");
                         }
                     }
                     model.SetUser(user, _dbContext);
