@@ -12,11 +12,11 @@ namespace BellumGens.Api.Core.Models
 			: base(user, isAuthUser)
         {
             CSGODetails = user.CSGODetails;
-            SC2Details = user.StarCraft2Details;
+            Sc2Details = user.StarCraft2Details;
         }
 
         public CSGODetails CSGODetails { get; set; }
-        public StarCraft2Details SC2Details { get; set; }
+        public StarCraft2Details Sc2Details { get; set; }
         public SteamUser SteamUser { get; set; }
         public Player SC2Player { get; set; }
         public bool SteamUserException { get; set; }
@@ -31,7 +31,7 @@ namespace BellumGens.Api.Core.Models
         {
             this.user = user;
             CSGODetails = user.CSGODetails;
-            SC2Details = user.StarCraft2Details;
+            Sc2Details = user.StarCraft2Details;
             RefreshAppUserValues(context);
         }
 
@@ -104,11 +104,11 @@ namespace BellumGens.Api.Core.Models
                         UserStats.playerstats = null;
                 }
             }
-            if (SC2Details != null && SC2Player != null)
+            if (Sc2Details != null && SC2Player != null)
             {
-                if (SC2Player.avatarUrl != SC2Details.AvatarUrl)
+                if (SC2Player.avatarUrl != Sc2Details.AvatarUrl)
                 {
-                    SC2Details.AvatarUrl = SC2Player.avatarUrl;
+                    Sc2Details.AvatarUrl = SC2Player.avatarUrl;
                     sc2change = true;
                 }
             }
@@ -142,7 +142,7 @@ namespace BellumGens.Api.Core.Models
                 try
                 {
                     StarCraft2Details sc2user = context.StarCraft2Details.Find(user.BattleNetId);
-                    context.Entry(sc2user).CurrentValues.SetValues(SC2Details);
+                    context.Entry(sc2user).CurrentValues.SetValues(Sc2Details);
                     context.SaveChanges();
                 }
                 catch
