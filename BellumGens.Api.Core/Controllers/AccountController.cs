@@ -73,7 +73,7 @@ namespace BellumGens.Api.Controllers
                             await _dbContext.Entry(user).Reference(u => u.StarCraft2Details).LoadAsync();
                             if (string.IsNullOrEmpty(user.StarCraft2Details.AvatarUrl))
                             {
-                                model.Player = await _battleNetService.GetStarCraft2Player(user.StarCraft2Details.BattleNetId);
+                                model.SC2Player = await _battleNetService.GetStarCraft2Player(user.StarCraft2Details.BattleNetId);
                             }
                         }
                         catch
@@ -236,7 +236,7 @@ namespace BellumGens.Api.Controllers
 
 		// DELETE api/Account/Delete
 		[HttpDelete]
-		[Route("Delete")]
+		[Route("Delete", Name = "Delete")]
 		public async Task<IActionResult> Delete(string userid)
 		{
             ApplicationUser user = await GetAuthUser();
@@ -257,6 +257,12 @@ namespace BellumGens.Api.Controllers
             {
                 _dbContext.TeamInvites.Remove(invite);
             }
+            CSGODetails csgo = _dbContext.CSGODetails.FirstOrDefault(d => d.SteamId == user.SteamID);
+            if (csgo != null)
+                _dbContext.Remove(csgo);
+            StarCraft2Details sc2 = _dbContext.StarCraft2Details.FirstOrDefault(d => d.BattleNetId == user.BattleNetId);
+            if (sc2 != null)
+                _dbContext.Remove(sc2);
 			_dbContext.Users.Remove(user);
 
 			try
@@ -268,7 +274,7 @@ namespace BellumGens.Api.Controllers
                 System.Diagnostics.Trace.TraceError("User account delete error: " + e.Message);
                 return BadRequest("Something went wrong...");
 			}
-			return Ok("Ok");
+			return Ok();
 		}
 
         // POST api/Account/SetPassword

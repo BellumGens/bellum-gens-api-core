@@ -16,11 +16,9 @@ namespace BellumGens.Api.Core.Models
         }
 
         public CSGODetails CSGODetails { get; set; }
-
         public StarCraft2Details SC2Details { get; set; }
-
         public SteamUser SteamUser { get; set; }
-        public Player Player { get; set; }
+        public Player SC2Player { get; set; }
         public bool SteamUserException { get; set; }
 		public CSGOPlayerStats UserStats { get; set; }
 		public bool UserStatsException { get; set; }
@@ -106,11 +104,11 @@ namespace BellumGens.Api.Core.Models
                         UserStats.playerstats = null;
                 }
             }
-            if (SC2Details != null && Player != null)
+            if (SC2Details != null && SC2Player != null)
             {
-                if (Player.avatarUrl != SC2Details.AvatarUrl)
+                if (SC2Player.avatarUrl != SC2Details.AvatarUrl)
                 {
-                    SC2Details.AvatarUrl = Player.avatarUrl;
+                    SC2Details.AvatarUrl = SC2Player.avatarUrl;
                     sc2change = true;
                 }
             }
