@@ -22,11 +22,13 @@ namespace BellumGens.Api.Controllers
     {
 		private const string emailConfirmation = "Greetings,<br /><br />You have updated your account information on <a href='https://bellumgens.com' target='_blank'>bellumgens.com</a> with your email address.<br /><br />To confirm your email address click on this <a href='{0}' target='_blank'>link</a>.<br /><br />The Bellum Gens team<br /><br /><a href='https://bellumgens.com' target='_blank'>https://bellumgens.com</a>";
         private readonly ISteamService _steamService;
+        private readonly IBattleNetService _battleNetService;
 
-		public AccountController(ISteamService steamService, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, EmailServiceProvider sender, BellumGensDbContext context, ILogger<AccountController> logger)
+		public AccountController(ISteamService steamService, IBattleNetService battleNetService, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, EmailServiceProvider sender, BellumGensDbContext context, ILogger<AccountController> logger)
             : base(userManager, roleManager, signInManager, sender, context, logger)
         {
             _steamService = steamService;
+            _battleNetService = battleNetService;
         }
 
         // GET api/Account/Username
@@ -47,14 +49,39 @@ namespace BellumGens.Api.Controllers
                 ApplicationUser user = await GetAuthUser();
 
                 UserStatsViewModel model = new(user, true);
-                if (user.SteamID != null)
+                if (user.SteamID != null || user.BattleNetId != null)
                 {
-                    await _dbContext.Entry(user).Reference(u => u.CSGODetails).LoadAsync();
-                    if (string.IsNullOrEmpty(user.CSGODetails.AvatarFull))
+                    if (user.SteamID != null)
                     {
-                        model = await _steamService.GetSteamUserDetails(user.SteamID);
-                        model.SetUser(user, _dbContext);
+                        try
+                        {
+                            await _dbContext.Entry(user).Reference(u => u.CSGODetails).LoadAsync();
+                            if (string.IsNullOrEmpty(user.CSGODetails.AvatarFull))
+                            {
+                                model = await _steamService.GetSteamUserDetails(user.SteamID);
+                            }
+                        }
+                        catch
+                        {
+                            System.Diagnostics.Trace.TraceWarning($"Retrieval for ${user.SteamID} failed from Steam.");
+                        }
                     }
+                    if (user.BattleNetId != null)
+                    {
+                        try
+                        {
+                            await _dbContext.Entry(user).Reference(u => u.StarCraft2Details).LoadAsync();
+                            if (string.IsNullOrEmpty(user.StarCraft2Details.AvatarUrl))
+                            {
+                                model.SC2Player = await _battleNetService.GetStarCraft2Player(user.StarCraft2Details.BattleNetId);
+                            }
+                        }
+                        catch
+                        {
+                            System.Diagnostics.Trace.TraceWarning($"Retrieval for ${user.BattleNetId} failed from battle.net.");
+                        }
+                    }
+                    model.SetUser(user, _dbContext);
                 }
                 var logins = await _userManager.GetLoginsAsync(user);
                 model.ExternalLogins = logins.Select(t => t.LoginProvider).ToList();
@@ -209,7 +236,7 @@ namespace BellumGens.Api.Controllers
 
 		// DELETE api/Account/Delete
 		[HttpDelete]
-		[Route("Delete")]
+		[Route("Delete", Name = "Delete")]
 		public async Task<IActionResult> Delete(string userid)
 		{
             ApplicationUser user = await GetAuthUser();
@@ -230,6 +257,12 @@ namespace BellumGens.Api.Controllers
             {
                 _dbContext.TeamInvites.Remove(invite);
             }
+            CSGODetails csgo = _dbContext.CSGODetails.FirstOrDefault(d => d.SteamId == user.SteamID);
+            if (csgo != null)
+                _dbContext.Remove(csgo);
+            StarCraft2Details sc2 = _dbContext.StarCraft2Details.FirstOrDefault(d => d.BattleNetId == user.BattleNetId);
+            if (sc2 != null)
+                _dbContext.Remove(sc2);
 			_dbContext.Users.Remove(user);
 
 			try
@@ -241,7 +274,7 @@ namespace BellumGens.Api.Controllers
                 System.Diagnostics.Trace.TraceError("User account delete error: " + e.Message);
                 return BadRequest("Something went wrong...");
 			}
-			return Ok("Ok");
+			return Ok();
 		}
 
         // POST api/Account/SetPassword

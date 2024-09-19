@@ -105,7 +105,7 @@ namespace BellumGens.Api.Controllers
 				users = await _dbContext.Users
 										.Include(u => u.Availability)
 										.Include(u => u.CSGODetails)
-										.Where(u => u.SearchVisible && (u.PreferredPrimaryRole == role || u.PreferredSecondaryRole == role)).ToListAsync();
+										.Where(u => u.SearchVisible && (u.CSGODetails.PreferredPrimaryRole == role || u.CSGODetails.PreferredSecondaryRole == role)).ToListAsync();
 			}
 			else
 			{

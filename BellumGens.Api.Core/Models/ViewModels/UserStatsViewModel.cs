@@ -1,4 +1,5 @@
-﻿using SteamModels;
+﻿using StarCraft2Models;
+using SteamModels;
 using SteamModels.CSGO;
 
 namespace BellumGens.Api.Core.Models
@@ -10,12 +11,14 @@ namespace BellumGens.Api.Core.Models
 		public UserStatsViewModel(ApplicationUser user, bool isAuthUser = false)
 			: base(user, isAuthUser)
         {
-            _details = user.CSGODetails;
+            CSGODetails = user.CSGODetails;
+            Sc2Details = user.StarCraft2Details;
         }
 
-        private CSGODetails _details;
-
+        public CSGODetails CSGODetails { get; set; }
+        public StarCraft2Details Sc2Details { get; set; }
         public SteamUser SteamUser { get; set; }
+        public Player SC2Player { get; set; }
         public bool SteamUserException { get; set; }
 		public CSGOPlayerStats UserStats { get; set; }
 		public bool UserStatsException { get; set; }
@@ -23,60 +26,12 @@ namespace BellumGens.Api.Core.Models
         {
             get { return user != null; }
         }
-        public bool? SteamPrivate
-        {
-            get
-            {
-                return _details?.SteamPrivate;
-            }
-        }
-        public decimal? HeadshotPercentage
-        {
-            get
-            {
-                return _details?.HeadshotPercentage;
-            }
-        }
-        public decimal? KillDeathRatio
-        {
-            get
-            {
-                return _details?.KillDeathRatio;
-            }
-        }
-        public decimal? Accuracy
-        {
-            get
-            {
-                return _details?.Accuracy;
-            }
-        }
-        public string Country
-        {
-            get
-            {
-                return _details?.Country;
-            }
-        }
-        public PlaystyleRole? PrimaryRole
-        {
-            get
-            {
-                return user?.PreferredPrimaryRole;
-            }
-        }
-        public PlaystyleRole? SecondaryRole
-        {
-            get
-            {
-                return user?.PreferredSecondaryRole;
-            }
-        }
 
         public void SetUser(ApplicationUser user, BellumGensDbContext context)
         {
             this.user = user;
-            _details = user.CSGODetails;
+            CSGODetails = user.CSGODetails;
+            Sc2Details = user.StarCraft2Details;
             RefreshAppUserValues(context);
         }
 
@@ -84,66 +39,78 @@ namespace BellumGens.Api.Core.Models
         {
             bool changes = false;
             bool userchange = false;
-            if (SteamUser?.avatarFull != _details.AvatarFull)
+            bool sc2change = false;
+            if (CSGODetails != null && SteamUser != null)
             {
-                _details.AvatarFull = SteamUser.avatarFull;
-                changes = true;
-            }
-            if (SteamUser?.steamID != user.UserName)
-            {
-                user.UserName = SteamUser.steamID;
-                userchange = true;
-            }
-            if (SteamUser?.avatarIcon != _details.AvatarIcon)
-            {
-                _details.AvatarIcon = SteamUser.avatarIcon;
-                changes = true;
-            }
-            if (SteamUser?.realname != _details.RealName)
-            {
-                _details.RealName = SteamUser.realname;
-                changes = true;
-            }
-            if (SteamUser?.avatarMedium != _details.AvatarMedium)
-            {
-                _details.AvatarMedium = SteamUser.avatarMedium;
-                changes = true;
-            }
-            if (SteamUser?.customURL != _details.CustomUrl)
-            {
-                _details.CustomUrl = SteamUser.customURL;
-                changes = true;
-            }
-            if (SteamUser?.country != _details.Country)
-            {
-                _details.Country = SteamUser.country;
-                changes = true;
-            }
-            if (UserStatsException != _details.SteamPrivate)
-            {
-                _details.SteamPrivate = UserStatsException;
-                changes = true;
-            }
-            if (!UserStatsException)
-            {
-                if (UserStats?.headshotPercentage != _details.HeadshotPercentage)
+                if (SteamUser?.avatarFull != CSGODetails?.AvatarFull)
                 {
-                    _details.HeadshotPercentage = UserStats.headshotPercentage;
+                    CSGODetails.AvatarFull = SteamUser.avatarFull;
                     changes = true;
                 }
-                if (UserStats?.killDeathRatio != _details.KillDeathRatio)
+                if (SteamUser?.steamID != user.UserName)
                 {
-                    _details.KillDeathRatio = UserStats.killDeathRatio;
+                    user.UserName = SteamUser.steamID;
+                    userchange = true;
+                }
+                if (SteamUser?.avatarIcon != CSGODetails.AvatarIcon)
+                {
+                    CSGODetails.AvatarIcon = SteamUser.avatarIcon;
                     changes = true;
                 }
-                if (UserStats?.accuracy != _details.Accuracy)
+                if (SteamUser?.realname != CSGODetails.RealName)
                 {
-                    _details.Accuracy = UserStats.accuracy;
+                    CSGODetails.RealName = SteamUser.realname;
                     changes = true;
                 }
-                // Populate weapons and don't serialize stats again...
-                if (UserStats.weapons != null)
-                    UserStats.playerstats = null;
+                if (SteamUser?.avatarMedium != CSGODetails.AvatarMedium)
+                {
+                    CSGODetails.AvatarMedium = SteamUser.avatarMedium;
+                    changes = true;
+                }
+                if (SteamUser?.customURL != CSGODetails.CustomUrl)
+                {
+                    CSGODetails.CustomUrl = SteamUser.customURL;
+                    changes = true;
+                }
+                if (SteamUser?.country != CSGODetails.Country)
+                {
+                    CSGODetails.Country = SteamUser.country;
+                    changes = true;
+                }
+                if (UserStatsException != CSGODetails.SteamPrivate)
+                {
+                    CSGODetails.SteamPrivate = UserStatsException;
+                    changes = true;
+                }
+                if (!UserStatsException)
+                {
+                    if (UserStats?.headshotPercentage != CSGODetails.HeadshotPercentage)
+                    {
+                        CSGODetails.HeadshotPercentage = UserStats.headshotPercentage;
+                        changes = true;
+                    }
+                    if (UserStats?.killDeathRatio != CSGODetails.KillDeathRatio)
+                    {
+                        CSGODetails.KillDeathRatio = UserStats.killDeathRatio;
+                        changes = true;
+                    }
+                    if (UserStats?.accuracy != CSGODetails.Accuracy)
+                    {
+                        CSGODetails.Accuracy = UserStats.accuracy;
+                        changes = true;
+                    }
+                    // Populate weapons and don't serialize stats again...
+                    if (UserStats.weapons != null)
+                        UserStats.playerstats = null;
+                }
+            }
+            if (Sc2Details != null && SC2Player != null)
+            {
+                if (SC2Player.avatarUrl != Sc2Details.AvatarUrl)
+                {
+                    Sc2Details.AvatarUrl = SC2Player.avatarUrl;
+                    sc2change = true;
+                }
             }
             if (userchange)
             {
@@ -163,7 +130,19 @@ namespace BellumGens.Api.Core.Models
                 try
                 {
                     CSGODetails csgouser = context.CSGODetails.Find(user.SteamID);
-                    context.Entry(csgouser).CurrentValues.SetValues(_details);
+                    context.Entry(csgouser).CurrentValues.SetValues(CSGODetails);
+                    context.SaveChanges();
+                }
+                catch
+                {
+
+                }
+            }
+            if (sc2change) {
+                try
+                {
+                    StarCraft2Details sc2user = context.StarCraft2Details.Find(user.BattleNetId);
+                    context.Entry(sc2user).CurrentValues.SetValues(Sc2Details);
                     context.SaveChanges();
                 }
                 catch

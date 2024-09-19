@@ -8,5 +8,6 @@ namespace BellumGens.Api.Core.Models
         [Key]
         public string BattleNetId { get; set; }
         public string BattleNetBattleTag { get; set; }
+        public string AvatarUrl { get; set; }
     }
 }
