@@ -120,7 +120,7 @@ namespace BellumGens.Api.Controllers
         }
 
         [HttpPost]
-        [Route("R0egisterBGE")]
+        [Route("RegisterBGE")]
         public async Task<IActionResult> RegisterForBGE(SC2LeagueApplication application)
         {
             if (ModelState.IsValid)
