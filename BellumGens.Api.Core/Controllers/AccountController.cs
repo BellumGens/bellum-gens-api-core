@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -153,7 +153,7 @@ namespace BellumGens.Api.Controllers
 			return BadRequest("Couldn't find the subscription...");
 		}
 
-		[Route("UserInfo")]
+        [Route("UserInfo")]
 		[HttpPut]
 		public async Task<IActionResult> UpdateUserInfo(UserPreferencesViewModel preferences)
 		{
@@ -167,7 +167,7 @@ namespace BellumGens.Api.Controllers
 				if (newEmail)
 				{
 					string code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-					var callbackUrl = Url.Link("ActionApi", new { controller = "Account", action = "ConfirmEmail", userId = user.Id, code });
+					var callbackUrl = Url.ActionLink("ConfirmEmail", "Account", new { userId = user.Id, code });
 					await _sender.SendEmailAsync(user.Email, "Confirm your email", string.Format(emailConfirmation, callbackUrl));
 				}
 			}
@@ -317,7 +317,7 @@ namespace BellumGens.Api.Controllers
                     try
                     {
                         string code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-                        var callbackUrl = Url.Link("ActionApi", new { controller = "Account", action = "ConfirmEmail", userId = user.Id, code });
+                        var callbackUrl = Url.ActionLink("ConfirmEmail", "Account", new { userId = user.Id, code });
                         await _sender.SendEmailAsync(user.Email, "Confirm your email", string.Format(emailConfirmation, callbackUrl));
                     }
                     catch (Exception e)
