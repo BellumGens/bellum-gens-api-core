@@ -121,22 +121,22 @@ namespace BellumGens.Api.Controllers
 
         [HttpPost]
         [Route("RegisterBGE")]
-        public async Task<IActionResult> RegisterForBGE(SC2LeagueApplication application)
+        public async Task<IActionResult> RegisterForBGE(TournamentApplication application)
         {
             if (ModelState.IsValid)
             {
-                Company c = await _dbContext.Companies.FindAsync(application.TeamId);
+                Company c = await _dbContext.Companies.FindAsync(application.CompanyId);
                 ApplicationUser user = await GetAuthUser();
                 if (c == null)
                 {
                     _dbContext.Companies.Add(new Company()
                     {
-                        Name = application.TeamId
+                        Name = application.CompanyId
                     });
                 }
                 await application.UniqueHash(_dbContext);
                 application.UserId = user.Id;
-                _dbContext.SC2LeagueApplications.Add(application);
+                _dbContext.TournamentApplications.Add(application);
 
                 try
                 {
