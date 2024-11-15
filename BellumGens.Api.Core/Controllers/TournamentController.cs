@@ -127,7 +127,7 @@ namespace BellumGens.Api.Controllers
             {
                 Company c = await _dbContext.Companies.FindAsync(application.CompanyId);
                 ApplicationUser user = await GetAuthUser();
-                if (c == null)
+                if (c == null && application.CompanyId != null)
                 {
                     _dbContext.Companies.Add(new Company()
                     {

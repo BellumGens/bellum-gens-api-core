@@ -20,7 +20,6 @@ namespace BellumGens.Api.Core.Models
 
 		public Guid? TeamId { get; set; }
 
-        [Required]
 		public string CompanyId { get; set; }
 
 		public DateTimeOffset DateSubmitted { get; set; } = DateTimeOffset.Now;

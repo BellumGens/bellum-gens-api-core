@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace BellumGens.Api.Controllers
 {
-    [Authorize]
+    [Authorize(Roles = "admin,event-admin")]
     public class AdminController : BaseController
     {
         public AdminController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, EmailServiceProvider sender, BellumGensDbContext context, ILogger<AdminController> logger)
@@ -31,6 +31,7 @@ namespace BellumGens.Api.Controllers
 
         [HttpPut]
         [Route("CreateRole")]
+        [Authorize(Roles = "admin")]
         public async Task<IActionResult> CreateRole(string rolename)
         {
             if (await UserIsInRole("admin"))
