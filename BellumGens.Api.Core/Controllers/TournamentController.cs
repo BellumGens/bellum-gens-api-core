@@ -164,7 +164,14 @@ namespace BellumGens.Api.Controllers
             }
             return BadRequest("We couldn't validate your submission...");
         }
-        
+
+        [Route("UserRegistration")]
+        public async Task<TournamentApplication> GetRegistrationForTournament(Guid tournamentId)
+        {
+            ApplicationUser user = await GetAuthUser();
+            return await _dbContext.TournamentApplications.Where(a => a.TournamentId == tournamentId && a.UserId == user.Id).FirstOrDefaultAsync();
+        }
+
         [Route("Registrations")]
         public async Task<IActionResult> GetUserRegistrations()
         {
@@ -293,36 +300,33 @@ namespace BellumGens.Api.Controllers
 
         [HttpPut]
         [Route("Create")]
+        [Authorize(Roles = "admin")]
         public async Task<IActionResult> CreateTournament(Tournament tournament)
         {
-            if (await UserIsInRole("admin"))
+            if (ModelState.IsValid)
             {
-                if (ModelState.IsValid)
+                var entity = await _dbContext.Tournaments.FindAsync(tournament.ID);
+                if (entity != null)
                 {
-                    var entity = await _dbContext.Tournaments.FindAsync(tournament.ID);
-                    if (entity != null)
-                    {
-                        _dbContext.Entry(entity).CurrentValues.SetValues(tournament);
-                    }
-                    else
-                    {
-                        _dbContext.Tournaments.Add(tournament);
-                    }
-
-                    try
-                    {
-                        await _dbContext.SaveChangesAsync();
-                    }
-                    catch (DbUpdateException e)
-                    {
-                        System.Diagnostics.Trace.TraceError("Tournament update exception: " + e.Message);
-                        return BadRequest("Something went wrong...");
-                    }
-                    return Ok(tournament);
+                    _dbContext.Entry(entity).CurrentValues.SetValues(tournament);
                 }
-                return BadRequest("Invalid tournament");
+                else
+                {
+                    _dbContext.Tournaments.Add(tournament);
+                }
+
+                try
+                {
+                    await _dbContext.SaveChangesAsync();
+                }
+                catch (DbUpdateException e)
+                {
+                    System.Diagnostics.Trace.TraceError("Tournament update exception: " + e.Message);
+                    return BadRequest("Something went wrong...");
+                }
+                return Ok(tournament);
             }
-            return Unauthorized();
+            return BadRequest("Invalid tournament");
         }
         #endregion
 

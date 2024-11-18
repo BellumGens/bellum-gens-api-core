@@ -3,13 +3,15 @@ using BellumGens.Api.Core.Providers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
 namespace BellumGens.Api.Controllers
 {
-    [Authorize(Roles = "admin,event-admin")]
+    [Authorize]
     public class AdminController : BaseController
     {
         public AdminController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, EmailServiceProvider sender, BellumGensDbContext context, ILogger<AdminController> logger)
@@ -34,63 +36,49 @@ namespace BellumGens.Api.Controllers
         [Authorize(Roles = "admin")]
         public async Task<IActionResult> CreateRole(string rolename)
         {
-            if (await UserIsInRole("admin"))
+            var result = await _roleManager.CreateAsync(new IdentityRole() { Name = rolename });
+            if (result.Succeeded)
             {
-                var result = await _roleManager.CreateAsync(new IdentityRole() { Name = rolename });
-                if (result.Succeeded)
-                {
-                    return Ok();
-                }
+                return Ok();
             }
-            return Unauthorized();
+            return BadRequest();
         }
 
         [Route("Roles")]
-        public async Task<IActionResult> GetRoles()
+        [Authorize(Roles = "admin")]
+        public async Task<List<string>> GetRoles()
         {
-            if (await UserIsInRole("admin"))
-            {
-                return Ok(_roleManager.Roles.Select(r => r.Name).ToList());
-            }
-            return Unauthorized();
+            return await _roleManager.Roles.Select(r => r.Name).ToListAsync();
         }
 
         [Route("Users")]
+        [Authorize(Roles = "admin")]
         public async Task<IActionResult> GetUsers()
         {
-            if (await UserIsInRole("admin"))
-            {
-                var users = _dbContext.Users.Select(s => new { s.Id, s.UserName }).ToList();
-                return Ok(users);
-            }
-            return Unauthorized();
+            var users = await _dbContext.Users.Select(s => new { s.Id, s.UserName }).ToListAsync();
+            return Ok(users);
         }
 
         [Route("Promos")]
+        [Authorize(Roles = "admin")]
         public async Task<IActionResult> GetPromoCodes()
         {
-            if (await UserIsInRole("admin"))
-            {
-                var promos = _dbContext.PromoCodes.ToList();
-                return Ok(promos);
-            }
-            return Unauthorized();
+            var promos = await _dbContext.PromoCodes.ToListAsync();
+            return Ok(promos);
         }
 
         [HttpPut]
         [Route("AddUserRole")]
+        [Authorize(Roles = "admin")]
         public async Task<IActionResult> AddUserToRole(string userid, string role)
         {
-            if (await UserIsInRole("admin"))
+            ApplicationUser user = await _userManager.FindByIdAsync(userid);
+            IdentityResult result = await _userManager.AddToRoleAsync(user, role);
+            if (result.Succeeded)
             {
-                ApplicationUser user = await _userManager.FindByIdAsync(userid);
-                IdentityResult result = await _userManager.AddToRoleAsync(user, role);
-                if (result.Succeeded)
-                {
-                    return Ok("Ok");
-                }
+                return Ok("Ok");
             }
-            return Unauthorized();
+            return BadRequest();
         }
     }
 }
