@@ -377,10 +377,15 @@ namespace BellumGens.Api.Controllers
                 if (info.LoginProvider == "BattleNet")
                 {
                     string battletag = info.Principal.FindFirstValue(ClaimTypes.Name);
-                    if (user.StarCraft2Details.BattleNetBattleTag != battletag || user.BattleNetId != info.ProviderKey)
+                    if (user.BattleNetId != info.ProviderKey)
                     {
-                        user.StarCraft2Details.BattleNetBattleTag = battletag;
-                        user.StarCraft2Details.BattleNetId = info.ProviderKey;
+                        user.BattleNetId = info.ProviderKey;
+                        user.StarCraft2Details = new StarCraft2Details()
+                        {
+                            BattleNetBattleTag = battletag,
+                            BattleNetId = info.ProviderKey
+                        };
+                        await _dbContext.SaveChangesAsync();
                     }
                 }
             }
@@ -486,6 +491,7 @@ namespace BellumGens.Api.Controllers
                         UserName = username,
                         Email = email,
                         EmailConfirmed = true,
+                        BattleNetId = providerId,
                         StarCraft2Details = new StarCraft2Details()
                         {
                             BattleNetBattleTag = username,
@@ -530,11 +536,14 @@ namespace BellumGens.Api.Controllers
                         }
                         break;
                     case "BattleNet":
-                        var username = info.Principal.FindFirstValue(ClaimTypes.Name);
-                        if (user.StarCraft2Details.BattleNetBattleTag != username || user.BattleNetId != providerId)
+                        var battletag = info.Principal.FindFirstValue(ClaimTypes.Name);
+                        if (user.BattleNetId != providerId)
                         {
-                            user.StarCraft2Details.BattleNetBattleTag = username;
-                            user.StarCraft2Details.BattleNetId = providerId;
+                            user.StarCraft2Details = new StarCraft2Details()
+                            {
+                                BattleNetBattleTag = battletag,
+                                BattleNetId = providerId
+                            };
                             await _dbContext.SaveChangesAsync();
                         }
                         break;

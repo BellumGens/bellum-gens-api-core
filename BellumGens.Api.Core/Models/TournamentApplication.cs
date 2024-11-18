@@ -20,7 +20,6 @@ namespace BellumGens.Api.Core.Models
 
 		public Guid? TeamId { get; set; }
 
-        [Required]
 		public string CompanyId { get; set; }
 
 		public DateTimeOffset DateSubmitted { get; set; } = DateTimeOffset.Now;
@@ -33,6 +32,14 @@ namespace BellumGens.Api.Core.Models
         public string Hash { get; set; }
 
         public string BattleNetId { get; set; }
+
+        public string FirstName { get; set; }
+
+        public string LastName { get; set; }
+
+        public string Discord { get; set; }
+
+        public string Country { get; set; }
 
         public TournamentApplicationState State { get; set; } = TournamentApplicationState.Pending;
 
