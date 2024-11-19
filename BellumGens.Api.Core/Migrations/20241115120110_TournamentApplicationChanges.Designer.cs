@@ -4,6 +4,7 @@ using BellumGens.Api.Core.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BellumGens.Api.Core.Migrations
 {
     [DbContext(typeof(BellumGensDbContext))]
-    partial class BellumGensDbContextModelSnapshot : ModelSnapshot
+    [Migration("20241115120110_TournamentApplicationChanges")]
+    partial class TournamentApplicationChanges
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -720,6 +723,7 @@ namespace BellumGens.Api.Core.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("CompanyId")
+                        .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("Country")
@@ -1344,7 +1348,9 @@ namespace BellumGens.Api.Core.Migrations
                 {
                     b.HasOne("BellumGens.Api.Core.Models.Company", "Company")
                         .WithMany()
-                        .HasForeignKey("CompanyId");
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("BellumGens.Api.Core.Models.CSGOTeam", "Team")
                         .WithMany()

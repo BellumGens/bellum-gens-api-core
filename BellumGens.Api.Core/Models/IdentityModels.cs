@@ -81,7 +81,7 @@ namespace BellumGens.Api.Core.Models
 
         public DbSet<TournamentApplication> TournamentApplications { get; set; }
 
-		public DbSet<TournamentCSGOGroup> TournamentCSGOGroups { get; set; }
+        public DbSet<TournamentCSGOGroup> TournamentCSGOGroups { get; set; }
 
 		public DbSet<TournamentSC2Group> TournamentSC2Groups { get; set; }
 

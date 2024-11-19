@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -153,7 +153,7 @@ namespace BellumGens.Api.Controllers
 			return BadRequest("Couldn't find the subscription...");
 		}
 
-		[Route("UserInfo")]
+        [Route("UserInfo")]
 		[HttpPut]
 		public async Task<IActionResult> UpdateUserInfo(UserPreferencesViewModel preferences)
 		{
@@ -167,7 +167,7 @@ namespace BellumGens.Api.Controllers
 				if (newEmail)
 				{
 					string code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-					var callbackUrl = Url.Link("ActionApi", new { controller = "Account", action = "ConfirmEmail", userId = user.Id, code });
+					var callbackUrl = Url.ActionLink("ConfirmEmail", "Account", new { userId = user.Id, code });
 					await _sender.SendEmailAsync(user.Email, "Confirm your email", string.Format(emailConfirmation, callbackUrl));
 				}
 			}
@@ -317,7 +317,7 @@ namespace BellumGens.Api.Controllers
                     try
                     {
                         string code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-                        var callbackUrl = Url.Link("ActionApi", new { controller = "Account", action = "ConfirmEmail", userId = user.Id, code });
+                        var callbackUrl = Url.ActionLink("ConfirmEmail", "Account", new { userId = user.Id, code });
                         await _sender.SendEmailAsync(user.Email, "Confirm your email", string.Format(emailConfirmation, callbackUrl));
                     }
                     catch (Exception e)
@@ -377,10 +377,15 @@ namespace BellumGens.Api.Controllers
                 if (info.LoginProvider == "BattleNet")
                 {
                     string battletag = info.Principal.FindFirstValue(ClaimTypes.Name);
-                    if (user.StarCraft2Details.BattleNetBattleTag != battletag || user.BattleNetId != info.ProviderKey)
+                    if (user.BattleNetId != info.ProviderKey)
                     {
-                        user.StarCraft2Details.BattleNetBattleTag = battletag;
-                        user.StarCraft2Details.BattleNetId = info.ProviderKey;
+                        user.BattleNetId = info.ProviderKey;
+                        user.StarCraft2Details = new StarCraft2Details()
+                        {
+                            BattleNetBattleTag = battletag,
+                            BattleNetId = info.ProviderKey
+                        };
+                        await _dbContext.SaveChangesAsync();
                     }
                 }
             }
@@ -486,6 +491,7 @@ namespace BellumGens.Api.Controllers
                         UserName = username,
                         Email = email,
                         EmailConfirmed = true,
+                        BattleNetId = providerId,
                         StarCraft2Details = new StarCraft2Details()
                         {
                             BattleNetBattleTag = username,
@@ -530,11 +536,14 @@ namespace BellumGens.Api.Controllers
                         }
                         break;
                     case "BattleNet":
-                        var username = info.Principal.FindFirstValue(ClaimTypes.Name);
-                        if (user.StarCraft2Details.BattleNetBattleTag != username || user.BattleNetId != providerId)
+                        var battletag = info.Principal.FindFirstValue(ClaimTypes.Name);
+                        if (user.BattleNetId != providerId)
                         {
-                            user.StarCraft2Details.BattleNetBattleTag = username;
-                            user.StarCraft2Details.BattleNetId = providerId;
+                            user.StarCraft2Details = new StarCraft2Details()
+                            {
+                                BattleNetBattleTag = battletag,
+                                BattleNetId = providerId
+                            };
                             await _dbContext.SaveChangesAsync();
                         }
                         break;
