@@ -23,6 +23,7 @@ namespace BellumGens.Api.Core.Models
 
         public UserInfoViewModel(ApplicationUser user, bool isAuthUser = false)
         {
+            this.user = user;
             _isAuthUser = isAuthUser;
         }
 
