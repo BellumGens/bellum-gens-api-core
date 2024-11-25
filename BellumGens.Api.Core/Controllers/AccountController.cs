@@ -331,7 +331,7 @@ namespace BellumGens.Api.Controllers
         }
 
         [AllowAnonymous]
-        [Route("Twitch", Name = "ExternalCallback")]
+        [Route("ExternalCallback")]
         public async Task<IActionResult> ExternalCallback(string error = null, string returnUrl = "", string userId = null)
         {
             if (error != null)

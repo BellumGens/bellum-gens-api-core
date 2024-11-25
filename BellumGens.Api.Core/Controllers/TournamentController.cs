@@ -215,36 +215,34 @@ namespace BellumGens.Api.Controllers
         }
 
         [Route("AllRegistrations")]
+        [Authorize(Roles = "admin")]
         public async Task<IActionResult> GetAllApplications()
         {
-            return await UserIsInRole("admin") ? Ok(await _dbContext.TournamentApplications.Include(a => a.Tournament).ToListAsync()) : Unauthorized();
+            return Ok(await _dbContext.TournamentApplications.Include(a => a.Tournament).ToListAsync());
         }
 
         [HttpPut]
         [Route("Confirm")]
+        [Authorize(Roles = "admin")]
         public async Task<IActionResult> ConfirmRegistration(Guid id, TournamentApplication application)
         {
-            if (await UserIsInRole("admin"))
+            TournamentApplication entity = await _dbContext.TournamentApplications.FindAsync(id);
+            if (entity != null)
             {
-                TournamentApplication entity = await _dbContext.TournamentApplications.FindAsync(id);
-                if (entity != null)
-                {
-                    _dbContext.Entry(entity).CurrentValues.SetValues(application);
+                _dbContext.Entry(entity).CurrentValues.SetValues(application);
 
-                    try
-                    {
-                        await _dbContext.SaveChangesAsync();
-                    }
-                    catch (DbUpdateException e)
-                    {
-                        System.Diagnostics.Trace.TraceError("Tournament registration update error: " + e.Message);
-                        return BadRequest("Something went wrong!");
-                    }
-                    return Ok(application);
+                try
+                {
+                    await _dbContext.SaveChangesAsync();
                 }
-                return NotFound();
+                catch (DbUpdateException e)
+                {
+                    System.Diagnostics.Trace.TraceError("Tournament registration update error: " + e.Message);
+                    return BadRequest("Something went wrong!");
+                }
+                return Ok(application);
             }
-            return Unauthorized();
+            return NotFound();
         }
 
         [AllowAnonymous]
