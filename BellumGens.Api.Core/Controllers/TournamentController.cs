@@ -221,6 +221,57 @@ namespace BellumGens.Api.Controllers
             return Ok(await _dbContext.TournamentApplications.Include(a => a.Tournament).ToListAsync());
         }
 
+        [Route("SendCheckinEmails")]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> SendCheckinEmails(Guid tournamentId)
+        {
+            List<TournamentApplication> applications = await _dbContext.TournamentApplications.Include(a => a.Tournament).Where(a => a.TournamentId == tournamentId).ToListAsync();
+            foreach (TournamentApplication app in applications)
+            {
+                try
+                {
+                    // var callbackUrl = Url.ActionLink("Checkin", "Tournament", new { id = tournamentId });
+                    string message = $@"Greetings, {app.FirstName},
+                                    <p>The weekly checkin for {app.Tournament.Name} is live. Go to <a href='https://bellumgens.com' target='_blank'>your profile settings</a> and check in from there.</p>
+                                    <p>Thank you from the Bellum Gens team and GL HF in this week's matches!</p>
+                                    <a href='https://bellumgens.com' target='_blank'>https://bellumgens.com</a>";
+                    await _sender.SendEmailAsync(app.Email, "Registration Received", message).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    System.Diagnostics.Trace.TraceError("Tournament registration error: " + e.Message);
+                }
+            }
+            return Ok($"{applications.Count} emails sent!");
+        }
+
+        [HttpPut]
+        [Route("Checkin")]
+        public async Task<IActionResult> WeeklyCheckin(Guid id)
+        {
+            ApplicationUser user = await GetAuthUser();
+            TournamentApplication entity = await _dbContext.TournamentApplications.FindAsync(id);
+            if (entity.UserId == user.Id || await UserIsInRole("admin"))
+            {
+                if (entity != null)
+                {
+                    entity.State = TournamentApplicationState.Confirmed;
+
+                    try
+                    {
+                        await _dbContext.SaveChangesAsync();
+                    }
+                    catch (DbUpdateException e)
+                    {
+                        System.Diagnostics.Trace.TraceError("Tournament registration update error: " + e.Message);
+                        return BadRequest("Something went wrong!");
+                    }
+                    return Ok(entity);
+                }
+            }
+            return NotFound();
+        }
+
         [HttpPut]
         [Route("Confirm")]
         [Authorize(Roles = "admin")]
