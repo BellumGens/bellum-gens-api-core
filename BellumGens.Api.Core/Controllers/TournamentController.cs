@@ -235,14 +235,14 @@ namespace BellumGens.Api.Controllers
                                     <p>The weekly checkin for {app.Tournament.Name} is live. Go to <a href='https://bellumgens.com' target='_blank'>your profile settings</a> and check in from there.</p>
                                     <p>Thank you from the Bellum Gens team and GL HF in this week's matches!</p>
                                     <a href='https://bellumgens.com' target='_blank'>https://bellumgens.com</a>";
-                    await _sender.SendEmailAsync(app.Email, "Registration Received", message).ConfigureAwait(false);
+                    await _sender.SendEmailAsync(app.Email, "BGE Balkan: Time to check in", message).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
                     System.Diagnostics.Trace.TraceError("Tournament registration error: " + e.Message);
                 }
             }
-            return Ok($"{applications.Count} emails sent!");
+            return Ok(new { message = $"{applications.Count} emails sent" });
         }
 
         [HttpPut]
