@@ -70,7 +70,16 @@
         LightshadeLE,
         RomanticideLE,
         JagannathaLE,
-        IceAndChromeLE
+        IceAndChromeLE,
+        AlcyoneLE,
+        AmphionLE,
+        CrimsonCourtLE,
+        DynastyLE,
+        GhostRiverLE,
+        GoldenauraLE,
+        OceanbornLE,
+        PostYouthLE,
+        SiteDeltaLE
     }
 
     public enum TournamentApplicationState
