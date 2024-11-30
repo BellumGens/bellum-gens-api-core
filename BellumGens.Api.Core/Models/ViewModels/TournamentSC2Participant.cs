@@ -10,6 +10,7 @@ namespace BellumGens.Api.Core.Models
             : base(application)
         {
             BattleTag = application.BattleNetId;
+            Country = application.Country;
             User = new UserInfoViewModel(application.User);
             TournamentSC2GroupId = application.TournamentSC2GroupId;
             if (matches != null)
@@ -46,6 +47,7 @@ namespace BellumGens.Api.Core.Models
 
         public Guid? TournamentSC2GroupId { get; set; }
         public string BattleTag { get; set; }
+        public string Country { get; set; }
         public int PlayerPoints { get; set; } = 0;
         public UserInfoViewModel User { get; set; }
     }
