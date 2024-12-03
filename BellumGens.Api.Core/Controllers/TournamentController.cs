@@ -221,6 +221,31 @@ namespace BellumGens.Api.Controllers
             return Ok(await _dbContext.TournamentApplications.Include(a => a.Tournament).ToListAsync());
         }
 
+        [Route("TournamentRegistrations")]
+        [Authorize(Roles = "admin, event-admin")]
+        public async Task<IActionResult> GetApplications(Guid tournamentId)
+        {
+            return Ok(await _dbContext.TournamentApplications.Where(a => a.TournamentId == tournamentId).Include(a => a.Tournament).ToListAsync());
+        }
+
+        [Route("ResetState")]
+        [Authorize(Roles = "admin, event-admin")]
+        public async Task<IActionResult> ResetRegistrationsState(Guid tournamentId)
+        {
+            List<TournamentApplication> applications = await _dbContext.TournamentApplications.Where(a => a.TournamentId == tournamentId).ToListAsync();
+            applications.ForEach(applications => applications.State = TournamentApplicationState.Pending);
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException e)
+            {
+                System.Diagnostics.Trace.TraceError("Tournament registration update error: " + e.Message);
+                return BadRequest("Something went wrong!");
+            }
+            return Ok(new { message = $"{applications.Count} registrations have been set to pending state." });
+        }
+
         [Route("SendCheckinEmails")]
         [Authorize(Roles = "admin")]
         public async Task<IActionResult> SendCheckinEmails(Guid tournamentId)
@@ -230,11 +255,11 @@ namespace BellumGens.Api.Controllers
             {
                 try
                 {
-                    // var callbackUrl = Url.ActionLink("Checkin", "Tournament", new { id = tournamentId });
+                    var callbackUrl = Url.ActionLink("WeeklyCheckin", "Tournament", new { id = app.Id, hash = app.Hash });
                     string message = $@"Greetings, {app.FirstName},
-                                    <p>The weekly checkin for {app.Tournament.Name} is live. Go to <a href='https://bellumgens.com' target='_blank'>your profile settings</a> and check in from there.</p>
-                                    <p>Thank you from the Bellum Gens team and GL HF in this week's matches!</p>
-                                    <a href='https://bellumgens.com' target='_blank'>https://bellumgens.com</a>";
+                                <p>The weekly checkin for {app.Tournament.Name} is live. <a href='{callbackUrl}' target='_blank'>Use this link</a> to check in before 14:00 EET.</p>
+                                <p>Thank you from the Bellum Gens team and GL HF in this week's matches!</p>
+                                <a href='https://bellumgens.com' target='_blank'>https://bellumgens.com</a>";
                     await _sender.SendEmailAsync(app.Email, "BGE Balkan: Time to check in", message).ConfigureAwait(false);
                 }
                 catch (Exception e)
@@ -268,6 +293,29 @@ namespace BellumGens.Api.Controllers
                     }
                     return Ok(entity);
                 }
+            }
+            return NotFound();
+        }
+
+        [Route("Checkin")]
+        [AllowAnonymous]
+        public async Task<IActionResult> WeeklyCheckin(Guid id, string hash)
+        {
+            TournamentApplication entity = await _dbContext.TournamentApplications.FindAsync(id);
+            if (entity != null && entity.Hash == hash)
+            {
+                entity.State = TournamentApplicationState.Confirmed;
+
+                try
+                {
+                    await _dbContext.SaveChangesAsync();
+                }
+                catch (DbUpdateException e)
+                {
+                    System.Diagnostics.Trace.TraceError("Tournament registration update error: " + e.Message);
+                    return BadRequest("Something went wrong!");
+                }
+                return Redirect(CORSConfig.returnOrigin + "?message=Checkin successful!");
             }
             return NotFound();
         }

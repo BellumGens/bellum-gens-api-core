@@ -79,7 +79,16 @@
         GoldenauraLE,
         OceanbornLE,
         PostYouthLE,
-        SiteDeltaLE
+        SiteDeltaLE,
+        AbyssalReefLE,
+        AmygdalaLE,
+        ElDoradoLE,
+        FrostlineLE,
+        KingsCoveLE,
+        LeyLinesLE,
+        NeonVioletSquareLE,
+        UltraloveLE,
+        WhispersofGoldLE
     }
 
     public enum TournamentApplicationState
