@@ -472,15 +472,17 @@ namespace BellumGens.Api.Controllers
                     };
                     break;
                 case "Steam":
+                    var steamId = _steamService.SteamUserId(providerId);
                     user = new ApplicationUser()
                     {
                         Id = Guid.NewGuid().ToString(),
                         UserName = username,
                         Email = email,
                         EmailConfirmed = true,
+                        SteamID = steamId,
                         CSGODetails = new CSGODetails()
                         {
-                            SteamId = _steamService.SteamUserId(providerId)
+                            SteamId = steamId
                         }
                     };
                     break;
@@ -531,6 +533,7 @@ namespace BellumGens.Api.Controllers
                         string steamid = _steamService.SteamUserId(providerId);
                         if (user.SteamID != steamid)
                         {
+                            user.SteamID = steamid;
                             user.CSGODetails.SteamId = steamid;
                             await _dbContext.SaveChangesAsync();
                         }
@@ -539,6 +542,7 @@ namespace BellumGens.Api.Controllers
                         var battletag = info.Principal.FindFirstValue(ClaimTypes.Name);
                         if (user.BattleNetId != providerId)
                         {
+                            user.BattleNetId = providerId;
                             user.StarCraft2Details = new StarCraft2Details()
                             {
                                 BattleNetBattleTag = battletag,
