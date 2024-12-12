@@ -111,6 +111,21 @@ namespace BellumGens.Api.Core.Models
                     Sc2Details.AvatarUrl = SC2Player.avatarUrl;
                     sc2change = true;
                 }
+                if (SC2Player.profileUrl != Sc2Details.ProfileUrl)
+                {
+                    Sc2Details.ProfileUrl = SC2Player.profileUrl;
+                    sc2change = true;
+                }
+                if (SC2Player.regionId != Sc2Details.RegionId)
+                {
+                    Sc2Details.RegionId = SC2Player.regionId;
+                    sc2change = true;
+                }
+                if (SC2Player.realmId != Sc2Details.RealmId)
+                {
+                    Sc2Details.RealmId = SC2Player.realmId;
+                    sc2change = true;
+                }
             }
             if (userchange)
             {

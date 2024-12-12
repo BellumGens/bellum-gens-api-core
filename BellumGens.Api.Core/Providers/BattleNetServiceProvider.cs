@@ -15,8 +15,8 @@ namespace BellumGens.Api.Core.Providers
     {
         private readonly IMemoryCache _cache;
 
-        private static readonly string _playerAccountEndpoint = "https://{0}.api.blizzard.com/sc2/player/{1}?access_token={2}";
-        // private static readonly string _profileEndpoint = "https://{0}.api.blizzard.com/sc2/metadata/profile/{1}/{2}/{3}?locale=en_US&access_token={4}";
+        private static readonly string _playerAccountEndpoint = "https://{0}.api.blizzard.com/sc2/player/{1}";
+        private static readonly string _profileEndpoint = "https://{0}.api.blizzard.com/sc2/metadata/profile/{1}/{2}/{3}?locale=en_US&access_token={4}";
         private static readonly string _tokenEndpoint = "https://oauth.battle.net/token";
 
         private static OAuthResponse _oauth;
@@ -44,18 +44,43 @@ namespace BellumGens.Api.Core.Providers
                 _oauth = await GetAccessToken();
             }
 
+            Uri endpoint = new(string.Format(_playerAccountEndpoint, region, playerid));
+            var requestMessage = new HttpRequestMessage(HttpMethod.Get, endpoint);
+            requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _oauth.access_token);
+
             using HttpClient client = new();
-            Uri endpoint = new(string.Format(_playerAccountEndpoint, region, playerid, _oauth.access_token));
-            var response = await client.GetStringAsync(endpoint);
-            player = JsonSerializer.Deserialize<Player[]>(response);
-            _cache.Set(playerid, player, DateTime.Now.AddDays(1));
-            return player?[0];
+            var response = await client.SendAsync(requestMessage);
+            if (response.IsSuccessStatusCode)
+            {
+                _tokenIssueStamp = DateTimeOffset.Now;
+                var responseString = await response.Content.ReadAsStringAsync();
+                player = JsonSerializer.Deserialize<Player[]>(responseString);
+                _cache.Set(playerid, player, DateTime.Now.AddDays(1));
+                return player?[0];
+            }
+            return null;
         }
 
-        //public Task<PlayerProfile> GetStarCraft2PlayerProfile(string playerid, string region = "eu", int regionid = 2, int realmid = 1)
-        //{
+        public async Task<PlayerProfile> GetStarCraft2PlayerProfile(string playerid, string region = "eu", int regionid = 2, int realmid = 1)
+        {
+            PlayerProfile profile;
+            if (_cache.Get(playerid) is PlayerProfile)
+            {
+                return _cache.Get(playerid) as PlayerProfile;
+            }
 
-        //}
+            if (_oauth == null || DateTimeOffset.Now > _tokenIssueStamp.AddSeconds(_oauth.expires_in))
+            {
+                _oauth = await GetAccessToken();
+            }
+
+            using HttpClient client = new();
+            Uri endpoint = new(string.Format(_profileEndpoint, region, regionid, realmid, playerid, _oauth.access_token));
+            var response = await client.GetStringAsync(endpoint);
+            profile = JsonSerializer.Deserialize<PlayerProfile>(response);
+            _cache.Set(playerid, profile, DateTime.Now.AddDays(1));
+            return profile;
+        }
 
         private static async Task<OAuthResponse> GetAccessToken()
         {
