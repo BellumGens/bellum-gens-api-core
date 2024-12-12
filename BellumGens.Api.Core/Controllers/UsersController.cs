@@ -15,9 +15,11 @@ namespace BellumGens.Api.Controllers
 	public class UsersController : BaseController
     {
 		private readonly ISteamService _steamService;
+		private readonly IBattleNetService _battleNetService;
 		private readonly INotificationService _notificationService;
 		public UsersController(ISteamService steamService,
-							   INotificationService notificationService,
+							   IBattleNetService battleNetService,
+                               INotificationService notificationService,
 							   UserManager<ApplicationUser> userManager,
 							   RoleManager<IdentityRole> roleManager,
 							   SignInManager<ApplicationUser> signInManager,
@@ -26,7 +28,8 @@ namespace BellumGens.Api.Controllers
 							   ILogger<UsersController> logger) : base(userManager, roleManager, signInManager, sender, context, logger)
 		{
 			_steamService = steamService;
-			_notificationService = notificationService;
+            _battleNetService = battleNetService;
+            _notificationService = notificationService;
 		}
 
 		[HttpGet]
@@ -40,9 +43,13 @@ namespace BellumGens.Api.Controllers
 				registered = await _dbContext.Users.Include(u => u.CSGODetails).Include(u => u.StarCraft2Details).Include(u => u.MemberOf).ThenInclude(m => m.Team).FirstOrDefaultAsync(u => u.SteamID == user.SteamUser.steamID64);
             }
 			if (registered != null)
-			{
-				user.SetUser(registered, _dbContext);
-			}
+            {
+				if (registered.BattleNetId != null)
+                {
+                    user.SC2Player = await _battleNetService.GetStarCraft2Player(registered.BattleNetId);
+                }
+                user.SetUser(registered, _dbContext);
+            }
 			return Ok(user);
 		}
 
