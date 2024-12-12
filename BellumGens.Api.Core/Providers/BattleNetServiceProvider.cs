@@ -45,8 +45,8 @@ namespace BellumGens.Api.Core.Providers
             }
 
             Uri endpoint = new(string.Format(_playerAccountEndpoint, region, playerid));
-            var requestMessage = new HttpRequestMessage(HttpMethod.Post, endpoint);
-            requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Basic", $"Bearer ${_oauth.access_token}");
+            var requestMessage = new HttpRequestMessage(HttpMethod.Get, endpoint);
+            requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _oauth.access_token);
 
             using HttpClient client = new();
             var response = await client.SendAsync(requestMessage);

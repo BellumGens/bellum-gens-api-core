@@ -36,19 +36,30 @@ namespace BellumGens.Api.Controllers
 		[AllowAnonymous]
 		public async Task<IActionResult> Get(string userid)
 		{
-			UserStatsViewModel user = await _steamService.GetSteamUserDetails(userid);
-            ApplicationUser registered = null;
-            if (user.SteamUser != null)
+			ApplicationUser registered = await _dbContext.Users.Include(u => u.CSGODetails).Include(u => u.StarCraft2Details).Include(u => u.MemberOf).ThenInclude(m => m.Team).FirstOrDefaultAsync(u => u.Id == userid);
+			UserStatsViewModel user = new UserStatsViewModel();
+
+            if (registered != null)
             {
-				registered = await _dbContext.Users.Include(u => u.CSGODetails).Include(u => u.StarCraft2Details).Include(u => u.MemberOf).ThenInclude(m => m.Team).FirstOrDefaultAsync(u => u.SteamID == user.SteamUser.steamID64);
-            }
-			if (registered != null)
-            {
-				if (registered.BattleNetId != null)
+                if (registered.SteamID != null)
+                {
+                    user = await _steamService.GetSteamUserDetails(registered.SteamID);
+                }
+
+                if (registered.BattleNetId != null)
                 {
                     user.SC2Player = await _battleNetService.GetStarCraft2Player(registered.BattleNetId);
                 }
                 user.SetUser(registered, _dbContext);
+            }
+			else
+			{
+                user = await _steamService.GetSteamUserDetails(userid);
+                registered = await _dbContext.Users.Include(u => u.CSGODetails).Include(u => u.StarCraft2Details).Include(u => u.MemberOf).ThenInclude(m => m.Team).FirstOrDefaultAsync(u => u.SteamID == user.SteamUser.steamID64);
+				if (registered != null)
+				{
+                    user.SetUser(registered, _dbContext);
+                }
             }
 			return Ok(user);
 		}

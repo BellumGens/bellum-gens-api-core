@@ -485,158 +485,125 @@ namespace BellumGens.Api.Controllers
 
         [HttpPut]
         [Route("csgogroup")]
+        [Authorize(Roles = "admin, event-admin")]
         public async Task<IActionResult> SubmitCSGOGroup(Guid? id, TournamentCSGOGroup group)
         {
-            if (await UserIsInRole("event-admin"))
+            TournamentCSGOGroup entity = await _dbContext.TournamentCSGOGroups.FindAsync(id);
+            if (entity != null)
             {
-                TournamentCSGOGroup entity = await _dbContext.TournamentCSGOGroups.FindAsync(id);
-                if (entity != null)
-                {
-                    _dbContext.Entry(entity).CurrentValues.SetValues(group);
-                }
-                else
-                {
-                    group.TournamentId = (await _dbContext.Tournaments.FirstOrDefaultAsync(t => t.Active)).ID;
-                    _dbContext.TournamentCSGOGroups.Add(group);
-                }
-
-                try
-                {
-                    await _dbContext.SaveChangesAsync();
-                }
-                catch (DbUpdateException e)
-                {
-                    System.Diagnostics.Trace.TraceError("Tournament group update exception: " + e.Message);
-                    return BadRequest("Something went wrong...");
-                }
-                return Ok(group);
+                _dbContext.Entry(entity).CurrentValues.SetValues(group);
             }
-            return Unauthorized();
+            else
+            {
+                group.TournamentId = (await _dbContext.Tournaments.FirstOrDefaultAsync(t => t.Active)).ID;
+                _dbContext.TournamentCSGOGroups.Add(group);
+            }
+
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException e)
+            {
+                System.Diagnostics.Trace.TraceError("Tournament group update exception: " + e.Message);
+                return BadRequest("Something went wrong...");
+            }
+            return Ok(group);
         }
 
         [HttpPut]
         [Route("sc2group")]
+        [Authorize(Roles = "admin, event-admin")]
         public async Task<IActionResult> SubmitSC2Group(Guid? id, TournamentSC2Group group)
         {
-            if (await UserIsInRole("event-admin"))
+            TournamentSC2Group entity = await _dbContext.TournamentSC2Groups.FindAsync(id);
+            if (entity != null)
             {
-                TournamentSC2Group entity = await _dbContext.TournamentSC2Groups.FindAsync(id);
-                if (entity != null)
-                {
-                    _dbContext.Entry(entity).CurrentValues.SetValues(group);
-                }
-                else
-                {
-                    group.TournamentId = (await _dbContext.Tournaments.FirstOrDefaultAsync(t => t.Active)).ID;
-                    _dbContext.TournamentSC2Groups.Add(group);
-                }
+                _dbContext.Entry(entity).CurrentValues.SetValues(group);
+            }
+            else
+            {
+                group.TournamentId = (await _dbContext.Tournaments.FirstOrDefaultAsync(t => t.Active)).ID;
+                _dbContext.TournamentSC2Groups.Add(group);
+            }
 
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException e)
+            {
+                System.Diagnostics.Trace.TraceError("Tournament group update exception: " + e.Message);
+                return BadRequest("Something went wrong...");
+            }
+            return Ok(group);
+        }
+
+        [HttpDelete]
+        [Route("group")]
+        [Authorize(Roles = "admin, event-admin")]
+        public async Task<IActionResult> DeleteGroup(Guid id)
+        {
+            TournamentGroup entity = await _dbContext.TournamentCSGOGroups.FindAsync(id);
+            if (entity != null)
+            {
+                foreach (var par in entity.Participants)
+                {
+                    par.TournamentCSGOGroupId = null;
+                }
+                _dbContext.TournamentCSGOGroups.Remove(entity as TournamentCSGOGroup);
                 try
                 {
                     await _dbContext.SaveChangesAsync();
                 }
                 catch (DbUpdateException e)
                 {
-                    System.Diagnostics.Trace.TraceError("Tournament group update exception: " + e.Message);
+                    System.Diagnostics.Trace.TraceError("Tournament group delete exception: " + e.Message);
                     return BadRequest("Something went wrong...");
                 }
-                return Ok(group);
+                return Ok();
             }
-            return Unauthorized();
-        }
-
-        [HttpDelete]
-        [Route("group")]
-        public async Task<IActionResult> DeleteGroup(Guid id)
-        {
-            TournamentGroup entity;
-            if (await UserIsInRole("event-admin"))
+            entity = await _dbContext.TournamentSC2Groups.FindAsync(id);
+            if (entity != null)
             {
-                entity = await _dbContext.TournamentCSGOGroups.FindAsync(id);
-                if (entity != null)
+                foreach (var par in entity.Participants)
                 {
-                    foreach (var par in entity.Participants)
-                    {
-                        par.TournamentCSGOGroupId = null;
-                    }
-                    _dbContext.TournamentCSGOGroups.Remove(entity as TournamentCSGOGroup);
-                    try
-                    {
-                        await _dbContext.SaveChangesAsync();
-                    }
-                    catch (DbUpdateException e)
-                    {
-                        System.Diagnostics.Trace.TraceError("Tournament group delete exception: " + e.Message);
-                        return BadRequest("Something went wrong...");
-                    }
-                    return Ok();
+                    par.TournamentSC2GroupId = null;
                 }
-                entity = await _dbContext.TournamentSC2Groups.FindAsync(id);
-                if (entity != null)
+                _dbContext.TournamentSC2Groups.Remove(entity as TournamentSC2Group);
+                try
                 {
-                    foreach (var par in entity.Participants)
-                    {
-                        par.TournamentSC2GroupId = null;
-                    }
-                    _dbContext.TournamentSC2Groups.Remove(entity as TournamentSC2Group);
-                    try
-                    {
-                        await _dbContext.SaveChangesAsync();
-                    }
-                    catch (DbUpdateException e)
-                    {
-                        System.Diagnostics.Trace.TraceError("Tournament group delete exception: " + e.Message);
-                        return BadRequest("Something went wrong...");
-                    }
-                    return Ok();
+                    await _dbContext.SaveChangesAsync();
                 }
-                return NotFound();
+                catch (DbUpdateException e)
+                {
+                    System.Diagnostics.Trace.TraceError("Tournament group delete exception: " + e.Message);
+                    return BadRequest("Something went wrong...");
+                }
+                return Ok();
             }
-            return Unauthorized();
+            return NotFound();
         }
 
         [HttpPut]
         [Route("participanttogroup")]
+        [Authorize(Roles = "admin, event-admin")]
+
         public async Task<IActionResult> AddToGroup(Guid id, TournamentApplication participant)
         {
-            TournamentGroup entity;
-            if (await UserIsInRole("event-admin"))
+            TournamentGroup entity = await _dbContext.TournamentCSGOGroups.FindAsync(id);
+            if (entity == null)
             {
-                entity = await _dbContext.TournamentCSGOGroups.FindAsync(id);
-                if (entity == null)
-                {
-                    entity = await _dbContext.TournamentSC2Groups.FindAsync(id);
-                    if (entity != null)
-                    {
-                        TournamentApplication app = await _dbContext.TournamentApplications.FindAsync(participant.Id);
-                        if (app == null)
-                        {
-                            return NotFound();
-                        }
-
-                        app.TournamentSC2GroupId = id;
-                        try
-                        {
-                            await _dbContext.SaveChangesAsync();
-                        }
-                        catch (DbUpdateException e)
-                        {
-                            System.Diagnostics.Trace.TraceError("Tournament group participant add exception: " + e.Message);
-                            return BadRequest("Something went wrong...");
-                        }
-                        return Ok();
-                    }
-                    return NotFound();
-                }
-                else
+                entity = await _dbContext.TournamentSC2Groups.FindAsync(id);
+                if (entity != null)
                 {
                     TournamentApplication app = await _dbContext.TournamentApplications.FindAsync(participant.Id);
                     if (app == null)
                     {
-                        return NotFound(); 
+                        return NotFound();
                     }
 
-                    app.TournamentCSGOGroupId = id;
+                    app.TournamentSC2GroupId = id;
                     try
                     {
                         await _dbContext.SaveChangesAsync();
@@ -648,35 +615,52 @@ namespace BellumGens.Api.Controllers
                     }
                     return Ok();
                 }
+                return NotFound();
             }
-            return Unauthorized();
+            else
+            {
+                TournamentApplication app = await _dbContext.TournamentApplications.FindAsync(participant.Id);
+                if (app == null)
+                {
+                    return NotFound(); 
+                }
+
+                app.TournamentCSGOGroupId = id;
+                try
+                {
+                    await _dbContext.SaveChangesAsync();
+                }
+                catch (DbUpdateException e)
+                {
+                    System.Diagnostics.Trace.TraceError("Tournament group participant add exception: " + e.Message);
+                    return BadRequest("Something went wrong...");
+                }
+                return Ok();
+            }
         }
 
         [HttpDelete]
         [Route("participanttogroup")]
+        [Authorize(Roles = "admin, event-admin")]
         public async Task<IActionResult> RemoveFromGroup(Guid id)
         {
-            if (await UserIsInRole("event-admin"))
+            TournamentApplication entity = await _dbContext.TournamentApplications.FindAsync(id);
+            if (entity != null)
             {
-                TournamentApplication entity = await _dbContext.TournamentApplications.FindAsync(id);
-                if (entity != null)
+                entity.TournamentCSGOGroupId = null;
+                entity.TournamentSC2GroupId = null;
+                try
                 {
-                    entity.TournamentCSGOGroupId = null;
-                    entity.TournamentSC2GroupId = null;
-                    try
-                    {
-                        await _dbContext.SaveChangesAsync();
-                    }
-                    catch (DbUpdateException e)
-                    {
-                        System.Diagnostics.Trace.TraceError("Tournament group participant delete exception: " + e.Message);
-                        return BadRequest("Something went wrong...");
-                    }
-                    return Ok();
+                    await _dbContext.SaveChangesAsync();
                 }
-                return NotFound();
+                catch (DbUpdateException e)
+                {
+                    System.Diagnostics.Trace.TraceError("Tournament group participant delete exception: " + e.Message);
+                    return BadRequest("Something went wrong...");
+                }
+                return Ok();
             }
-            return Unauthorized();
+            return NotFound();
         }
         #endregion
 
@@ -725,256 +709,232 @@ namespace BellumGens.Api.Controllers
 
         [HttpPut]
         [Route("csgomatch")]
+        [Authorize(Roles = "admin, event-admin")]
         public async Task<IActionResult> SubmitCSGOMatch(Guid? id, TournamentCSGOMatch match)
         {
-            if (await UserIsInRole("event-admin"))
+            foreach (CSGOMatchMap map in match.Maps)
             {
-                foreach (CSGOMatchMap map in match.Maps)
+                CSGOMatchMap mapEntity = await _dbContext.CSGOMatchMaps.FindAsync(map.Id);
+                if (mapEntity != null)
                 {
-                    CSGOMatchMap mapEntity = await _dbContext.CSGOMatchMaps.FindAsync(map.Id);
-                    if (mapEntity != null)
-                    {
-                        _dbContext.Entry(mapEntity).CurrentValues.SetValues(map);
-                    }
-                    else
-                    {
-                        _dbContext.CSGOMatchMaps.Add(map);
-                    }
-                }
-
-                TournamentCSGOMatch entity = await _dbContext.TournamentCSGOMatches.FindAsync(id);
-
-                if (entity != null)
-                {
-                    _dbContext.Entry(entity).CurrentValues.SetValues(match);
-                    match = entity;
-                }
-                else
-                {
-                    _dbContext.TournamentCSGOMatches.Add(match);
-                }
-
-                try
-                {
-                    await _dbContext.SaveChangesAsync();
-                }
-                catch (DbUpdateException e)
-                {
-                    System.Diagnostics.Trace.TraceError("Tournament CS:GO match update exception: " + e.Message);
-                    return BadRequest("Something went wrong...");
-                }
-                if (entity == null)
-                {
-                    await _dbContext.Entry(match).Reference(m => m.Team1).LoadAsync();
-                    await _dbContext.Entry(match).Reference(m => m.Team2).LoadAsync();
-                }
-
-                return Ok(match);
-            }
-            return Unauthorized();
-        }
-
-        [HttpDelete]
-        [Route("csgomatch")]
-        public async Task<IActionResult> DeleteCSGOMatch(Guid? id)
-        {
-            if (await UserIsInRole("event-admin"))
-            {
-                TournamentCSGOMatch entity = await _dbContext.TournamentCSGOMatches.FindAsync(id);
-                _dbContext.TournamentCSGOMatches.Remove(entity);
-
-                try
-                {
-                    await _dbContext.SaveChangesAsync();
-                }
-                catch (DbUpdateException e)
-                {
-                    System.Diagnostics.Trace.TraceError("Tournament CS:GO match delete exception: " + e.Message);
-                    return BadRequest("Something went wrong...");
-                }
-                return Ok(entity);
-            }
-            return Unauthorized();
-        }
-
-        [HttpPut]
-        [Route("csgomatchmap")]
-        public async Task<IActionResult> SubmitCSGOMatchMap(Guid? id, CSGOMatchMap map)
-        {
-            if (await UserIsInRole("event-admin"))
-            {
-                CSGOMatchMap entity = await _dbContext.CSGOMatchMaps.FindAsync(id);
-                if (entity != null)
-                {
-                    _dbContext.Entry(entity).CurrentValues.SetValues(map);
+                    _dbContext.Entry(mapEntity).CurrentValues.SetValues(map);
                 }
                 else
                 {
                     _dbContext.CSGOMatchMaps.Add(map);
                 }
-
-                try
-                {
-                    await _dbContext.SaveChangesAsync();
-                }
-                catch (DbUpdateException e)
-                {
-                    System.Diagnostics.Trace.TraceError("Tournament CS:GO match map update exception: " + e.Message);
-                    return BadRequest("Something went wrong...");
-                }
-                return Ok(map);
             }
-            return Unauthorized();
+
+            TournamentCSGOMatch entity = await _dbContext.TournamentCSGOMatches.FindAsync(id);
+
+            if (entity != null)
+            {
+                _dbContext.Entry(entity).CurrentValues.SetValues(match);
+                match = entity;
+            }
+            else
+            {
+                _dbContext.TournamentCSGOMatches.Add(match);
+            }
+
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException e)
+            {
+                System.Diagnostics.Trace.TraceError("Tournament CS:GO match update exception: " + e.Message);
+                return BadRequest("Something went wrong...");
+            }
+            if (entity == null)
+            {
+                await _dbContext.Entry(match).Reference(m => m.Team1).LoadAsync();
+                await _dbContext.Entry(match).Reference(m => m.Team2).LoadAsync();
+            }
+
+            return Ok(match);
+        }
+
+        [HttpDelete]
+        [Route("csgomatch")]
+        [Authorize(Roles = "admin, event-admin")]
+        public async Task<IActionResult> DeleteCSGOMatch(Guid? id)
+        {
+            TournamentCSGOMatch entity = await _dbContext.TournamentCSGOMatches.FindAsync(id);
+            _dbContext.TournamentCSGOMatches.Remove(entity);
+
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException e)
+            {
+                System.Diagnostics.Trace.TraceError("Tournament CS:GO match delete exception: " + e.Message);
+                return BadRequest("Something went wrong...");
+            }
+            return Ok(entity);
+        }
+
+        [HttpPut]
+        [Route("csgomatchmap")]
+        [Authorize(Roles = "admin, event-admin")]
+        public async Task<IActionResult> SubmitCSGOMatchMap(Guid? id, CSGOMatchMap map)
+        {
+            CSGOMatchMap entity = await _dbContext.CSGOMatchMaps.FindAsync(id);
+            if (entity != null)
+            {
+                _dbContext.Entry(entity).CurrentValues.SetValues(map);
+            }
+            else
+            {
+                _dbContext.CSGOMatchMaps.Add(map);
+            }
+
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException e)
+            {
+                System.Diagnostics.Trace.TraceError("Tournament CS:GO match map update exception: " + e.Message);
+                return BadRequest("Something went wrong...");
+            }
+            return Ok(map);
         }
 
         [HttpDelete]
         [Route("csgomatchmap")]
+        [Authorize(Roles = "admin, event-admin")]
         public async Task<IActionResult> DeleteCSGOMatchMap(Guid? id)
         {
-            if (await UserIsInRole("event-admin"))
-            {
-                CSGOMatchMap entity = await _dbContext.CSGOMatchMaps.FindAsync(id);
-                _dbContext.CSGOMatchMaps.Remove(entity);
+            CSGOMatchMap entity = await _dbContext.CSGOMatchMaps.FindAsync(id);
+            _dbContext.CSGOMatchMaps.Remove(entity);
 
-                try
-                {
-                    await _dbContext.SaveChangesAsync();
-                }
-                catch (DbUpdateException e)
-                {
-                    System.Diagnostics.Trace.TraceError("Tournament CS:GO match map delete exception: " + e.Message);
-                    return BadRequest("Something went wrong...");
-                }
-                return Ok(entity);
+            try
+            {
+                await _dbContext.SaveChangesAsync();
             }
-            return Unauthorized();
+            catch (DbUpdateException e)
+            {
+                System.Diagnostics.Trace.TraceError("Tournament CS:GO match map delete exception: " + e.Message);
+                return BadRequest("Something went wrong...");
+            }
+            return Ok(entity);
         }
 
         [HttpPut]
         [Route("sc2match")]
+        [Authorize(Roles = "admin, event-admin")]
         public async Task<IActionResult> SubmitSC2Match(Guid? id, TournamentSC2Match match)
         {
-            if (await UserIsInRole("event-admin"))
+            foreach (SC2MatchMap map in match.Maps)
             {
-                foreach (SC2MatchMap map in match.Maps)
+                SC2MatchMap mapEntity = await _dbContext.SC2MatchMaps.FindAsync(map.Id);
+                if (mapEntity != null)
                 {
-                    SC2MatchMap mapEntity = await _dbContext.SC2MatchMaps.FindAsync(map.Id);
-                    if (mapEntity != null)
-                    {
-                        _dbContext.Entry(mapEntity).CurrentValues.SetValues(map);
-                    }
-                    else
-                    {
-                        _dbContext.SC2MatchMaps.Add(map);
-                    }
-                }
-
-                TournamentSC2Match entity = await _dbContext.TournamentSC2Matches.FindAsync(id);
-                if (entity != null)
-                {
-                    _dbContext.Entry(entity).CurrentValues.SetValues(match);
-                    match = entity;
-                }
-                else
-                {
-                    _dbContext.TournamentSC2Matches.Add(match);
-                }
-
-                try
-                {
-                    await _dbContext.SaveChangesAsync();
-                }
-                catch (DbUpdateException e)
-                {
-                    System.Diagnostics.Trace.TraceError("Tournament StarCraft II match update exception: " + e.Message);
-                    return BadRequest("Something went wrong...");
-                }
-                if (entity == null)
-                {
-                    await _dbContext.Entry(match).Reference(m => m.Player1).LoadAsync();
-                    await _dbContext.Entry(match).Reference(m => m.Player2).LoadAsync();
-                }
-                return Ok(match);
-            }
-            return Unauthorized();
-        }
-
-
-
-        [HttpDelete]
-        [Route("sc2match")]
-        public async Task<IActionResult> DeleteSC2Match(Guid? id)
-        {
-            if (await UserIsInRole("event-admin"))
-            {
-                TournamentSC2Match entity = await _dbContext.TournamentSC2Matches.FindAsync(id);
-                _dbContext.TournamentSC2Matches.Remove(entity);
-
-                try
-                {
-                    await _dbContext.SaveChangesAsync();
-                }
-                catch (DbUpdateException e)
-                {
-                    System.Diagnostics.Trace.TraceError("Tournament StarCraft II match delete exception: " + e.Message);
-                    return BadRequest("Something went wrong...");
-                }
-                return Ok(entity);
-            }
-            return Unauthorized();
-        }
-
-        [HttpPut]
-        [Route("sc2matchmap")]
-        public async Task<IActionResult> SubmitSC2MatchMap(Guid? id, SC2MatchMap map)
-        {
-            if (await UserIsInRole("event-admin"))
-            {
-                SC2MatchMap entity = await _dbContext.SC2MatchMaps.FindAsync(id);
-                if (entity != null)
-                {
-                    _dbContext.Entry(entity).CurrentValues.SetValues(map);
+                    _dbContext.Entry(mapEntity).CurrentValues.SetValues(map);
                 }
                 else
                 {
                     _dbContext.SC2MatchMaps.Add(map);
                 }
-
-                try
-                {
-                    await _dbContext.SaveChangesAsync();
-                }
-                catch (DbUpdateException e)
-                {
-                    System.Diagnostics.Trace.TraceError("Tournament CS:GO match map update exception: " + e.Message);
-                    return BadRequest("Something went wrong...");
-                }
-                return Ok(map);
             }
-            return Unauthorized();
+
+            TournamentSC2Match entity = await _dbContext.TournamentSC2Matches.FindAsync(id);
+            if (entity != null)
+            {
+                _dbContext.Entry(entity).CurrentValues.SetValues(match);
+                match = entity;
+            }
+            else
+            {
+                _dbContext.TournamentSC2Matches.Add(match);
+            }
+
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException e)
+            {
+                System.Diagnostics.Trace.TraceError("Tournament StarCraft II match update exception: " + e.Message);
+                return BadRequest("Something went wrong...");
+            }
+            if (entity == null)
+            {
+                await _dbContext.Entry(match).Reference(m => m.Player1).LoadAsync();
+                await _dbContext.Entry(match).Reference(m => m.Player2).LoadAsync();
+            }
+            return Ok(match);
+        }
+
+
+
+        [HttpDelete]
+        [Route("sc2match")]
+        [Authorize(Roles = "admin, event-admin")]
+        public async Task<IActionResult> DeleteSC2Match(Guid? id)
+        {
+            TournamentSC2Match entity = await _dbContext.TournamentSC2Matches.FindAsync(id);
+            _dbContext.TournamentSC2Matches.Remove(entity);
+
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException e)
+            {
+                System.Diagnostics.Trace.TraceError("Tournament StarCraft II match delete exception: " + e.Message);
+                return BadRequest("Something went wrong...");
+            }
+            return Ok(entity);
+        }
+
+        [HttpPut]
+        [Route("sc2matchmap")]
+        [Authorize(Roles = "admin, event-admin")]
+        public async Task<IActionResult> SubmitSC2MatchMap(Guid? id, SC2MatchMap map)
+        {
+            SC2MatchMap entity = await _dbContext.SC2MatchMaps.FindAsync(id);
+            if (entity != null)
+            {
+                _dbContext.Entry(entity).CurrentValues.SetValues(map);
+            }
+            else
+            {
+                _dbContext.SC2MatchMaps.Add(map);
+            }
+
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException e)
+            {
+                System.Diagnostics.Trace.TraceError("Tournament CS:GO match map update exception: " + e.Message);
+                return BadRequest("Something went wrong...");
+            }
+            return Ok(map);
         }
 
         [HttpDelete]
         [Route("sc2matchmap")]
+        [Authorize(Roles = "admin, event-admin")]
         public async Task<IActionResult> DeleteSC2MatchMap(Guid? id)
         {
-            if (await UserIsInRole("event-admin"))
-            {
-                SC2MatchMap entity = await _dbContext.SC2MatchMaps.FindAsync(id);
-                _dbContext.SC2MatchMaps.Remove(entity);
+            SC2MatchMap entity = await _dbContext.SC2MatchMaps.FindAsync(id);
+            _dbContext.SC2MatchMaps.Remove(entity);
 
-                try
-                {
-                    await _dbContext.SaveChangesAsync();
-                }
-                catch (DbUpdateException e)
-                {
-                    System.Diagnostics.Trace.TraceError("Tournament CS:GO match map delete exception: " + e.Message);
-                    return BadRequest("Something went wrong...");
-                }
-                return Ok(entity);
+            try
+            {
+                await _dbContext.SaveChangesAsync();
             }
-            return Unauthorized();
+            catch (DbUpdateException e)
+            {
+                System.Diagnostics.Trace.TraceError("Tournament CS:GO match map delete exception: " + e.Message);
+                return BadRequest("Something went wrong...");
+            }
+            return Ok(entity);
         }
         #endregion
     }
