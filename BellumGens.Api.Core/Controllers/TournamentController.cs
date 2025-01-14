@@ -17,10 +17,13 @@ namespace BellumGens.Api.Controllers
     public class TournamentController : BaseController
     {
         private readonly AppConfiguration _appInfo;
-        public TournamentController(AppConfiguration appInfo, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, EmailServiceProvider sender, BellumGensDbContext context, ILogger<AccountController> logger)
+        private readonly INotificationService _notificationService;
+
+        public TournamentController(AppConfiguration appInfo, INotificationService notificationsService, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, EmailServiceProvider sender, BellumGensDbContext context, ILogger<AccountController> logger)
             : base(userManager, roleManager, signInManager, sender, context, logger)
         {
             _appInfo = appInfo;
+            _notificationService = notificationsService;
         }
 
         #region TOURNAMENTS AND REGISTRATIONS
@@ -267,6 +270,8 @@ namespace BellumGens.Api.Controllers
                 {
                     System.Diagnostics.Trace.TraceError("Tournament registration error: " + e.Message);
                 }
+                List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.UserId == app.UserId).ToListAsync();
+                _notificationService.SendNotificationAsync(subs, app);
             }
             return Ok(new { message = $"{applications.Count} emails sent" });
         }

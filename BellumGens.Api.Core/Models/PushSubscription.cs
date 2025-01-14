@@ -138,6 +138,23 @@ namespace BellumGens.Api.Core.Models
 					}
 				}
 			};
+        }
+
+		public BellumGensNotificationWrapper(TournamentApplication application)
+		{
+			Notification = new BellumGensNotification()
+			{
+				Title = "Time to check-in",
+				Renotify = true,
+				Actions = new List<BellumGensNotificationAction>()
+				{
+					new BellumGensNotificationAction()
+					{
+						Action = "",
+						Title = "Check in"
+					}
+				}
+			};
 		}
 
 		public BellumGensNotification Notification { get; set; }
