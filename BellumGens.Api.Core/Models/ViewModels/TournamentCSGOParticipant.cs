@@ -10,7 +10,6 @@ namespace BellumGens.Api.Core.Models
         {
             TeamId = application.TeamId;
             Team = new CSGOTeamSummaryViewModel(application.Team);
-            TournamentCSGOGroupId = application.TournamentCSGOGroupId;
             if (matches != null)
             {
                 foreach (TournamentCSGOMatch match in matches)
@@ -84,7 +83,6 @@ namespace BellumGens.Api.Core.Models
         public int OTWins { get; set; } = 0;
         public int OTLosses { get; set; } = 0;
         public Guid? TeamId { get; set; }
-        public Guid? TournamentCSGOGroupId { get; set; }
         public int TeamPoints { get; set; } = 0;
         public CSGOTeamSummaryViewModel Team { get; set; }
     }

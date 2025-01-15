@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
@@ -43,25 +44,16 @@ namespace BellumGens.Api.Core.Models
 
         public TournamentApplicationState State { get; set; } = TournamentApplicationState.Pending;
 
-        public Guid? TournamentCSGOGroupId { get; set; }
-
-        public Guid? TournamentSC2GroupId { get; set; }
-
         [NotMapped]
         public string TournamentName {
             get
             {
                 return Tournament?.Name;
-            } 
+            }
         }
 
-        [ForeignKey("TournamentCSGOGroupId")]
         [JsonIgnore]
-        public virtual TournamentCSGOGroup CSGOGroup { get; set; }
-
-        [ForeignKey("TournamentSC2GroupId")]
-        [JsonIgnore]
-        public virtual TournamentSC2Group SC2Group { get; set; }
+        public virtual ICollection<TournamentGroupParticipant> GroupsPoints { get; set; }
 
         [ForeignKey("UserId")]
         [JsonIgnore]

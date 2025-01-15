@@ -85,7 +85,9 @@ namespace BellumGens.Api.Core.Models
 
 		public DbSet<TournamentSC2Group> TournamentSC2Groups { get; set; }
 
-		public DbSet<TournamentCSGOMatch> TournamentCSGOMatches { get; set; }
+		public DbSet<TournamentGroupParticipant> TournamentGroupParticipants { get; set; }
+
+        public DbSet<TournamentCSGOMatch> TournamentCSGOMatches { get; set; }
 
 		public DbSet<CSGOMatchMap> CSGOMatchMaps { get; set; }
 
@@ -170,9 +172,6 @@ namespace BellumGens.Api.Core.Models
 			modelBuilder.Entity<StrategyVote>()
 						.HasKey(c => new { c.StratId, c.UserId });
 
-			//modelBuilder.Entity<TeamApplication>()
-			//			.HasKey(c => new { c.ApplicantId, c.TeamId });
-
 			modelBuilder.Entity<TeamAvailability>()
 						.HasKey(c => new { c.TeamId, c.Day });
 
@@ -187,9 +186,6 @@ namespace BellumGens.Api.Core.Models
 
 			modelBuilder.Entity<TeamMember>()
 						.HasKey(c => new { c.TeamId, c.UserId });
-
-			//modelBuilder.Entity<TeamInvite>()
-			//			.HasKey(c => new { c.InvitingUserId, c.InvitedUserId, c.TeamId });
 
 			modelBuilder.Entity<TeamInvite>()
 						.HasOne(c => c.InvitingUser)
@@ -210,6 +206,19 @@ namespace BellumGens.Api.Core.Models
                         .HasOne(c => c.Team2)
                         .WithMany()
                         .OnDelete(DeleteBehavior.NoAction);
+
+			//modelBuilder.Entity<TournamentApplication>()
+			//			.HasMany(e => e.GroupsPoints)
+			//			.WithOne(e => e.TournamentApplication);
+
+
+   //         modelBuilder.Entity<TournamentSC2Group>()
+			//			.HasMany(g => g.Participants)
+			//			.WithOne(p => p.TournamentGroup as TournamentSC2Group);
+
+   //         modelBuilder.Entity<TournamentCSGOGroup>()
+   //                     .HasMany(g => g.Participants)
+   //                     .WithOne(p => p.TournamentGroup as TournamentCSGOGroup);
         }
 	}
 }
