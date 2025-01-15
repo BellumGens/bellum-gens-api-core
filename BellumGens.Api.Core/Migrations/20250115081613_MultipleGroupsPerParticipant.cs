@@ -43,14 +43,6 @@ namespace BellumGens.Api.Core.Migrations
                 name: "IX_TournamentApplications_TournamentSC2GroupId",
                 table: "TournamentApplications");
 
-            migrationBuilder.DropColumn(
-                name: "TournamentCSGOGroupId",
-                table: "TournamentApplications");
-
-            migrationBuilder.DropColumn(
-                name: "TournamentSC2GroupId",
-                table: "TournamentApplications");
-
             migrationBuilder.RenameTable(
                 name: "TournamentSC2Groups",
                 newName: "TournamentGroup");
@@ -112,6 +104,24 @@ namespace BellumGens.Api.Core.Migrations
                 name: "IX_TournamentGroupParticipants_TournamentApplicationId",
                 table: "TournamentGroupParticipants",
                 column: "TournamentApplicationId");
+
+            migrationBuilder.Sql(@"INSERT INTO TournamentGroupParticipants (TournamentGroupId, TournamentApplicationId, Points)
+                SELECT TournamentCSGOGroupId, Id, '0'
+                FROM TournamentApplications
+                WHERE TournamentCSGOGroupId IS NOT NULL;");
+
+            migrationBuilder.Sql(@"INSERT INTO TournamentGroupParticipants (TournamentGroupId, TournamentApplicationId, Points)
+                SELECT TournamentSC2GroupId, Id, '0'
+                FROM TournamentApplications
+                WHERE TournamentSC2GroupId IS NOT NULL;");
+
+            migrationBuilder.DropColumn(
+                name: "TournamentCSGOGroupId",
+                table: "TournamentApplications");
+
+            migrationBuilder.DropColumn(
+                name: "TournamentSC2GroupId",
+                table: "TournamentApplications");
 
             migrationBuilder.AddForeignKey(
                 name: "FK_TournamentCSGOMatches_TournamentGroup_GroupId",
@@ -175,7 +185,10 @@ namespace BellumGens.Api.Core.Migrations
 
             migrationBuilder.Sql(@"INSERT INTO TournamentCSGOGroups (Id, Name, TournamentId)
                 SELECT Id, Name, TournamentId
-                FROM TournamentCSGOGroups
+                FROM TournamentGroup
+                WHERE Discriminator = 'TournamentCSGOGroup'");
+
+            migrationBuilder.Sql(@"DELETE FROM TournamentGroup
                 WHERE Discriminator = 'TournamentCSGOGroup'");
 
             migrationBuilder.DropPrimaryKey(
