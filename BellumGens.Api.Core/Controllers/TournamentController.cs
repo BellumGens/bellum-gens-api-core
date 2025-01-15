@@ -477,10 +477,12 @@ namespace BellumGens.Api.Controllers
                 await _dbContext.TournamentSC2Groups.Where(g => g.TournamentId == tournamentId)
                                 .Include(g => g.Participants)
                                     .ThenInclude(p => p.TournamentApplication)
+                                        .ThenInclude(p => p.User)
                                 .Include(g => g.Matches).ToListAsync() :
                 await _dbContext.TournamentSC2Groups.Where(g => g.Tournament.Active)
                                 .Include(g => g.Participants)
                                     .ThenInclude(p => p.TournamentApplication)
+                                        .ThenInclude(p => p.User)
                                 .Include(g => g.Matches).ToListAsync();
             return Ok(groups);
         }
@@ -582,7 +584,6 @@ namespace BellumGens.Api.Controllers
         [HttpPut]
         [Route("participanttogroup")]
         [Authorize(Roles = "admin, event-admin")]
-
         public async Task<IActionResult> AddToGroup(Guid id, TournamentApplication participant)
         {
             TournamentGroup entity = await _dbContext.TournamentCSGOGroups.FindAsync(id);
@@ -594,8 +595,8 @@ namespace BellumGens.Api.Controllers
             {
                 TournamentGroupParticipant groupParticipant = new TournamentGroupParticipant()
                 {
-                    TournamentApplication = participant,
-                    TournamentGroup = entity
+                    TournamentApplicationId = participant.Id,
+                    TournamentGroupId = entity.Id
                 };
                 entity.Participants.Add(groupParticipant);
 
