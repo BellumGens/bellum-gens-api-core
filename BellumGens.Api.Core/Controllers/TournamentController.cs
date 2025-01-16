@@ -619,15 +619,9 @@ namespace BellumGens.Api.Controllers
         [Authorize(Roles = "admin, event-admin")]
         public async Task<IActionResult> RemoveFromGroup(Guid id, Guid groupid)
         {
-            TournamentGroup group = await _dbContext.TournamentSC2Groups.FindAsync(groupid);
-            if (group != null)
-            {
-                group = await _dbContext.TournamentCSGOGroups.FindAsync(groupid);
-            }
-            if (group != null)
-            {
-                TournamentGroupParticipant participant = group.Participants.Where(p => p.TournamentApplicationId == id).FirstOrDefault();
-                group.Participants.Remove(participant);
+            TournamentGroupParticipant participant = await _dbContext.TournamentGroupParticipants.FindAsync(groupid, id);
+            if (participant != null) {
+                _dbContext.TournamentGroupParticipants.Remove(participant);
                 try
                 {
                     await _dbContext.SaveChangesAsync();
