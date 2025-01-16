@@ -614,6 +614,30 @@ namespace BellumGens.Api.Controllers
             return NotFound();
         }
 
+        [HttpPut]
+        [Route("participantpoints")]
+        [Authorize(Roles = "admin, event-admin")]
+        public async Task<IActionResult> SubmitParticipantPoints(Guid participantId, Guid groupId, TournamentGroupParticipant points)
+        {
+            TournamentGroupParticipant entity = await _dbContext.TournamentGroupParticipants.FindAsync(groupId, participantId);
+            if (entity != null)
+            {
+                entity.Points = points.Points;
+
+                try
+                {
+                    await _dbContext.SaveChangesAsync();
+                }
+                catch (DbUpdateException e)
+                {
+                    System.Diagnostics.Trace.TraceError("Tournament group participant add exception: " + e.Message);
+                    return BadRequest("Something went wrong...");
+                }
+                return Ok();
+            }
+            return NotFound();
+        }
+
         [HttpDelete]
         [Route("participanttogroup")]
         [Authorize(Roles = "admin, event-admin")]
