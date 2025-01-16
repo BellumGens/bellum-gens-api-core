@@ -18,9 +18,14 @@ namespace BellumGens.Api.Core.Models
                 if (_participants == null)
                 {
                     _participants = new List<TournamentCSGOParticipant>();
-                    foreach (TournamentApplication app in Participants)
+                    foreach (TournamentGroupParticipant app in Participants)
                     {
-                        _participants.Add(new TournamentCSGOParticipant(app, Matches.Where(m => m.Team1Id == app.TeamId || m.Team2Id == app.TeamId).ToList()));
+                        _participants.Add(
+                            new TournamentCSGOParticipant(
+                                app.TournamentApplication, 
+                                Matches.Where(m => m.Team1Id == app.TournamentApplication.TeamId || m.Team2Id == app.TournamentApplication.TeamId).ToList()
+                            )
+                        );
                     }
                 }
                 return _participants.OrderByDescending(p => p.TeamPoints).ThenByDescending(p => p.RoundDifference).ToList();
