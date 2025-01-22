@@ -5,13 +5,14 @@ namespace BellumGens.Api.Core.Models
 {
     public class TournamentSC2Participant : TournamentParticipant
     {
-        public TournamentSC2Participant(TournamentApplication application, List<TournamentSC2Match> matches)
+        public TournamentSC2Participant(TournamentApplication application, List<TournamentSC2Match> matches, int points = 0)
             : base(application)
         {
             BattleTag = application.BattleNetId;
             Country = application.Country;
             User = new UserInfoViewModel(application.User);
-            if (matches != null)
+            PlayerPoints = points;
+            if (PlayerPoints == 0 && matches != null)
             {
                 foreach (TournamentSC2Match match in matches)
                 {

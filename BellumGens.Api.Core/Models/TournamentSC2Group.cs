@@ -23,7 +23,8 @@ namespace BellumGens.Api.Core.Models
                         _participants.Add(
                             new TournamentSC2Participant(
                                 app.TournamentApplication, 
-                                Matches.Where(m => m.Player1Id == app.TournamentApplication.UserId || m.Player2Id == app.TournamentApplication.UserId).ToList()
+                                Matches.Where(m => m.Player1Id == app.TournamentApplication.UserId || m.Player2Id == app.TournamentApplication.UserId).ToList(),
+                                app.Points
                             )
                         );
                     }
