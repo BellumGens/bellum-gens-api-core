@@ -463,11 +463,13 @@ namespace BellumGens.Api.Controllers
             List<TournamentCSGOGroup> groups = tournamentId != null ?
                 await _dbContext.TournamentCSGOGroups.Where(g => g.TournamentId == tournamentId)
                                 .Include(g => g.Participants)
-                                    .ThenInclude(p => p.Team)
+                                    .ThenInclude(p => p.TournamentApplication)
+                                        .ThenInclude(p => p.Team)
                                 .Include(g => g.Matches).ToListAsync() :
                 await _dbContext.TournamentCSGOGroups.Where(g => g.Tournament.Active)
                                 .Include(g => g.Participants)
-                                    .ThenInclude(p => p.Team)
+                                    .ThenInclude(p => p.TournamentApplication)
+                                        .ThenInclude(p => p.Team)
                                 .Include(g => g.Matches).ToListAsync();
             return Ok(groups);
         }
@@ -479,11 +481,13 @@ namespace BellumGens.Api.Controllers
             List<TournamentSC2Group> groups = tournamentId != null ?
                 await _dbContext.TournamentSC2Groups.Where(g => g.TournamentId == tournamentId)
                                 .Include(g => g.Participants)
-                                    .ThenInclude(p => p.User)
+                                    .ThenInclude(p => p.TournamentApplication)
+                                        .ThenInclude(p => p.User)
                                 .Include(g => g.Matches).ToListAsync() :
                 await _dbContext.TournamentSC2Groups.Where(g => g.Tournament.Active)
                                 .Include(g => g.Participants)
-                                    .ThenInclude(p => p.User)
+                                    .ThenInclude(p => p.TournamentApplication)
+                                        .ThenInclude(p => p.User)
                                 .Include(g => g.Matches).ToListAsync();
             return Ok(groups);
         }
@@ -552,10 +556,6 @@ namespace BellumGens.Api.Controllers
             TournamentGroup entity = await _dbContext.TournamentCSGOGroups.FindAsync(id);
             if (entity != null)
             {
-                foreach (var par in entity.Participants)
-                {
-                    par.TournamentCSGOGroupId = null;
-                }
                 _dbContext.TournamentCSGOGroups.Remove(entity as TournamentCSGOGroup);
                 try
                 {
@@ -571,10 +571,6 @@ namespace BellumGens.Api.Controllers
             entity = await _dbContext.TournamentSC2Groups.FindAsync(id);
             if (entity != null)
             {
-                foreach (var par in entity.Participants)
-                {
-                    par.TournamentSC2GroupId = null;
-                }
                 _dbContext.TournamentSC2Groups.Remove(entity as TournamentSC2Group);
                 try
                 {
@@ -593,44 +589,22 @@ namespace BellumGens.Api.Controllers
         [HttpPut]
         [Route("participanttogroup")]
         [Authorize(Roles = "admin, event-admin")]
-
         public async Task<IActionResult> AddToGroup(Guid id, TournamentApplication participant)
         {
             TournamentGroup entity = await _dbContext.TournamentCSGOGroups.FindAsync(id);
             if (entity == null)
             {
                 entity = await _dbContext.TournamentSC2Groups.FindAsync(id);
-                if (entity != null)
-                {
-                    TournamentApplication app = await _dbContext.TournamentApplications.FindAsync(participant.Id);
-                    if (app == null)
-                    {
-                        return NotFound();
-                    }
-
-                    app.TournamentSC2GroupId = id;
-                    try
-                    {
-                        await _dbContext.SaveChangesAsync();
-                    }
-                    catch (DbUpdateException e)
-                    {
-                        System.Diagnostics.Trace.TraceError("Tournament group participant add exception: " + e.Message);
-                        return BadRequest("Something went wrong...");
-                    }
-                    return Ok();
-                }
-                return NotFound();
             }
-            else
+            if (entity != null)
             {
-                TournamentApplication app = await _dbContext.TournamentApplications.FindAsync(participant.Id);
-                if (app == null)
+                TournamentGroupParticipant groupParticipant = new TournamentGroupParticipant()
                 {
-                    return NotFound(); 
-                }
+                    TournamentApplicationId = participant.Id,
+                    TournamentGroupId = entity.Id
+                };
+                entity.Participants.Add(groupParticipant);
 
-                app.TournamentCSGOGroupId = id;
                 try
                 {
                     await _dbContext.SaveChangesAsync();
@@ -642,18 +616,41 @@ namespace BellumGens.Api.Controllers
                 }
                 return Ok();
             }
+            return NotFound();
+        }
+
+        [HttpPut]
+        [Route("participantpoints")]
+        [Authorize(Roles = "admin, event-admin")]
+        public async Task<IActionResult> SubmitParticipantPoints(Guid participantId, Guid groupId, TournamentGroupParticipant points)
+        {
+            TournamentGroupParticipant entity = await _dbContext.TournamentGroupParticipants.FindAsync(groupId, participantId);
+            if (entity != null)
+            {
+                entity.Points = points.Points;
+
+                try
+                {
+                    await _dbContext.SaveChangesAsync();
+                }
+                catch (DbUpdateException e)
+                {
+                    System.Diagnostics.Trace.TraceError("Tournament group participant add exception: " + e.Message);
+                    return BadRequest("Something went wrong...");
+                }
+                return Ok();
+            }
+            return NotFound();
         }
 
         [HttpDelete]
         [Route("participanttogroup")]
         [Authorize(Roles = "admin, event-admin")]
-        public async Task<IActionResult> RemoveFromGroup(Guid id)
+        public async Task<IActionResult> RemoveFromGroup(Guid id, Guid groupid)
         {
-            TournamentApplication entity = await _dbContext.TournamentApplications.FindAsync(id);
-            if (entity != null)
-            {
-                entity.TournamentCSGOGroupId = null;
-                entity.TournamentSC2GroupId = null;
+            TournamentGroupParticipant participant = await _dbContext.TournamentGroupParticipants.FindAsync(groupid, id);
+            if (participant != null) {
+                _dbContext.TournamentGroupParticipants.Remove(participant);
                 try
                 {
                     await _dbContext.SaveChangesAsync();

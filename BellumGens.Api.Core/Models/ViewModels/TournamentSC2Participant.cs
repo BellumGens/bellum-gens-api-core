@@ -1,19 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace BellumGens.Api.Core.Models
 {
     public class TournamentSC2Participant : TournamentParticipant
     {
-        public TournamentSC2Participant(TournamentApplication application, List<TournamentSC2Match> matches)
+        public TournamentSC2Participant(TournamentApplication application, List<TournamentSC2Match> matches, int points = 0)
             : base(application)
         {
             BattleTag = application.BattleNetId;
             Country = application.Country;
             User = new UserInfoViewModel(application.User);
-            TournamentSC2GroupId = application.TournamentSC2GroupId;
-            if (matches != null)
+            PlayerPoints = points;
+            if (PlayerPoints == 0 && matches != null)
             {
                 foreach (TournamentSC2Match match in matches)
                 {
@@ -44,8 +43,6 @@ namespace BellumGens.Api.Core.Models
                 }
             }
         }
-
-        public Guid? TournamentSC2GroupId { get; set; }
         public string BattleTag { get; set; }
         public string Country { get; set; }
         public int PlayerPoints { get; set; } = 0;

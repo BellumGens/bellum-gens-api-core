@@ -10,7 +10,7 @@ namespace BellumGens.Api.Core.Models
     {
         public TournamentGroup()
         {
-            Participants = new HashSet<TournamentApplication>();
+            Participants = new HashSet<TournamentGroupParticipant>();
         }
 
         [Key]
@@ -26,6 +26,6 @@ namespace BellumGens.Api.Core.Models
         public virtual Tournament Tournament { get; set; }
 
         [JsonIgnore]
-        public virtual ICollection<TournamentApplication> Participants { get; set; }
+        public virtual ICollection<TournamentGroupParticipant> Participants { get; set; }
     }
 }
