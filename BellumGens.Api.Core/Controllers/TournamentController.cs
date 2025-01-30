@@ -254,7 +254,9 @@ namespace BellumGens.Api.Controllers
         public async Task<IActionResult> SendCheckinEmails(Guid tournamentId)
         {
             List<TournamentApplication> applications = await _dbContext.TournamentApplications.Include(a => a.Tournament).Where(a => a.TournamentId == tournamentId).ToListAsync();
-            foreach (TournamentApplication app in applications)
+            var options = new ParallelOptions { MaxDegreeOfParallelism = 4 };
+
+            await Parallel.ForEachAsync(applications, options, async (app, token) =>
             {
                 try
                 {
@@ -271,8 +273,8 @@ namespace BellumGens.Api.Controllers
                     System.Diagnostics.Trace.TraceError("Tournament registration error: " + e.Message);
                 }
                 List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.UserId == app.UserId).ToListAsync();
-                _notificationService.SendNotificationAsync(subs, app);
-            }
+                await _notificationService.SendNotificationAsync(subs, app);
+            });
             return Ok(new { message = $"{applications.Count} emails sent" });
         }
 
