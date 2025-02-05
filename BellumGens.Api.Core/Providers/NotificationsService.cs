@@ -123,7 +123,7 @@ namespace BellumGens.Api.Core.Providers
 			}
         }
 
-		public async Task SendNotificationAsync(List<BellumGensPushSubscription> subs, TournamentApplication application)
+		public async Task SendNotificationAsync(List<BellumGensPushSubscription> subs, TournamentApplication application, string callbackUrl)
 		{
 			var subject = @"https://bellumgens.com";
 
@@ -133,7 +133,7 @@ namespace BellumGens.Api.Core.Providers
 				var vapidDetails = new VapidDetails(subject, _publicVapidKey, _privateVapidKey);
 
 				var webPushClient = new WebPushClient();
-				var payload = new BellumGensNotificationWrapper(application);
+				var payload = new BellumGensNotificationWrapper(application, callbackUrl);
 				try
 				{
 					await webPushClient.SendNotificationAsync(subscription, payload.ToString(), vapidDetails);

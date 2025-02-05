@@ -262,18 +262,18 @@ namespace BellumGens.Api.Controllers
                 {
                     var callbackUrl = Url.ActionLink("WeeklyCheckin", "Tournament", new { id = app.Id, hash = app.Hash });
                     string message = $@"Greetings, {app.FirstName},
-                                <p>The weekly checkin for {app.Tournament.Name} is live. <a href='{callbackUrl}' target='_blank'>Use this link</a> to check in before 14:00 EET.</p>
-                                <p>All live communications during the weekly matches are performed on our discord server. <a href='https://discord.gg/bnTcpa9' target='_blank'>Join us there</a>!</p>
-                                <p>Thank you from the Bellum Gens team and GL HF in this week's matches!</p>
-                                <a href='https://bellumgens.com' target='_blank'>https://bellumgens.com</a>";
+                            <p>The weekly checkin for {app.Tournament.Name} is live. <a href='{callbackUrl}' target='_blank'>Use this link</a> to check in before 14:00 EET.</p>
+                            <p>All live communications during the weekly matches are performed on our discord server. <a href='https://discord.gg/bnTcpa9' target='_blank'>Join us there</a>!</p>
+                            <p>Thank you from the Bellum Gens team and GL HF in this week's matches!</p>
+                            <a href='https://bellumgens.com' target='_blank'>https://bellumgens.com</a>";
                     await _sender.SendEmailAsync(app.Email, "BGE Balkan: Time to check in", message).ConfigureAwait(false);
+                    List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.UserId == app.UserId).ToListAsync();
+                    await _notificationService.SendNotificationAsync(subs, app, callbackUrl);
                 }
                 catch (Exception e)
                 {
                     System.Diagnostics.Trace.TraceError("Tournament registration error: " + e.Message);
                 }
-                List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.UserId == app.UserId).ToListAsync();
-                await _notificationService.SendNotificationAsync(subs, app);
             });
             return Ok(new { message = $"{applications.Count} emails sent" });
         }

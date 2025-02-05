@@ -140,21 +140,26 @@ namespace BellumGens.Api.Core.Models
 			};
         }
 
-		public BellumGensNotificationWrapper(TournamentApplication application)
+		public BellumGensNotificationWrapper(TournamentApplication application, string callbackUrl)
 		{
 			Notification = new BellumGensNotification()
 			{
 				Title = "Time to check-in",
-				Renotify = true,
+				Icon = "https://bellumgens.com/assets/login/bge-white-2024.svg",
+                Renotify = true,
 				Actions = new List<BellumGensNotificationAction>()
 				{
 					new BellumGensNotificationAction()
 					{
-						Action = "",
+						Action = "checkin",
 						Title = "Check in"
 					}
-				}
-			};
+				},
+				Data = new
+                {
+                    callbackUrl
+                }
+            };
 		}
 
 		public BellumGensNotification Notification { get; set; }
