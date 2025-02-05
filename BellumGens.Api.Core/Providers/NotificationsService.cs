@@ -121,6 +121,27 @@ namespace BellumGens.Api.Core.Providers
 				{
 				}
 			}
+        }
+
+		public async Task SendNotificationAsync(List<BellumGensPushSubscription> subs, TournamentApplication application, string callbackUrl)
+		{
+			var subject = @"https://bellumgens.com";
+
+			foreach (BellumGensPushSubscription sub in subs)
+			{
+				var subscription = new PushSubscription(sub.Endpoint, sub.P256dh, sub.Auth);
+				var vapidDetails = new VapidDetails(subject, _publicVapidKey, _privateVapidKey);
+
+				var webPushClient = new WebPushClient();
+				var payload = new BellumGensNotificationWrapper(application, callbackUrl);
+				try
+				{
+					await webPushClient.SendNotificationAsync(subscription, payload.ToString(), vapidDetails);
+				}
+				catch
+				{
+				}
+			}
 		}
 	}
 }
