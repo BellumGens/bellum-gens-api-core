@@ -235,7 +235,7 @@ namespace BellumGens.Api.Controllers
         [Authorize(Roles = "admin, event-admin")]
         public async Task<IActionResult> ResetRegistrationsState(Guid tournamentId)
         {
-            List<TournamentApplication> applications = await _dbContext.TournamentApplications.Where(a => a.TournamentId == tournamentId).ToListAsync();
+            List<TournamentApplication> applications = await _dbContext.TournamentApplications.Where(a => a.TournamentId == tournamentId && a.State != TournamentApplicationState.Banned).ToListAsync();
             applications.ForEach(applications => applications.State = TournamentApplicationState.Pending);
             try
             {
@@ -286,7 +286,7 @@ namespace BellumGens.Api.Controllers
             TournamentApplication entity = await _dbContext.TournamentApplications.FindAsync(id);
             if (entity.UserId == user.Id || await UserIsInRole("admin"))
             {
-                if (entity != null)
+                if (entity != null && entity.State != TournamentApplicationState.Banned)
                 {
                     entity.State = TournamentApplicationState.Confirmed;
 
@@ -310,7 +310,7 @@ namespace BellumGens.Api.Controllers
         public async Task<IActionResult> WeeklyCheckin(Guid id, string hash)
         {
             TournamentApplication entity = await _dbContext.TournamentApplications.FindAsync(id);
-            if (entity != null && entity.Hash == hash)
+            if (entity != null && entity.Hash == hash && entity.State != TournamentApplicationState.Banned)
             {
                 entity.State = TournamentApplicationState.Confirmed;
 
@@ -377,8 +377,8 @@ namespace BellumGens.Api.Controllers
         public async Task<IActionResult> GetSC2sRegistrations(Guid? tournamentId = null)
         {
             List<TournamentApplication> entities = tournamentId != null ?
-                await _dbContext.TournamentApplications.Include(a => a.User).Where(r => r.Game == Game.StarCraft2 && r.TournamentId == tournamentId).ToListAsync() :
-                await _dbContext.TournamentApplications.Include(a => a.User).Where(r => r.Game == Game.StarCraft2 && r.Tournament.Active).ToListAsync();
+                await _dbContext.TournamentApplications.Include(a => a.User).Where(r => r.Game == Game.StarCraft2 && r.TournamentId == tournamentId && r.State != TournamentApplicationState.Banned).ToListAsync() :
+                await _dbContext.TournamentApplications.Include(a => a.User).Where(r => r.Game == Game.StarCraft2 && r.Tournament.Active && r.State != TournamentApplicationState.Banned).ToListAsync();
 
             List<TournamentSC2Match> matches = tournamentId != null ?
                 await _dbContext.TournamentSC2Matches.Where(m => m.TournamentId == tournamentId).ToListAsync() :

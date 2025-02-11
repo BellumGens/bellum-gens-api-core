@@ -94,7 +94,8 @@
     public enum TournamentApplicationState
     {
         Pending,
-        Confirmed
+        Confirmed,
+        Banned
     }
 
     public enum JerseyCut
