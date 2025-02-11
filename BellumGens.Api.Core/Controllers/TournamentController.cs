@@ -253,7 +253,7 @@ namespace BellumGens.Api.Controllers
         [Authorize(Roles = "admin")]
         public async Task<IActionResult> SendCheckinEmails(Guid tournamentId)
         {
-            List<TournamentApplication> applications = await _dbContext.TournamentApplications.Include(a => a.Tournament).Where(a => a.TournamentId == tournamentId).ToListAsync();
+            List<TournamentApplication> applications = await _dbContext.TournamentApplications.Include(a => a.Tournament).Where(a => a.TournamentId == tournamentId && a.State != TournamentApplicationState.Banned).ToListAsync();
             var options = new ParallelOptions { MaxDegreeOfParallelism = 4 };
 
             await Parallel.ForEachAsync(applications, options, async (app, token) =>
