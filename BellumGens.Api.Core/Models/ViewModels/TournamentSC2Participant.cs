@@ -12,33 +12,30 @@ namespace BellumGens.Api.Core.Models
             Country = application.Country;
             User = new UserInfoViewModel(application.User);
             PlayerPoints = points;
-            if (PlayerPoints == 0 && matches != null)
+            foreach (TournamentSC2Match match in matches)
             {
-                foreach (TournamentSC2Match match in matches)
+                if (match.Player1Id == UserId)
                 {
-                    if (match.Player1Id == UserId)
+                    // PlayerPoints += match.Player1Points;
+                    if (match.Player1Points + match.Player2Points > 0)
                     {
-                        PlayerPoints += match.Player1Points;
-                        if (match.Player1Points + match.Player2Points > 0)
-                        {
-                            Matches++;
-                            if (match.Player1Points > match.Player2Points)
-                                Wins++;
-                            else
-                                Losses++;
-                        }
+                        Matches++;
+                        if (match.Player1Points > match.Player2Points)
+                            Wins++;
+                        else
+                            Losses++;
                     }
-                    else if (match.Player2Id == UserId)
+                }
+                else if (match.Player2Id == UserId)
+                {
+                    // PlayerPoints += match.Player2Points;
+                    if (match.Player1Points + match.Player2Points > 0)
                     {
-                        PlayerPoints += match.Player2Points;
-                        if (match.Player1Points + match.Player2Points > 0)
-                        {
-                            Matches++;
-                            if (match.Player2Points > match.Player1Points)
-                                Wins++;
-                            else
-                                Losses++;
-                        }
+                        Matches++;
+                        if (match.Player2Points > match.Player1Points)
+                            Wins++;
+                        else
+                            Losses++;
                     }
                 }
             }
