@@ -139,6 +139,7 @@ namespace BellumGens.Api.Controllers
                             Name = application.CompanyId
                         });
                     }
+                    Tournament t = _dbContext.Tournaments.Find(application.TournamentId);
                     await application.UniqueHash(_dbContext);
                     application.UserId = user.Id;
                     _dbContext.TournamentApplications.Add(application);
@@ -156,11 +157,11 @@ namespace BellumGens.Api.Controllers
                     try
                     {
                         string message = $@"Greetings, {user.UserName},
-                                    <p>We've received your registration for the BGE StarCraft II League, with battle tag {application.BattleNetId}.</p>
+                                    <p>We've received your registration for the {t.Name}, with battle tag {application.BattleNetId}.</p>
                                     <p>There will be a weekly check-in 2 hours before the matches start. Make sure you check-in on time!</p>
                                     <p>Thank you from the Bellum Gens team and GLHF!</p>
                                     <a href='https://bellumgens.com' target='_blank'>https://bellumgens.com</a>";
-                        await _sender.SendEmailAsync(application.Email, "BGE Balkan Circuit: Registration Received", message).ConfigureAwait(false);
+                        await _sender.SendEmailAsync(application.Email, "BGE: Registration Received", message).ConfigureAwait(false);
                     }
                     catch (Exception e)
                     {
