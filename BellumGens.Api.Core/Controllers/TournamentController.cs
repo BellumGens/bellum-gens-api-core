@@ -378,8 +378,14 @@ namespace BellumGens.Api.Controllers
         public async Task<IActionResult> GetSC2sRegistrations(Guid? tournamentId = null)
         {
             List<TournamentApplication> entities = tournamentId != null ?
-                await _dbContext.TournamentApplications.Include(a => a.User).Where(r => r.Game == Game.StarCraft2 && r.TournamentId == tournamentId && r.State != TournamentApplicationState.Banned).ToListAsync() :
-                await _dbContext.TournamentApplications.Include(a => a.User).Where(r => r.Game == Game.StarCraft2 && r.Tournament.Active && r.State != TournamentApplicationState.Banned).ToListAsync();
+                await _dbContext.TournamentApplications
+                                .Include(a => a.User)
+                                    .ThenInclude(u => u.StarCraft2Details)
+                                .Where(r => r.Game == Game.StarCraft2 && r.TournamentId == tournamentId && r.State != TournamentApplicationState.Banned).ToListAsync() :
+                await _dbContext.TournamentApplications
+                                .Include(a => a.User)
+                                    .ThenInclude(u => u.StarCraft2Details)
+                                .Where(r => r.Game == Game.StarCraft2 && r.Tournament.Active && r.State != TournamentApplicationState.Banned).ToListAsync();
 
             List<TournamentSC2Match> matches = tournamentId != null ?
                 await _dbContext.TournamentSC2Matches.Where(m => m.TournamentId == tournamentId).ToListAsync() :

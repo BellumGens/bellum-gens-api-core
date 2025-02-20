@@ -256,6 +256,23 @@ namespace BellumGens.Api.Controllers
 				return BadRequest("Something went wrong... ");
 			}
 			return Ok(entity);
-		}
-	}
+        }
+
+        [Route("Tournaments")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetTournaments(string userid)
+        {
+            ApplicationUser user = await _dbContext.Users.FindAsync(userid);
+            List<PlayerTournamentViewModel> model = new();
+            await _dbContext.Tournaments
+                            .Include(t => t.SC2Matches)
+								.ThenInclude(m => m.Player1)
+                                .Where(t => t.SC2Matches.Any(m => m.Player1Id == user.Id))
+							.Include(t => t.SC2Matches)
+								.ThenInclude(m => m.Player2)
+                                .Where(t => t.SC2Matches.Any(m => m.Player2Id == user.Id))
+                            .ForEachAsync(tournament => model.Add(new PlayerTournamentViewModel(tournament, user.Id)));
+            return Ok(model);
+        }
+    }
 }

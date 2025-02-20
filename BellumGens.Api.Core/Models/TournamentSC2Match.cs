@@ -19,6 +19,15 @@ namespace BellumGens.Api.Core.Models
         public int Player2Points { get; set; }
 
         [NotMapped]
+        public string WinnerPlayerId
+        {
+            get
+            {
+                return Player1Points == Player2Points ? string.Empty : Player1Points > Player2Points ? Player1Id : Player2Id;
+            }
+        }
+
+        [NotMapped]
         [JsonPropertyName("player1")]
         public UserInfoViewModel Player1Summary
         {

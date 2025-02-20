@@ -1,19 +1,19 @@
-﻿using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
+using System;
+using System.Text.Json.Serialization;
 
 namespace BellumGens.Api.Core.Models
 {
-    public class TeamTournamentViewModel
+    public class PlayerTournamentViewModel
     {
         private readonly Tournament _tournament;
-        private readonly Guid _teamid;
-        private List<TournamentCSGOMatch> _matches;
-        public TeamTournamentViewModel(Tournament tournament, Guid teamid)
+        private readonly string _userid;
+        private List<TournamentSC2Match> _matches;
+        public PlayerTournamentViewModel(Tournament tournament, string playerid)
         {
             _tournament = tournament;
-            _teamid = teamid;
+            _userid = playerid;
         }
 
         public Guid ID
@@ -37,14 +37,14 @@ namespace BellumGens.Api.Core.Models
                 return _tournament.Logo;
             }
         }
-        [JsonProperty("csgoMatches")]
-        public List<TournamentCSGOMatch> CSGOMatches
+        [JsonPropertyName("sc2Matches")]
+        public List<TournamentSC2Match> SC2Matches
         {
             get
             {
                 if (_matches == null)
                 {
-                    _matches = _tournament.CSGOMatches.Where(m => m.Team1Id == _teamid || m.Team2Id == _teamid).OrderByDescending(m => m.StartTime).ToList();
+                    _matches = _tournament.SC2Matches.Where(m => m.Player1Id == _userid || m.Player2Id == _userid).OrderByDescending(m => m.StartTime).ToList();
                 }
                 return _matches;
             }
