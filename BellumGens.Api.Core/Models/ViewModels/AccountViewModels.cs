@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace BellumGens.Api.Core.Models
 {
@@ -67,6 +68,22 @@ namespace BellumGens.Api.Core.Models
             get
             {
                 return user?.SearchVisible;
+            }
+        }
+        [JsonPropertyName("csgoDetails")]
+        public CSGODetails CSGODetails
+        {
+            get
+            {
+                return user?.CSGODetails;
+            }
+        }
+        [JsonPropertyName("sc2Details")]
+        public StarCraft2Details StarCraft2Details
+        {
+            get
+            {
+                return user?.StarCraft2Details;
             }
         }
     }
