@@ -10,7 +10,7 @@ namespace BellumGens.Api.Core.Models
         {
             BattleTag = application.BattleNetId;
             Country = application.Country;
-            User = new UserInfoViewModel(application.User);
+            User = new UserStatsViewModel(application.User);
             PlayerPoints = points;
             foreach (TournamentSC2Match match in matches)
             {
@@ -43,6 +43,6 @@ namespace BellumGens.Api.Core.Models
         public string BattleTag { get; set; }
         public string Country { get; set; }
         public int PlayerPoints { get; set; } = 0;
-        public UserInfoViewModel User { get; set; }
+        public UserStatsViewModel User { get; set; }
     }
 }

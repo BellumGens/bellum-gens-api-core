@@ -70,21 +70,5 @@ namespace BellumGens.Api.Core.Models
                 return user?.SearchVisible;
             }
         }
-        [JsonPropertyName("csgoDetails")]
-        public CSGODetails CSGODetails
-        {
-            get
-            {
-                return user?.CSGODetails;
-            }
-        }
-        [JsonPropertyName("sc2Details")]
-        public StarCraft2Details StarCraft2Details
-        {
-            get
-            {
-                return user?.StarCraft2Details;
-            }
-        }
     }
 }
