@@ -402,7 +402,6 @@ namespace BellumGens.Api.Controllers
 
         [HttpDelete]
         [Route("Delete")]
-        [Authorize(Roles = "admin, event-admin")]
         public async Task<IActionResult> DeleteRegistraion(Guid id)
         {
             ApplicationUser user = await GetAuthUser();
