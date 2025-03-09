@@ -202,7 +202,7 @@ namespace BellumGens.Api.Controllers
         public async Task<IActionResult> GetUserRegistrations()
         {
             ApplicationUser user = await GetAuthUser();
-            return Ok(await _dbContext.TournamentApplications.Where(a => a.UserId == user.Id && a.Tournament.Active).ToListAsync());
+            return Ok(await _dbContext.TournamentApplications.Include(a => a.Tournament).Where(a => a.UserId == user.Id).ToListAsync());
         }
 
         [AllowAnonymous]
@@ -402,6 +402,7 @@ namespace BellumGens.Api.Controllers
 
         [HttpDelete]
         [Route("Delete")]
+        [Authorize(Roles = "admin, event-admin")]
         public async Task<IActionResult> DeleteRegistraion(Guid id)
         {
             ApplicationUser user = await GetAuthUser();
