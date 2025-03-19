@@ -158,7 +158,7 @@ namespace BellumGens.Api.Controllers
                     {
                         string message = $@"Greetings, {user.UserName},
                                     <p>We've received your registration for the {t.Name}, with battle tag {application.BattleNetId}.</p>
-                                    <p>There will be a weekly check-in 2 hours before the matches start. Make sure you check-in on time!</p>
+                                    <p>There will be a check-in 2 hours before the matches start. Make sure you check-in on time!</p>
                                     <p>Thank you from the Bellum Gens team and GLHF!</p>
                                     <a href='https://bellumgens.com' target='_blank'>https://bellumgens.com</a>";
                         await _sender.SendEmailAsync(application.Email, "BGE: Registration Received", message).ConfigureAwait(false);
@@ -264,7 +264,7 @@ namespace BellumGens.Api.Controllers
                     var callbackUrl = Url.ActionLink("WeeklyCheckin", "Tournament", new { id = app.Id, hash = app.Hash });
                     string message = $@"Greetings, {app.FirstName},
                         <p>The checkin for {app.Tournament.Name} is live. <a href='{callbackUrl}' target='_blank'>Use this link</a> to check in within the next 1 hour.</p>
-                        <p>All live communications during the weekly matches are performed on our discord server. <a href='https://discord.gg/bnTcpa9' target='_blank'>Join us there</a>!</p>
+                        <p>All live communications during the matches are performed on our discord server. <a href='https://discord.gg/bnTcpa9' target='_blank'>Join us there</a>!</p>
                         <p>Thank you from the Bellum Gens team and GL HF in your matches!</p>
                         <a href='https://bellumgens.com' target='_blank'>https://bellumgens.com</a>";
                     await _sender.SendEmailAsync(app.Email, "BGE: Time to check in", message).ConfigureAwait(false);
@@ -492,11 +492,13 @@ namespace BellumGens.Api.Controllers
                                 .Include(g => g.Participants)
                                     .ThenInclude(p => p.TournamentApplication)
                                         .ThenInclude(p => p.User)
+                                            .ThenInclude(p => p.StarCraft2Details)
                                 .Include(g => g.Matches).ToListAsync() :
                 await _dbContext.TournamentSC2Groups.Where(g => g.Tournament.Active)
                                 .Include(g => g.Participants)
                                     .ThenInclude(p => p.TournamentApplication)
                                         .ThenInclude(p => p.User)
+                                            .ThenInclude(p => p.StarCraft2Details)
                                 .Include(g => g.Matches).ToListAsync();
             return Ok(groups);
         }
@@ -703,8 +705,20 @@ namespace BellumGens.Api.Controllers
         {
             List<TournamentSC2Match> matches;
             matches = tournamentId != null ?
-                        await _dbContext.TournamentSC2Matches.Where(m => m.TournamentId == tournamentId).Include(m => m.Player1).Include(m => m.Player2).Include(m => m.Maps).OrderBy(m => m.StartTime).ToListAsync() :
-                        await _dbContext.TournamentSC2Matches.Include(m => m.Player1).Include(m => m.Player2).Include(m => m.Maps).OrderBy(m => m.StartTime).ToListAsync();
+                        await _dbContext.TournamentSC2Matches.Where(m => m.TournamentId == tournamentId)
+                            .Include(m => m.Player1)
+                                .ThenInclude(p1 => p1.StarCraft2Details)
+                            .Include(m => m.Player2)
+                                .ThenInclude(p2 => p2.StarCraft2Details)
+                            .Include(m => m.Maps)
+                            .OrderBy(m => m.StartTime).ToListAsync() :
+                        await _dbContext.TournamentSC2Matches
+                            .Include(m => m.Player1)
+                                .ThenInclude(p1 => p1.StarCraft2Details)
+                            .Include(m => m.Player2)
+                                .ThenInclude(p2 => p2.StarCraft2Details)
+                            .Include(m => m.Maps)
+                            .OrderBy(m => m.StartTime).ToListAsync();
             return Ok(matches);
         }
 

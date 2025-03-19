@@ -14,6 +14,10 @@ namespace BellumGens.Api.Core.Models
 
         public virtual ICollection<SC2MatchMap> Maps { get; set; }
 
+        public SC2Race? Player1Race { get; set; }
+
+        public SC2Race? Player2Race { get; set; }
+
         public int Player1Points { get; set; }
 
         public int Player2Points { get; set; }

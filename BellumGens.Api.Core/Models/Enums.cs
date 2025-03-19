@@ -114,4 +114,11 @@
         XXL,
         XXXL
     }
+    public enum SC2Race
+    {
+        Random,
+        Protoss,
+        Terran,
+        Zerg
+    }
 }
