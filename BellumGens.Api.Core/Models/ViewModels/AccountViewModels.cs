@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Text.Json.Serialization;
 
 namespace BellumGens.Api.Core.Models
 {
@@ -53,6 +52,13 @@ namespace BellumGens.Api.Core.Models
             get
             {
                 return user?.BattleNetId;
+            }
+        }
+        public string AvatarUrl
+        {
+            get
+            {
+                return user?.StarCraft2Details?.AvatarUrl;
             }
         }
         public List<string> ExternalLogins { get; set; }

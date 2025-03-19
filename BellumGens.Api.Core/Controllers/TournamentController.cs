@@ -492,11 +492,13 @@ namespace BellumGens.Api.Controllers
                                 .Include(g => g.Participants)
                                     .ThenInclude(p => p.TournamentApplication)
                                         .ThenInclude(p => p.User)
+                                            .ThenInclude(p => p.StarCraft2Details)
                                 .Include(g => g.Matches).ToListAsync() :
                 await _dbContext.TournamentSC2Groups.Where(g => g.Tournament.Active)
                                 .Include(g => g.Participants)
                                     .ThenInclude(p => p.TournamentApplication)
                                         .ThenInclude(p => p.User)
+                                            .ThenInclude(p => p.StarCraft2Details)
                                 .Include(g => g.Matches).ToListAsync();
             return Ok(groups);
         }
@@ -703,8 +705,20 @@ namespace BellumGens.Api.Controllers
         {
             List<TournamentSC2Match> matches;
             matches = tournamentId != null ?
-                        await _dbContext.TournamentSC2Matches.Where(m => m.TournamentId == tournamentId).Include(m => m.Player1).Include(m => m.Player2).Include(m => m.Maps).OrderBy(m => m.StartTime).ToListAsync() :
-                        await _dbContext.TournamentSC2Matches.Include(m => m.Player1).Include(m => m.Player2).Include(m => m.Maps).OrderBy(m => m.StartTime).ToListAsync();
+                        await _dbContext.TournamentSC2Matches.Where(m => m.TournamentId == tournamentId)
+                            .Include(m => m.Player1)
+                                .ThenInclude(p1 => p1.StarCraft2Details)
+                            .Include(m => m.Player2)
+                                .ThenInclude(p2 => p2.StarCraft2Details)
+                            .Include(m => m.Maps)
+                            .OrderBy(m => m.StartTime).ToListAsync() :
+                        await _dbContext.TournamentSC2Matches
+                            .Include(m => m.Player1)
+                                .ThenInclude(p1 => p1.StarCraft2Details)
+                            .Include(m => m.Player2)
+                                .ThenInclude(p2 => p2.StarCraft2Details)
+                            .Include(m => m.Maps)
+                            .OrderBy(m => m.StartTime).ToListAsync();
             return Ok(matches);
         }
 
