@@ -262,18 +262,15 @@ namespace BellumGens.Api.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> GetTournaments(string userid)
         {
-            ApplicationUser user = await _dbContext.Users.FindAsync(userid);
             List<PlayerTournamentViewModel> model = new();
+
             await _dbContext.Tournaments
                             .Include(t => t.SC2Matches)
 								.ThenInclude(m => m.Player1)
 									.ThenInclude(p1 => p1.StarCraft2Details)
-                                .Where(t => t.SC2Matches.Any(m => m.Player1Id == user.Id))
-							.Include(t => t.SC2Matches)
-								.ThenInclude(m => m.Player2)
-									.ThenInclude(p2 => p2.StarCraft2Details)
-                                .Where(t => t.SC2Matches.Any(m => m.Player2Id == user.Id))
-                            .ForEachAsync(tournament => model.Add(new PlayerTournamentViewModel(tournament, user.Id)));
+							.Where(t => t.SC2Matches.Any(m => m.Player1Id == userid || m.Player2Id == userid))
+                            .ForEachAsync(tournament => model.Add(new PlayerTournamentViewModel(tournament, userid)));
+
             return Ok(model);
         }
     }
