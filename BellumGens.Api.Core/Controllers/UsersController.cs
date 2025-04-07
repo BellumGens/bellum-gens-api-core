@@ -268,6 +268,9 @@ namespace BellumGens.Api.Controllers
                             .Include(t => t.SC2Matches)
 								.ThenInclude(m => m.Player1)
 									.ThenInclude(p1 => p1.StarCraft2Details)
+							.Include(t => t.SC2Matches)
+								.ThenInclude(m => m.Player2)
+									.ThenInclude(p2 => p2.StarCraft2Details)
 							.Where(t => t.SC2Matches.Any(m => m.Player1Id == userid || m.Player2Id == userid))
                             .ForEachAsync(tournament => model.Add(new PlayerTournamentViewModel(tournament, userid)));
 
