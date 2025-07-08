@@ -114,6 +114,14 @@
         XXL,
         XXXL
     }
+    public enum ProductType
+    {
+        Jersey,
+        Umbrella,
+        Pen,
+        Pin,
+        Bracelet
+    }
     public enum SC2Race
     {
         Random,

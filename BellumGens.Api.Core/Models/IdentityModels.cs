@@ -97,9 +97,11 @@ namespace BellumGens.Api.Core.Models
 
 		public DbSet<Company> Companies { get; set; }
 
-		public DbSet<JerseyOrder> JerseyOrders { get; set; }
+		public DbSet<Order> Orders { get; set; }
 
-		public DbSet<Promo> PromoCodes { get; set; }
+		public DbSet<Product> Products { get; set; }
+
+        public DbSet<Promo> PromoCodes { get; set; }
 
         public BellumGensDbContext(DbContextOptions<BellumGensDbContext> options)
             : base(options)

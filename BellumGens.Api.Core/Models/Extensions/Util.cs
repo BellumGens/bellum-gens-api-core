@@ -6,15 +6,15 @@ namespace BellumGens.Api.Core.Common
 {
 	public static class Util
 	{
-		private static readonly Dictionary<JerseyCut, string> _jerseyCutNames = new()
+		private static readonly Dictionary<JerseyCut?, string> _jerseyCutNames = new()
 		{
 			{ JerseyCut.Male, "Мъжка" },
 			{ JerseyCut.Female, "Дамска" }
 		};
 
-		private static readonly Dictionary<JerseySize, string> _jerseySizeNames = new()
+		private static readonly Dictionary<JerseySize?, string> _jerseySizeNames = new()
 		{
-			{ JerseySize.XS, "XS" },
+            { JerseySize.XS, "XS" },
 			{ JerseySize.S, "S" },
 			{ JerseySize.M, "M" },
 			{ JerseySize.L, "L" },
@@ -37,7 +37,7 @@ namespace BellumGens.Api.Core.Common
 			return text;
 		}
 
-		public static Dictionary<JerseyCut, string> JerseyCutNames
+		public static Dictionary<JerseyCut?, string> JerseyCutNames
         {
 			get
             {
@@ -45,7 +45,7 @@ namespace BellumGens.Api.Core.Common
             }
         }
 
-		public static Dictionary<JerseySize, string> JerseySizeNames
+		public static Dictionary<JerseySize?, string> JerseySizeNames
 		{
 			get
 			{
