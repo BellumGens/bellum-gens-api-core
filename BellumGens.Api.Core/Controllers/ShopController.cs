@@ -1,5 +1,4 @@
-﻿using BellumGens.Api.Core.Common;
-using BellumGens.Api.Core.Models;
+﻿using BellumGens.Api.Core.Models;
 using BellumGens.Api.Core.Providers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -7,18 +6,23 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Text;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace BellumGens.Api.Controllers
 {
     public class ShopController : BaseController
     {
-        private const int baseJerseyPrice = 60;
-        private const decimal baseDiscount = .3M;
         public ShopController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, EmailServiceProvider sender, BellumGensDbContext context, ILogger<ShopController> logger)
             : base(userManager, roleManager, signInManager, sender, context, logger)
         {
+        }
+
+        [HttpGet]
+        [Route("Products")]
+        public async Task<List<Product>> GetProducts()
+        {
+            return await _dbContext.Products.ToListAsync();
         }
 
         [HttpGet]
@@ -34,7 +38,7 @@ namespace BellumGens.Api.Controllers
         {
             if (await UserIsInRole("admin"))
             {
-                return Ok(await _dbContext.Orders.Include(o => o.OrderProducts).ToListAsync());
+                return Ok(await _dbContext.Orders.Include(o => o.OrderProducts).ThenInclude(p => p.Product).ToListAsync());
             }
             return Unauthorized();
         }
@@ -96,7 +100,7 @@ namespace BellumGens.Api.Controllers
                 {
                     await _dbContext.Entry(order).Reference(o => o.Promo).LoadAsync();
 
-                    decimal discount = baseDiscount;
+                    decimal discount = 0;
                     if (order.Promo != null)
                     {
                         discount += order.Promo.Discount;
