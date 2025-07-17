@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace BellumGens.Api.Core.Models
 {
-    public class JerseyDetails
+    public class OrderDetails
     {
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
@@ -14,6 +14,6 @@ namespace BellumGens.Api.Core.Models
 
         [JsonIgnore]
         [ForeignKey("OrderId")]
-        public virtual JerseyOrder Order { get; set; }
+        public virtual Order Order { get; set; }
     }
 }

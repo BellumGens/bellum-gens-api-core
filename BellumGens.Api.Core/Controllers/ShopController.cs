@@ -34,7 +34,7 @@ namespace BellumGens.Api.Controllers
         {
             if (await UserIsInRole("admin"))
             {
-                return Ok(await _dbContext.JerseyOrders.Include(o => o.Jerseys).ToListAsync());
+                return Ok(await _dbContext.Orders.Include(o => o.Jerseys).ToListAsync());
             }
             return Unauthorized();
         }
@@ -42,11 +42,11 @@ namespace BellumGens.Api.Controllers
         [Authorize]
         [HttpPut]
         [Route("Edit")]
-        public async Task<IActionResult> EditOrder(Guid orderId, JerseyOrder order)
+        public async Task<IActionResult> EditOrder(Guid orderId, Order order)
         {
             if (await UserIsInRole("admin"))
             {
-                JerseyOrder entity = await _dbContext.JerseyOrders.FindAsync(orderId);
+                Order entity = await _dbContext.Orders.FindAsync(orderId);
                 if (entity == null)
                 {
                     return NotFound();
@@ -71,7 +71,7 @@ namespace BellumGens.Api.Controllers
 
         [HttpPost]
         [Route("Order")]
-        public async Task<IActionResult> SubmitOrder(JerseyOrder order)
+        public async Task<IActionResult> SubmitOrder(Order order)
         {
             if (ModelState.IsValid)
             {
@@ -80,7 +80,7 @@ namespace BellumGens.Api.Controllers
                     order.PromoCode = order.PromoCode.ToUpperInvariant();
                 }
 
-                _dbContext.JerseyOrders.Add(order);
+                _dbContext.Orders.Add(order);
 
                 try
                 {
@@ -106,7 +106,7 @@ namespace BellumGens.Api.Controllers
                     builder.Append($@"Здравейте {order.FirstName} {order.LastName},
                                 <p>Успешно получихме вашата поръчка. Очаквайте обаждане на посоченият от вас телефонен номер за потвърждение!</p>
                                 <p>Детайли за вашата поръчка:</p>");
-                    foreach (JerseyDetails jersey in order.Jerseys)
+                    foreach (OrderDetails jersey in order.Jerseys)
                     {
                         builder.Append($"<p>{Util.JerseyCutNames[jersey.Cut]} тениска, размер {Util.JerseySizeNames[jersey.Size]}</p>");
                     }
@@ -136,11 +136,11 @@ namespace BellumGens.Api.Controllers
         {
             if (await UserIsInRole("admin"))
             {
-                var order = await _dbContext.JerseyOrders.FindAsync(orderId);
+                var order = await _dbContext.Orders.FindAsync(orderId);
                 
                 if (order != null)
                 {
-                    _dbContext.JerseyOrders.Remove(order);
+                    _dbContext.Orders.Remove(order);
                 }
                 else
                 {

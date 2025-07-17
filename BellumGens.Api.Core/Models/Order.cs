@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BellumGens.Api.Core.Models
 {
-    public class JerseyOrder
+    public class Order
     {
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public Guid Id { get; set; }
@@ -25,8 +25,12 @@ namespace BellumGens.Api.Core.Models
         public string PromoCode { get; set; }
         public bool Confirmed { get; set; } = false;
         public bool Shipped { get; set; } = false;
+        public bool Paid { get; set; } = false;
         public DateTimeOffset OrderDate { get; set; } = DateTimeOffset.Now;
+        public DateTimeOffset? ShippedDate { get; set; } = null;
         public virtual Promo Promo { get; set; }
-        public virtual ICollection<JerseyDetails> Jerseys { get; set; } = new HashSet<JerseyDetails>();
+        public decimal TotalPrice { get; set; } = 0;
+        public PaymentType PaymentType { get; set; } = PaymentType.CashOnDelivery;
+        public virtual ICollection<OrderDetails> Jerseys { get; set; } = new HashSet<OrderDetails>();
     }
 }

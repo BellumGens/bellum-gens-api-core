@@ -114,6 +114,12 @@
         XXL,
         XXXL
     }
+    public enum PaymentType
+    {
+        Revolut,
+        BankTransfer,
+        CashOnDelivery
+    }
     public enum SC2Race
     {
         Random,
