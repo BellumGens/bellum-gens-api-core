@@ -101,6 +101,8 @@ namespace BellumGens.Api.Core.Models
 
 		public DbSet<Promo> PromoCodes { get; set; }
 
+		public DbSet<EarlyBird> EarlyBirds { get; set; }
+
         public BellumGensDbContext(DbContextOptions<BellumGensDbContext> options)
             : base(options)
         {
