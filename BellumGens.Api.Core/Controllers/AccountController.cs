@@ -130,7 +130,39 @@ namespace BellumGens.Api.Controllers
             return BadRequest("Email is not valid");
 		}
 
-		[HttpGet]
+        [HttpPost]
+        [Route("EarlyBirdSignup")]
+        public async Task<IActionResult> EarlyBird(EarlyBird sub)
+        {
+            if (ModelState.IsValid)
+            {
+                ApplicationUser user = await GetAuthUser();
+                sub.UserId = user.Id;
+                _dbContext.EarlyBirds.Add(sub);
+                try
+                {
+                    await _dbContext.SaveChangesAsync();
+                }
+                catch (DbUpdateException e)
+                {
+                    System.Diagnostics.Trace.TraceInformation("Early bird subscription exception: " + e.Message);
+                    return Ok("Already signed-up...");
+                }
+                return Ok("Subscribed successfully!");
+            }
+            return BadRequest("Email is not valid");
+        }
+
+        [HttpGet]
+        [AllowAnonymous]
+        [Route("EarlyBirdCount")]
+        public async Task<IActionResult> EarlyBirdCount()
+        {
+            int count = await _dbContext.EarlyBirds.CountAsync();
+            return Ok(new { count });
+        }
+
+        [HttpGet]
 		[AllowAnonymous]
 		[Route("Unsubscribe")]
 		public async Task<IActionResult> Unsubscribe(string email, Guid sub)
