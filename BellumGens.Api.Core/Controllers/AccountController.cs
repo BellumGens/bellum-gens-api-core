@@ -131,7 +131,7 @@ namespace BellumGens.Api.Controllers
 		}
 
         [HttpPost]
-        [Route("EarlyBird")]
+        [Route("EarlyBirdSignup")]
         public async Task<IActionResult> EarlyBird(EarlyBird sub)
         {
             if (ModelState.IsValid)
@@ -146,7 +146,7 @@ namespace BellumGens.Api.Controllers
                 catch (DbUpdateException e)
                 {
                     System.Diagnostics.Trace.TraceInformation("Early bird subscription exception: " + e.Message);
-                    return Ok("Already subscribed...");
+                    return Ok("Already signed-up...");
                 }
                 return Ok("Subscribed successfully!");
             }
