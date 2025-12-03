@@ -134,6 +134,11 @@ namespace BellumGens.Api.Controllers
         [Route("EarlyBirdSignup")]
         public async Task<IActionResult> EarlyBird(EarlyBird sub)
         {
+            var signupDeadline = new DateTime(2025, 12, 18, 16, 0, 0, DateTimeKind.Utc);
+            if (DateTime.Now > signupDeadline)
+            {
+                return BadRequest("Early bird signup period has ended.");
+            }
             if (ModelState.IsValid)
             {
                 ApplicationUser user = await GetAuthUser();
