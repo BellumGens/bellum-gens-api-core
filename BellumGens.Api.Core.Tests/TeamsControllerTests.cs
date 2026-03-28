@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using BellumGens.Api.Controllers;
 using BellumGens.Api.Core.Models;
 using BellumGens.Api.Core.Providers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
@@ -263,6 +265,527 @@ namespace BellumGens.Api.Core.Tests
             var okResult = Assert.IsType<OkObjectResult>(result);
             var createdTeam = Assert.IsType<CSGOTeam>(okResult.Value);
             Assert.False(string.IsNullOrEmpty(createdTeam.CustomUrl));
+        }
+
+        [Fact]
+        public async Task GetIsTeamAdmin_ReturnsTrue_WhenAdminWithGuid()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var teamId = Guid.NewGuid();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "admin" };
+            dbContext.Users.Add(user);
+            dbContext.CSGOTeams.Add(new CSGOTeam
+            {
+                TeamId = teamId, TeamName = "AdminTeam", CustomUrl = "admin-team", SteamGroupId = "sg1"
+            });
+            dbContext.TeamMembers.Add(new TeamMember
+            {
+                TeamId = teamId, UserId = userId, IsActive = true, IsAdmin = true
+            });
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var result = await controller.GetIsTeamAdmin(teamId.ToString());
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.Equal(true, okResult.Value);
+        }
+
+        [Fact]
+        public async Task GetIsTeamAdmin_ReturnsTrue_WhenAdminWithCustomUrl()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var teamId = Guid.NewGuid();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "admin" };
+            dbContext.Users.Add(user);
+            dbContext.CSGOTeams.Add(new CSGOTeam
+            {
+                TeamId = teamId, TeamName = "AdminTeam2", CustomUrl = "admin-team-url", SteamGroupId = "sg2"
+            });
+            dbContext.TeamMembers.Add(new TeamMember
+            {
+                TeamId = teamId, UserId = userId, IsActive = true, IsAdmin = true
+            });
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var result = await controller.GetIsTeamAdmin("admin-team-url");
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.Equal(true, okResult.Value);
+        }
+
+        [Fact]
+        public async Task GetIsTeamMember_ReturnsTrue_WhenMember()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var teamId = Guid.NewGuid();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "member" };
+            dbContext.Users.Add(user);
+            dbContext.CSGOTeams.Add(new CSGOTeam
+            {
+                TeamId = teamId, TeamName = "MemberTeam", CustomUrl = "member-team", SteamGroupId = "sg3"
+            });
+            dbContext.TeamMembers.Add(new TeamMember
+            {
+                TeamId = teamId, UserId = userId, IsActive = true, IsAdmin = false
+            });
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var result = await controller.GetIsTeamMember(teamId);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.Equal(true, okResult.Value);
+        }
+
+        [Fact]
+        public async Task GetIsTeamEditor_ReturnsTrue_WhenEditor()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var teamId = Guid.NewGuid();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "editor" };
+            dbContext.Users.Add(user);
+            dbContext.CSGOTeams.Add(new CSGOTeam
+            {
+                TeamId = teamId, TeamName = "EditorTeam", CustomUrl = "editor-team", SteamGroupId = "sg4"
+            });
+            dbContext.TeamMembers.Add(new TeamMember
+            {
+                TeamId = teamId, UserId = userId, IsActive = true, IsAdmin = false, IsEditor = true
+            });
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var result = await controller.GetIsTeamEditor(teamId);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.Equal(true, okResult.Value);
+        }
+
+        [Fact]
+        public async Task UpdateTeam_ReturnsOk_WhenAdmin()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var teamId = Guid.NewGuid();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "admin" };
+            dbContext.Users.Add(user);
+            var existingTeam = new CSGOTeam
+            {
+                TeamId = teamId, TeamName = "OldName", CustomUrl = "update-team", SteamGroupId = "sg5", Visible = true
+            };
+            dbContext.CSGOTeams.Add(existingTeam);
+            dbContext.TeamMembers.Add(new TeamMember
+            {
+                TeamId = teamId, UserId = userId, IsActive = true, IsAdmin = true
+            });
+            dbContext.SaveChanges();
+            dbContext.Entry(existingTeam).State = EntityState.Detached;
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var updatedTeam = new CSGOTeam
+            {
+                TeamId = teamId, TeamName = "NewName", CustomUrl = "update-team", SteamGroupId = "sg5", Visible = true
+            };
+            var result = await controller.UpdateTeam(updatedTeam);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var team = Assert.IsType<CSGOTeam>(okResult.Value);
+            Assert.Equal("NewName", team.TeamName);
+        }
+
+        [Fact]
+        public async Task UpdateTeam_ReturnsBadRequest_WhenNotAdmin()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var teamId = Guid.NewGuid();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "nonadmin" };
+            dbContext.Users.Add(user);
+            dbContext.CSGOTeams.Add(new CSGOTeam
+            {
+                TeamId = teamId, TeamName = "Team", CustomUrl = "noadmin-team", SteamGroupId = "sg6"
+            });
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var updatedTeam = new CSGOTeam
+            {
+                TeamId = teamId, TeamName = "Updated", CustomUrl = "noadmin-team", SteamGroupId = "sg6"
+            };
+            var result = await controller.UpdateTeam(updatedTeam);
+
+            Assert.IsType<BadRequestObjectResult>(result);
+        }
+
+        [Fact]
+        public async Task UpdateTeamMember_ReturnsOk_WhenAdmin()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var teamId = Guid.NewGuid();
+            var adminId = "admin1";
+            var memberId = "member1";
+            var admin = new ApplicationUser { Id = adminId, UserName = "admin" };
+            var member = new ApplicationUser { Id = memberId, UserName = "member" };
+            dbContext.Users.AddRange(admin, member);
+            dbContext.CSGOTeams.Add(new CSGOTeam
+            {
+                TeamId = teamId, TeamName = "Team", CustomUrl = "update-member", SteamGroupId = "sg7"
+            });
+            dbContext.TeamMembers.Add(new TeamMember
+            {
+                TeamId = teamId, UserId = adminId, IsActive = true, IsAdmin = true
+            });
+            dbContext.TeamMembers.Add(new TeamMember
+            {
+                TeamId = teamId, UserId = memberId, IsActive = true, IsAdmin = false, IsEditor = false
+            });
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(adminId)).ReturnsAsync(admin);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(adminId));
+
+            var updatedMember = new TeamMember
+            {
+                TeamId = teamId, UserId = memberId, IsActive = true, IsAdmin = false, IsEditor = true
+            };
+            var result = await controller.UpdateTeamMember(updatedMember);
+
+            Assert.IsType<OkResult>(result);
+        }
+
+        [Fact]
+        public async Task UpdateTeamMember_ReturnsBadRequest_WhenNotAdmin()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var teamId = Guid.NewGuid();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "nonadmin" };
+            dbContext.Users.Add(user);
+            dbContext.CSGOTeams.Add(new CSGOTeam
+            {
+                TeamId = teamId, TeamName = "Team", CustomUrl = "no-update-member", SteamGroupId = "sg8"
+            });
+            dbContext.TeamMembers.Add(new TeamMember
+            {
+                TeamId = teamId, UserId = userId, IsActive = true, IsAdmin = false
+            });
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var updatedMember = new TeamMember
+            {
+                TeamId = teamId, UserId = userId, IsActive = true, IsAdmin = true
+            };
+            var result = await controller.UpdateTeamMember(updatedMember);
+
+            Assert.IsType<BadRequestObjectResult>(result);
+        }
+
+        [Fact]
+        public async Task RemoveTeamMember_ReturnsOk_WhenAdmin()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var teamId = Guid.NewGuid();
+            var adminId = "admin1";
+            var memberId = "member1";
+            var admin = new ApplicationUser { Id = adminId, UserName = "admin" };
+            var member = new ApplicationUser { Id = memberId, UserName = "member" };
+            dbContext.Users.AddRange(admin, member);
+            dbContext.CSGOTeams.Add(new CSGOTeam
+            {
+                TeamId = teamId, TeamName = "Team", CustomUrl = "remove-member", SteamGroupId = "sg9"
+            });
+            dbContext.TeamMembers.Add(new TeamMember
+            {
+                TeamId = teamId, UserId = adminId, IsActive = true, IsAdmin = true
+            });
+            dbContext.TeamMembers.Add(new TeamMember
+            {
+                TeamId = teamId, UserId = memberId, IsActive = true, IsAdmin = false
+            });
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(adminId)).ReturnsAsync(admin);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(adminId));
+
+            var result = await controller.RemoveTeamMember(teamId, memberId);
+
+            Assert.IsType<OkResult>(result);
+            Assert.Null(await dbContext.TeamMembers.FindAsync(teamId, memberId));
+        }
+
+        [Fact]
+        public async Task RemoveTeamMember_ReturnsBadRequest_WhenNotAdmin()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var teamId = Guid.NewGuid();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "nonadmin" };
+            dbContext.Users.Add(user);
+            dbContext.CSGOTeams.Add(new CSGOTeam
+            {
+                TeamId = teamId, TeamName = "Team", CustomUrl = "no-remove", SteamGroupId = "sg10"
+            });
+            dbContext.TeamMembers.Add(new TeamMember
+            {
+                TeamId = teamId, UserId = userId, IsActive = true, IsAdmin = false
+            });
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var result = await controller.RemoveTeamMember(teamId, "other-user");
+
+            Assert.IsType<BadRequestObjectResult>(result);
+        }
+
+        [Fact]
+        public async Task AbandonTeam_RemovesTeam_WhenSoleMember()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var teamId = Guid.NewGuid();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "sole" };
+            dbContext.Users.Add(user);
+            dbContext.CSGOTeams.Add(new CSGOTeam
+            {
+                TeamId = teamId, TeamName = "SoleTeam", CustomUrl = "sole-team", SteamGroupId = "sg11"
+            });
+            dbContext.TeamMembers.Add(new TeamMember
+            {
+                TeamId = teamId, UserId = userId, IsActive = true, IsAdmin = true
+            });
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var result = await controller.AbandonTeam(teamId);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.Null(await dbContext.CSGOTeams.FindAsync(teamId));
+        }
+
+        [Fact]
+        public async Task AbandonTeam_RemovesSelf_PromotesNewAdmin()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var teamId = Guid.NewGuid();
+            var userId = "user1";
+            var otherId = "user2";
+            var user = new ApplicationUser { Id = userId, UserName = "leaving" };
+            var other = new ApplicationUser { Id = otherId, UserName = "staying" };
+            dbContext.Users.AddRange(user, other);
+            dbContext.CSGOTeams.Add(new CSGOTeam
+            {
+                TeamId = teamId, TeamName = "MultiTeam", CustomUrl = "multi-team", SteamGroupId = "sg12"
+            });
+            dbContext.TeamMembers.Add(new TeamMember
+            {
+                TeamId = teamId, UserId = userId, IsActive = true, IsAdmin = true
+            });
+            dbContext.TeamMembers.Add(new TeamMember
+            {
+                TeamId = teamId, UserId = otherId, IsActive = true, IsAdmin = false
+            });
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var result = await controller.AbandonTeam(teamId);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.NotNull(await dbContext.CSGOTeams.FindAsync(teamId));
+            Assert.Null(await dbContext.TeamMembers.FindAsync(teamId, userId));
+            var remaining = await dbContext.TeamMembers.FindAsync(teamId, otherId);
+            Assert.NotNull(remaining);
+            Assert.True(remaining.IsAdmin);
+        }
+
+        [Fact]
+        public async Task SetTeamAvailability_AddsAvailability_WhenAdmin()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var teamId = Guid.NewGuid();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "admin" };
+            dbContext.Users.Add(user);
+            dbContext.CSGOTeams.Add(new CSGOTeam
+            {
+                TeamId = teamId, TeamName = "AvailTeam", CustomUrl = "avail-team", SteamGroupId = "sg13"
+            });
+            dbContext.TeamMembers.Add(new TeamMember
+            {
+                TeamId = teamId, UserId = userId, IsActive = true, IsAdmin = true
+            });
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var day = new TeamAvailability
+            {
+                TeamId = teamId, Day = DayOfWeek.Monday, Available = true
+            };
+            var result = await controller.SetTeamAvailability(day);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var saved = Assert.IsType<TeamAvailability>(okResult.Value);
+            Assert.True(saved.Available);
+        }
+
+        [Fact]
+        public async Task SetTeamAvailability_RemovesAvailability_WhenAdmin()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var teamId = Guid.NewGuid();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "admin" };
+            dbContext.Users.Add(user);
+            dbContext.CSGOTeams.Add(new CSGOTeam
+            {
+                TeamId = teamId, TeamName = "AvailTeam2", CustomUrl = "avail-team2", SteamGroupId = "sg14"
+            });
+            dbContext.TeamMembers.Add(new TeamMember
+            {
+                TeamId = teamId, UserId = userId, IsActive = true, IsAdmin = true
+            });
+            var existing = new TeamAvailability
+            {
+                TeamId = teamId, Day = DayOfWeek.Tuesday, Available = true
+            };
+            dbContext.TeamAvailabilities.Add(existing);
+            dbContext.SaveChanges();
+            dbContext.Entry(existing).State = EntityState.Detached;
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var day = new TeamAvailability
+            {
+                TeamId = teamId, Day = DayOfWeek.Tuesday, Available = false
+            };
+            var result = await controller.SetTeamAvailability(day);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+        }
+
+        [Fact]
+        public async Task SetTeamMapPool_ReturnsOk_WhenAdmin()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var teamId = Guid.NewGuid();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "admin" };
+            dbContext.Users.Add(user);
+            dbContext.CSGOTeams.Add(new CSGOTeam
+            {
+                TeamId = teamId, TeamName = "MapTeam", CustomUrl = "map-team", SteamGroupId = "sg15"
+            });
+            dbContext.TeamMembers.Add(new TeamMember
+            {
+                TeamId = teamId, UserId = userId, IsActive = true, IsAdmin = true
+            });
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var maps = new List<TeamMapPool>
+            {
+                new TeamMapPool { TeamId = teamId, Map = CSGOMap.Dust2, IsPlayed = true },
+                new TeamMapPool { TeamId = teamId, Map = CSGOMap.Inferno, IsPlayed = true },
+                new TeamMapPool { TeamId = teamId, Map = CSGOMap.Mirage, IsPlayed = false }
+            };
+            var result = await controller.SetTeamMapPool(maps);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var pool = await dbContext.TeamMapPools.Where(m => m.TeamId == teamId).ToListAsync();
+            Assert.Equal(2, pool.Count);
+        }
+
+        [Fact]
+        public async Task SetTeamMapPool_ReturnsBadRequest_WhenNotAdmin()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var teamId = Guid.NewGuid();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "nonadmin" };
+            dbContext.Users.Add(user);
+            dbContext.CSGOTeams.Add(new CSGOTeam
+            {
+                TeamId = teamId, TeamName = "MapTeam2", CustomUrl = "map-team2", SteamGroupId = "sg16"
+            });
+            dbContext.TeamMembers.Add(new TeamMember
+            {
+                TeamId = teamId, UserId = userId, IsActive = true, IsAdmin = false
+            });
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var maps = new List<TeamMapPool>
+            {
+                new TeamMapPool { TeamId = teamId, Map = CSGOMap.Dust2, IsPlayed = true }
+            };
+            var result = await controller.SetTeamMapPool(maps);
+
+            Assert.IsType<BadRequestObjectResult>(result);
         }
     }
 }

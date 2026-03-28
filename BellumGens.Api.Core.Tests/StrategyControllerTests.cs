@@ -281,5 +281,294 @@ namespace BellumGens.Api.Core.Tests
             var savedComment = Assert.IsType<StrategyComment>(okResult.Value);
             Assert.Equal("Updated comment", savedComment.Comment);
         }
+
+        [Fact]
+        public async Task GetTeamStrats_ReturnsBadRequest_WhenNotMember()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "testuser" };
+            var teamId = Guid.NewGuid();
+            dbContext.Users.Add(user);
+            dbContext.CSGOTeams.Add(new CSGOTeam
+            {
+                TeamId = teamId, TeamName = "Team1", CustomUrl = "team-1", SteamGroupId = "sg1"
+            });
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var result = await controller.GetTeamStrats(teamId);
+
+            Assert.IsType<BadRequestObjectResult>(result);
+        }
+
+        [Fact]
+        public async Task GetTeamStrats_ReturnsStrats_WhenMember()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "testuser" };
+            var teamId = Guid.NewGuid();
+            dbContext.Users.Add(user);
+            dbContext.CSGOTeams.Add(new CSGOTeam
+            {
+                TeamId = teamId, TeamName = "Team1", CustomUrl = "team-strats", SteamGroupId = "sg1"
+            });
+            dbContext.TeamMembers.Add(new TeamMember
+            {
+                TeamId = teamId, UserId = userId, IsActive = true, IsAdmin = false
+            });
+            dbContext.CSGOStrategies.Add(new CSGOStrategy
+            {
+                Title = "TeamStrat", TeamId = teamId, Visible = false,
+                CustomUrl = "team-strat-1", Side = Side.TSide, Map = CSGOMap.Dust2
+            });
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var result = await controller.GetTeamStrats(teamId);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var strats = Assert.IsAssignableFrom<IEnumerable<CSGOStrategy>>(okResult.Value);
+            Assert.Single(strats);
+        }
+
+        [Fact]
+        public async Task GetUserStrats_ReturnsStrats_ForOwnUser()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "testuser" };
+            dbContext.Users.Add(user);
+            dbContext.CSGOStrategies.Add(new CSGOStrategy
+            {
+                Title = "MyStrat", UserId = userId, Visible = false,
+                CustomUrl = "my-strat", Side = Side.TSide, Map = CSGOMap.Dust2
+            });
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var result = await controller.GetUserStrats(userId);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var strats = Assert.IsAssignableFrom<IEnumerable<CSGOStrategy>>(okResult.Value);
+            Assert.Single(strats);
+        }
+
+        [Fact]
+        public async Task GetUserStrats_ReturnsBadRequest_ForDifferentUser()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "testuser" };
+            dbContext.Users.Add(user);
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var result = await controller.GetUserStrats("otheruser");
+
+            Assert.IsType<BadRequestObjectResult>(result);
+        }
+
+        [Fact]
+        public async Task SubmitStrategy_CreatesNewStrategy_WhenNoExistingEntity()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "testuser" };
+            dbContext.Users.Add(user);
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var strategy = new CSGOStrategy
+            {
+                Title = "NewStrat", Visible = true,
+                Side = Side.TSide, Map = CSGOMap.Dust2
+            };
+            var result = await controller.SubmitStrategy(strategy);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var saved = Assert.IsType<CSGOStrategy>(okResult.Value);
+            Assert.Equal("NewStrat", saved.Title);
+            Assert.Equal(userId, saved.UserId);
+        }
+
+        [Fact]
+        public async Task DeleteStrategy_ReturnsOk_WhenUserOwnsStrategy()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "testuser" };
+            var stratId = Guid.NewGuid();
+            dbContext.Users.Add(user);
+            dbContext.CSGOStrategies.Add(new CSGOStrategy
+            {
+                Id = stratId, Title = "ToDelete", UserId = userId, Visible = true,
+                CustomUrl = "to-delete", Side = Side.TSide, Map = CSGOMap.Dust2
+            });
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var result = await controller.DeleteStrategy(stratId);
+
+            Assert.IsType<OkObjectResult>(result);
+            Assert.Null(await dbContext.CSGOStrategies.FindAsync(stratId));
+        }
+
+        [Fact]
+        public async Task DeleteStrategy_ReturnsBadRequest_WhenUserCannotEdit()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "testuser" };
+            var stratId = Guid.NewGuid();
+            dbContext.Users.Add(user);
+            dbContext.CSGOStrategies.Add(new CSGOStrategy
+            {
+                Id = stratId, Title = "NotMine", UserId = "otheruser", Visible = true,
+                CustomUrl = "not-mine", Side = Side.TSide, Map = CSGOMap.Dust2
+            });
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var result = await controller.DeleteStrategy(stratId);
+
+            Assert.IsType<BadRequestObjectResult>(result);
+        }
+
+        [Fact]
+        public async Task DeleteStrategyComment_ReturnsOk_WhenUserOwnsComment()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "testuser" };
+            var commentId = Guid.NewGuid();
+            var stratId = Guid.NewGuid();
+            dbContext.Users.Add(user);
+            dbContext.CSGOStrategies.Add(new CSGOStrategy
+            {
+                Id = stratId, Title = "Strat", UserId = userId, Visible = true,
+                CustomUrl = "del-comment-strat", Side = Side.TSide, Map = CSGOMap.Dust2
+            });
+            dbContext.StrategyComments.Add(new StrategyComment
+            {
+                Id = commentId, StratId = stratId, UserId = userId, Comment = "My comment"
+            });
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var result = await controller.DeleteStrategyComment(commentId);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.Null(await dbContext.StrategyComments.FindAsync(commentId));
+        }
+
+        [Fact]
+        public async Task DeleteStrategyComment_ReturnsBadRequest_WhenWrongUser()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "testuser" };
+            var commentId = Guid.NewGuid();
+            var stratId = Guid.NewGuid();
+            dbContext.Users.Add(user);
+            dbContext.StrategyComments.Add(new StrategyComment
+            {
+                Id = commentId, StratId = stratId, UserId = "otheruser", Comment = "Not mine"
+            });
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var result = await controller.DeleteStrategyComment(commentId);
+
+            Assert.IsType<BadRequestObjectResult>(result);
+        }
+
+        [Fact]
+        public async Task DeleteStrategyComment_ReturnsBadRequest_WhenCommentNotFound()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "testuser" };
+            dbContext.Users.Add(user);
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var result = await controller.DeleteStrategyComment(Guid.NewGuid());
+
+            Assert.IsType<BadRequestObjectResult>(result);
+        }
+
+        [Fact]
+        public async Task SubmitStrategyVote_ChangesDirection_WhenExistingVoteDiffers()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "testuser" };
+            var stratId = Guid.NewGuid();
+            dbContext.Users.Add(user);
+            dbContext.CSGOStrategies.Add(new CSGOStrategy
+            {
+                Id = stratId, Title = "ChangeVoteStrat", Visible = true,
+                CustomUrl = "change-vote", Side = Side.TSide, Map = CSGOMap.Dust2
+            });
+            dbContext.StrategyVotes.Add(new StrategyVote
+            {
+                StratId = stratId, UserId = userId, Vote = VoteDirection.Up
+            });
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var voteModel = new VoteModel { id = stratId, direction = VoteDirection.Down };
+            var result = await controller.SubmitStrategyVote(voteModel);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var vote = Assert.IsType<StrategyVote>(okResult.Value);
+            Assert.Equal(VoteDirection.Down, vote.Vote);
+        }
     }
 }
