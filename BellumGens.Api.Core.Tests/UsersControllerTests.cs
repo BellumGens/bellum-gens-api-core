@@ -327,7 +327,7 @@ namespace BellumGens.Api.Core.Tests
         }
 
         [Fact]
-        public async Task AcceptTeamInvite_InviteNotFound_ReturnsNotFound()
+        public async Task AcceptTeamInvite_InviteNotFound_ThrowsArgumentException()
         {
             // TeamInvite has a single key (Id) but the controller calls
             // FindAsync(InvitingUserId, InvitedUserId, TeamId) with 3 values.
@@ -419,7 +419,7 @@ namespace BellumGens.Api.Core.Tests
         }
 
         [Fact]
-        public async Task RejectTeamInvite_InviteNotFound_ReturnsNotFound()
+        public async Task RejectTeamInvite_InviteNotFound_ThrowsArgumentException()
         {
             // TeamInvite has single key (Id) but controller passes 3 values to FindAsync.
             using var dbContext = TestUtils.CreateInMemoryDbContext();
