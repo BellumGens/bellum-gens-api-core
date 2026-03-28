@@ -206,5 +206,144 @@ namespace BellumGens.Api.Core.Tests
             var okResult = Assert.IsType<OkObjectResult>(result);
             Assert.Null(okResult.Value);
         }
+
+        [Fact]
+        public async Task EditOrder_AsAdmin_OrderExists_ReturnsOk()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "admin1";
+            var user = new ApplicationUser { Id = userId, UserName = "admin" };
+            dbContext.Users.Add(user);
+            var orderId = Guid.NewGuid();
+            var order = new JerseyOrder
+            {
+                Id = orderId, Email = "test@example.com", FirstName = "John",
+                LastName = "Doe", PhoneNumber = "123", City = "Sofia",
+                StreetAddress = "123 Main St"
+            };
+            dbContext.JerseyOrders.Add(order);
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+            _mockUserManager.Setup(m => m.IsInRoleAsync(user, "admin")).ReturnsAsync(true);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            // Pass the same tracked instance so FindAsync returns it from the
+            // change tracker, avoiding a duplicate-tracking conflict.
+            order.Email = "updated@example.com";
+            var result = await controller.EditOrder(orderId, order);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.NotNull(okResult.Value);
+            var returnedOrder = Assert.IsType<JerseyOrder>(okResult.Value);
+            Assert.Equal("updated@example.com", returnedOrder.Email);
+        }
+
+        [Fact]
+        public async Task EditOrder_AsAdmin_OrderNotFound_ReturnsNotFound()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "admin1";
+            var user = new ApplicationUser { Id = userId, UserName = "admin" };
+            dbContext.Users.Add(user);
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+            _mockUserManager.Setup(m => m.IsInRoleAsync(user, "admin")).ReturnsAsync(true);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var order = new JerseyOrder
+            {
+                Id = Guid.NewGuid(), Email = "test@example.com", FirstName = "John",
+                LastName = "Doe", PhoneNumber = "123", City = "Sofia",
+                StreetAddress = "123 Main St"
+            };
+
+            var result = await controller.EditOrder(Guid.NewGuid(), order);
+
+            Assert.IsType<NotFoundResult>(result);
+        }
+
+        [Fact]
+        public async Task EditOrder_NonAdmin_ReturnsUnauthorized()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "testuser" };
+            dbContext.Users.Add(user);
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+            _mockUserManager.Setup(m => m.IsInRoleAsync(user, "admin")).ReturnsAsync(false);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var order = new JerseyOrder
+            {
+                Id = Guid.NewGuid(), Email = "test@example.com", FirstName = "John",
+                LastName = "Doe", PhoneNumber = "123", City = "Sofia",
+                StreetAddress = "123 Main St"
+            };
+
+            var result = await controller.EditOrder(Guid.NewGuid(), order);
+
+            Assert.IsType<UnauthorizedResult>(result);
+        }
+
+        [Fact]
+        public async Task DeleteOrder_NonAdmin_ReturnsUnauthorized()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "testuser" };
+            dbContext.Users.Add(user);
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+            _mockUserManager.Setup(m => m.IsInRoleAsync(user, "admin")).ReturnsAsync(false);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var result = await controller.DeleteOrder(Guid.NewGuid());
+
+            Assert.IsType<UnauthorizedResult>(result);
+        }
+
+        [Fact]
+        public async Task SubmitOrder_WithPromoCode_NormalizesToUpperCase()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            dbContext.PromoCodes.Add(new Promo { Code = "SAVE20", Discount = 0.20m });
+            dbContext.SaveChanges();
+
+            var controller = CreateController(dbContext);
+
+            var order = new JerseyOrder
+            {
+                Email = "test@example.com",
+                FirstName = "John",
+                LastName = "Doe",
+                PhoneNumber = "1234567890",
+                City = "Sofia",
+                StreetAddress = "123 Main St",
+                PromoCode = "save20",
+                Jerseys = new List<JerseyDetails>
+                {
+                    new JerseyDetails { Cut = JerseyCut.Male, Size = JerseySize.M }
+                }
+            };
+
+            var result = await controller.SubmitOrder(order);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var savedOrder = Assert.IsType<JerseyOrder>(okResult.Value);
+            Assert.Equal("SAVE20", savedOrder.PromoCode);
+        }
     }
 }

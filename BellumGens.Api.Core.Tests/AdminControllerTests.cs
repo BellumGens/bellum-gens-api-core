@@ -103,5 +103,155 @@ namespace BellumGens.Api.Core.Tests
             var promos = Assert.IsAssignableFrom<List<Promo>>(okResult.Value);
             Assert.Equal(2, promos.Count);
         }
+
+        [Fact]
+        public async Task Get_AdminUser_ReturnsTrue()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "admin1";
+            var user = new ApplicationUser { Id = userId, UserName = "adminuser" };
+            dbContext.Users.Add(user);
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+            _mockUserManager.Setup(m => m.IsInRoleAsync(user, "admin")).ReturnsAsync(true);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var result = await controller.Get();
+
+            Assert.True(result);
+        }
+
+        [Fact]
+        public async Task Get_NonAdminUser_ReturnsFalse()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "regularuser" };
+            dbContext.Users.Add(user);
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+            _mockUserManager.Setup(m => m.IsInRoleAsync(user, "admin")).ReturnsAsync(false);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var result = await controller.Get();
+
+            Assert.False(result);
+        }
+
+        [Fact]
+        public async Task GetUserIsTournamentAdmin_EventAdmin_ReturnsTrue()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "admin1";
+            var user = new ApplicationUser { Id = userId, UserName = "eventadmin" };
+            dbContext.Users.Add(user);
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+            _mockUserManager.Setup(m => m.IsInRoleAsync(user, "event-admin")).ReturnsAsync(true);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var result = await controller.GetUserIsTournamentAdmin();
+
+            Assert.True(result);
+        }
+
+        [Fact]
+        public async Task GetUserIsTournamentAdmin_NonEventAdmin_ReturnsFalse()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "regularuser" };
+            dbContext.Users.Add(user);
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+            _mockUserManager.Setup(m => m.IsInRoleAsync(user, "event-admin")).ReturnsAsync(false);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var result = await controller.GetUserIsTournamentAdmin();
+
+            Assert.False(result);
+        }
+
+        [Fact]
+        public async Task CreateRole_Success_ReturnsOk()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+
+            _mockRoleManager.Setup(r => r.CreateAsync(It.IsAny<IdentityRole>())).ReturnsAsync(IdentityResult.Success);
+
+            var controller = CreateController(dbContext);
+
+            var result = await controller.CreateRole("newrole");
+
+            Assert.IsType<OkResult>(result);
+            _mockRoleManager.Verify(r => r.CreateAsync(It.Is<IdentityRole>(role => role.Name == "newrole")), Times.Once);
+        }
+
+        [Fact]
+        public async Task CreateRole_Failure_ReturnsBadRequest()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+
+            _mockRoleManager.Setup(r => r.CreateAsync(It.IsAny<IdentityRole>()))
+                .ReturnsAsync(IdentityResult.Failed(new IdentityError { Description = "Error" }));
+
+            var controller = CreateController(dbContext);
+
+            var result = await controller.CreateRole("badrole");
+
+            Assert.IsType<BadRequestResult>(result);
+        }
+
+        [Fact]
+        public async Task AddUserToRole_Success_ReturnsOk()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "testuser" };
+            dbContext.Users.Add(user);
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+            _mockUserManager.Setup(m => m.AddToRoleAsync(user, "admin")).ReturnsAsync(IdentityResult.Success);
+
+            var controller = CreateController(dbContext);
+
+            var result = await controller.AddUserToRole(userId, "admin");
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.Equal("Ok", okResult.Value);
+        }
+
+        [Fact]
+        public async Task AddUserToRole_Failure_ReturnsBadRequest()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "testuser" };
+            dbContext.Users.Add(user);
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+            _mockUserManager.Setup(m => m.AddToRoleAsync(user, "admin"))
+                .ReturnsAsync(IdentityResult.Failed(new IdentityError { Description = "Error" }));
+
+            var controller = CreateController(dbContext);
+
+            var result = await controller.AddUserToRole(userId, "admin");
+
+            Assert.IsType<BadRequestResult>(result);
+        }
     }
 }
