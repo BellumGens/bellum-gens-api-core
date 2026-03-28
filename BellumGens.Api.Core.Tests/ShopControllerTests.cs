@@ -136,5 +136,75 @@ namespace BellumGens.Api.Core.Tests
 
             Assert.IsType<NotFoundResult>(result);
         }
+
+        [Fact]
+        public async Task GetOrders_AsAdmin_ReturnsOrders()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "admin1";
+            var user = new ApplicationUser { Id = userId, UserName = "admin" };
+            dbContext.Users.Add(user);
+            var orderId = Guid.NewGuid();
+            dbContext.JerseyOrders.Add(new JerseyOrder
+            {
+                Id = orderId, Email = "test@example.com", FirstName = "John",
+                LastName = "Doe", PhoneNumber = "123", City = "Sofia",
+                StreetAddress = "123 Main St"
+            });
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+            _mockUserManager.Setup(m => m.IsInRoleAsync(user, "admin")).ReturnsAsync(true);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var result = await controller.GetOrders();
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var orders = Assert.IsAssignableFrom<List<JerseyOrder>>(okResult.Value);
+            Assert.Single(orders);
+        }
+
+        [Fact]
+        public async Task DeleteOrder_AsAdmin_DeletesOrder()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "admin1";
+            var user = new ApplicationUser { Id = userId, UserName = "admin" };
+            dbContext.Users.Add(user);
+            var orderId = Guid.NewGuid();
+            dbContext.JerseyOrders.Add(new JerseyOrder
+            {
+                Id = orderId, Email = "test@example.com", FirstName = "John",
+                LastName = "Doe", PhoneNumber = "123", City = "Sofia",
+                StreetAddress = "123 Main St"
+            });
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+            _mockUserManager.Setup(m => m.IsInRoleAsync(user, "admin")).ReturnsAsync(true);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var result = await controller.DeleteOrder(orderId);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.Equal(orderId, (Guid)okResult.Value);
+            Assert.Empty(dbContext.JerseyOrders);
+        }
+
+        [Fact]
+        public async Task CheckPromo_NonExistent_ReturnsOkNull()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var controller = CreateController(dbContext);
+
+            var result = await controller.CheckPromo("NOTEXIST");
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.Null(okResult.Value);
+        }
     }
 }

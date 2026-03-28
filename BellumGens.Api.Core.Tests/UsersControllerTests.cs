@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using BellumGens.Api.Controllers;
 using BellumGens.Api.Core.Models;
@@ -122,6 +123,97 @@ namespace BellumGens.Api.Core.Tests
             var teams = Assert.IsAssignableFrom<List<CSGOTeamSummaryViewModel>>(okResult.Value);
             Assert.Single(teams);
             Assert.Equal("UserTeam", teams[0].TeamName);
+        }
+
+        [Fact]
+        public async Task Get_ReturnsUserStats_ForRegisteredUser()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "reguser1";
+            var user = new ApplicationUser { Id = userId, UserName = "registereduser", SteamID = null, BattleNetId = null };
+            dbContext.Users.Add(user);
+            dbContext.SaveChanges();
+
+            _mockSteamService.Setup(s => s.GetSteamUserDetails(It.IsAny<string>()))
+                .ReturnsAsync(new UserStatsViewModel());
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+            var result = await controller.Get(userId);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var userStats = Assert.IsType<UserStatsViewModel>(okResult.Value);
+            Assert.NotNull(userStats);
+        }
+
+        [Fact]
+        public async Task SetAvailability_AddsNewAvailability()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "testuser" };
+            dbContext.Users.Add(user);
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var availability = new UserAvailability
+            {
+                UserId = userId, Day = DayOfWeek.Friday, Available = true
+            };
+            var result = await controller.SetAvailability(availability);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var saved = Assert.IsType<UserAvailability>(okResult.Value);
+            Assert.Equal(DayOfWeek.Friday, saved.Day);
+            Assert.True(saved.Available);
+            Assert.Single(dbContext.UserAvailabilities.Where(a => a.UserId == userId));
+        }
+
+        [Fact]
+        public async Task SetMapPool_AddsNewMapPool()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "user1";
+            var user = new ApplicationUser { Id = userId, UserName = "testuser" };
+            dbContext.Users.Add(user);
+            dbContext.SaveChanges();
+
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+            var mapPool = new UserMapPool { UserId = userId, Map = CSGOMap.Nuke, IsPlayed = true };
+            var result = await controller.SetMapPool(mapPool);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var saved = Assert.IsType<UserMapPool>(okResult.Value);
+            Assert.Equal(CSGOMap.Nuke, saved.Map);
+            Assert.True(saved.IsPlayed);
+            Assert.Single(dbContext.UserMapPool.Where(m => m.UserId == userId));
+        }
+
+        [Fact]
+        public async Task GetTournaments_ReturnsEmptyList_WhenNoTournaments()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var userId = "user1";
+            dbContext.Users.Add(new ApplicationUser { Id = userId, UserName = "testuser" });
+            dbContext.SaveChanges();
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+            var result = await controller.GetTournaments(userId);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var tournaments = Assert.IsAssignableFrom<List<PlayerTournamentViewModel>>(okResult.Value);
+            Assert.Empty(tournaments);
         }
     }
 }
