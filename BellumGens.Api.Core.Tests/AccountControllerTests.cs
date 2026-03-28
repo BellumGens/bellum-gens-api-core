@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using BellumGens.Api.Controllers;
 using BellumGens.Api.Core.Models;
@@ -65,6 +66,94 @@ namespace BellumGens.Api.Core.Tests
 
             var okResult = Assert.IsType<OkObjectResult>(result);
             Assert.Equal(false, okResult.Value);
+        }
+
+        [Fact]
+        public async Task Subscribe_ValidEmail_ReturnsOk()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var controller = CreateController(dbContext);
+
+            var subscriber = new Subscriber { Email = "test@example.com" };
+            var result = await controller.Subscribe(subscriber);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.NotNull(okResult.Value);
+            var message = okResult.Value.GetType().GetProperty("message")?.GetValue(okResult.Value)?.ToString();
+            Assert.Equal("Subscribed successfully!", message);
+        }
+
+        [Fact]
+        public async Task Subscribe_InvalidModel_ReturnsBadRequest()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var controller = CreateController(dbContext);
+            controller.ModelState.AddModelError("Email", "Email is required");
+
+            var subscriber = new Subscriber { Email = "" };
+            var result = await controller.Subscribe(subscriber);
+
+            Assert.IsType<BadRequestObjectResult>(result);
+        }
+
+        [Fact]
+        public async Task EarlyBirdCount_ReturnsCount()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            dbContext.EarlyBirds.Add(new EarlyBird { UserId = "user1", Email = "a@test.com" });
+            dbContext.EarlyBirds.Add(new EarlyBird { UserId = "user2", Email = "b@test.com" });
+            dbContext.EarlyBirds.Add(new EarlyBird { UserId = "user3", Email = "c@test.com" });
+            dbContext.SaveChanges();
+
+            var controller = CreateController(dbContext);
+
+            var result = await controller.EarlyBirdCount();
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.NotNull(okResult.Value);
+            var count = (int)okResult.Value.GetType().GetProperty("count")!.GetValue(okResult.Value)!;
+            Assert.Equal(3, count);
+        }
+
+        [Fact]
+        public async Task Unsubscribe_ValidSubscriber_Redirects()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var subKey = Guid.NewGuid();
+            dbContext.Subscribers.Add(new Subscriber { Email = "unsub@test.com", Subscribed = true, SubKey = subKey });
+            dbContext.SaveChanges();
+
+            var controller = CreateController(dbContext);
+
+            var result = await controller.Unsubscribe("unsub@test.com", subKey);
+
+            Assert.IsType<RedirectResult>(result);
+        }
+
+        [Fact]
+        public async Task Unsubscribe_InvalidSubKey_ReturnsBadRequest()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            dbContext.Subscribers.Add(new Subscriber { Email = "unsub@test.com", Subscribed = true, SubKey = Guid.NewGuid() });
+            dbContext.SaveChanges();
+
+            var controller = CreateController(dbContext);
+
+            var result = await controller.Unsubscribe("unsub@test.com", Guid.NewGuid());
+
+            Assert.IsType<BadRequestObjectResult>(result);
+        }
+
+        [Fact]
+        public async Task Get_Unauthenticated_ReturnsUnauthorized()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+            var result = await controller.Get();
+
+            Assert.IsType<UnauthorizedObjectResult>(result);
         }
     }
 }
