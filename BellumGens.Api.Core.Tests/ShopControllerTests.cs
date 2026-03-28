@@ -191,7 +191,7 @@ namespace BellumGens.Api.Core.Tests
             var result = await controller.DeleteOrder(orderId);
 
             var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.Equal(orderId, (Guid)okResult.Value);
+            Assert.Equal(orderId, (Guid)okResult.Value!);
             Assert.Empty(dbContext.JerseyOrders);
         }
 
