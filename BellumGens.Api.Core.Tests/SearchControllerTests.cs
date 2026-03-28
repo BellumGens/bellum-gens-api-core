@@ -113,5 +113,23 @@ namespace BellumGens.Api.Core.Tests
             var players = Assert.IsAssignableFrom<System.Collections.Generic.List<UserStatsViewModel>>(okResult.Value);
             Assert.Equal(2, players.Count);
         }
+
+        [Fact]
+        public async Task SearchTeams_WithOverlapNotAuthenticated_ReturnsBadRequest()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            dbContext.CSGOTeams.Add(new CSGOTeam { TeamName = "Team1", Visible = true, CustomUrl = "t1", SteamGroupId = "sg1" });
+            dbContext.SaveChanges();
+
+            var controller = new SearchController(
+                _mockSteamService.Object, _mockUserManager.Object, _mockRoleManager.Object,
+                _mockSignInManager.Object, _emailService, dbContext, _mockLogger.Object);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+            var result = await controller.SearchTeams(null, 1.0);
+
+            var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+            Assert.Contains("sign in", badRequest.Value?.ToString(), StringComparison.OrdinalIgnoreCase);
+        }
     }
 }
