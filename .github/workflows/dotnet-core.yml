@@ -12,9 +12,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Setup .NET Core
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v6
       with:
         dotnet-version: 10.0.x
     - name: Restore dependencies
@@ -22,16 +22,16 @@ jobs:
     - name: Build
       run: dotnet build --configuration Release --no-restore
     - name: Test with coverage
-      run: dotnet test --configuration Release --no-build --verbosity normal -- --coverage --coverage-output-format cobertura --coverage-output ./coverage
+      run: dotnet test --configuration Release --no-build --verbosity normal -- --coverage --coverage-output-format cobertura --coverage-output ./coverage/coverage.cobertura.xml
     - name: Install ReportGenerator
       run: dotnet tool install --global dotnet-reportgenerator-globaltool
     - name: Generate coverage report
-      run: reportgenerator -reports:coverage/**/coverage.cobertura.xml -targetdir:coverage/report -reporttypes:"HtmlInline_AzurePipelines;MarkdownSummaryGithub;Cobertura" -assemblyfilters:"-BellumGens.Api.Core.Tests" -classfilters:"-*.Migrations.*"
+      run: reportgenerator -reports:TestResults/**/coverage.cobertura.xml -targetdir:coverage/report -reporttypes:"HtmlInline_AzurePipelines;MarkdownSummaryGithub;Cobertura" -assemblyfilters:"-BellumGens.Api.Core.Tests" -classfilters:"-*.Migrations.*"
     - name: Add coverage to job summary
       run: cat coverage/report/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
     - name: Upload coverage report
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: coverage-report
         path: coverage/report
