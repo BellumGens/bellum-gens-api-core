@@ -68,4 +68,5 @@ jobs:
           app-name: 'bellum-gens-api'
           slot-name: 'Production'
           package: .
+          clean: true
           
