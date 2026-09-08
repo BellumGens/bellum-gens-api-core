@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Linq;
+using System.Text.Json;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace BellumGens.Api.Core.Models
 {
@@ -97,7 +100,15 @@ namespace BellumGens.Api.Core.Models
 
 		public DbSet<Company> Companies { get; set; }
 
-		public DbSet<JerseyOrder> JerseyOrders { get; set; }
+		public DbSet<Product> Products { get; set; }
+
+		public DbSet<ProductVariant> ProductVariants { get; set; }
+
+		public DbSet<ShopOrder> ShopOrders { get; set; }
+
+		public DbSet<OrderItem> OrderItems { get; set; }
+
+		public DbSet<Payment> Payments { get; set; }
 
 		public DbSet<Promo> PromoCodes { get; set; }
 
@@ -168,6 +179,8 @@ namespace BellumGens.Api.Core.Models
 						.HasIndex(c => c.Code)
 						.IsUnique();
 
+			ConfigureShop(modelBuilder);
+
 			modelBuilder.Entity<BellumGensPushSubscription>()
 						.HasKey(c => new { c.P256dh, c.Auth });
 
@@ -222,5 +235,121 @@ namespace BellumGens.Api.Core.Models
    //                     .HasMany(g => g.Participants)
    //                     .WithOne(p => p.TournamentGroup as TournamentCSGOGroup);
         }
+
+		private static void ConfigureShop(ModelBuilder modelBuilder)
+		{
+			modelBuilder.Entity<Promo>()
+						.Property(p => p.MinimumOrderTotal)
+						.HasPrecision(10, 2);
+
+			modelBuilder.Entity<Product>()
+						.HasIndex(p => p.Slug)
+						.IsUnique();
+
+			modelBuilder.Entity<Product>()
+						.Property(p => p.Price)
+						.HasPrecision(10, 2);
+
+			modelBuilder.Entity<Product>()
+						.Property(p => p.DiscountPercentage)
+						.HasPrecision(5, 2);
+
+			// Stored as a JSON array so it works on SQL Server and the in-memory provider alike.
+			modelBuilder.Entity<Product>()
+						.Property(p => p.GalleryUrls)
+						.HasConversion(
+							v => JsonSerializer.Serialize(v ?? new List<string>(), (JsonSerializerOptions)null),
+							v => string.IsNullOrEmpty(v) ? new List<string>() : JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions)null) ?? new List<string>(),
+							new ValueComparer<List<string>>(
+								(a, b) => (a ?? new List<string>()).SequenceEqual(b ?? new List<string>()),
+								v => v == null ? 0 : v.Aggregate(0, (hash, s) => HashCode.Combine(hash, s == null ? 0 : s.GetHashCode())),
+								v => v == null ? new List<string>() : v.ToList()));
+
+			modelBuilder.Entity<ProductVariant>()
+						.Property(p => p.PriceOverride)
+						.HasPrecision(10, 2);
+
+			modelBuilder.Entity<ProductVariant>()
+						.HasOne(v => v.Product)
+						.WithMany(p => p.Variants)
+						.HasForeignKey(v => v.ProductId)
+						.OnDelete(DeleteBehavior.Cascade);
+
+			modelBuilder.Entity<ShopOrder>()
+						.Property(o => o.OrderSequence)
+						.ValueGeneratedOnAdd()
+						.UseIdentityColumn();
+
+			modelBuilder.Entity<ShopOrder>()
+						.HasIndex(o => o.OrderSequence)
+						.IsUnique();
+
+			modelBuilder.Entity<ShopOrder>()
+						.Property(o => o.Subtotal)
+						.HasPrecision(10, 2);
+
+			modelBuilder.Entity<ShopOrder>()
+						.Property(o => o.DiscountTotal)
+						.HasPrecision(10, 2);
+
+			modelBuilder.Entity<ShopOrder>()
+						.Property(o => o.ShippingCost)
+						.HasPrecision(10, 2);
+
+			modelBuilder.Entity<ShopOrder>()
+						.Property(o => o.Total)
+						.HasPrecision(10, 2);
+
+			modelBuilder.Entity<ShopOrder>()
+						.HasOne(o => o.Promo)
+						.WithMany()
+						.HasForeignKey(o => o.PromoCode)
+						.OnDelete(DeleteBehavior.NoAction);
+
+			modelBuilder.Entity<ShopOrder>()
+						.HasOne<ApplicationUser>()
+						.WithMany()
+						.HasForeignKey(o => o.UserId)
+						.OnDelete(DeleteBehavior.SetNull);
+
+			modelBuilder.Entity<OrderItem>()
+						.Property(i => i.UnitPrice)
+						.HasPrecision(10, 2);
+
+			modelBuilder.Entity<OrderItem>()
+						.Property(i => i.LineTotal)
+						.HasPrecision(10, 2);
+
+			modelBuilder.Entity<OrderItem>()
+						.HasOne(i => i.Order)
+						.WithMany(o => o.Items)
+						.HasForeignKey(i => i.OrderId)
+						.OnDelete(DeleteBehavior.Cascade);
+
+			modelBuilder.Entity<OrderItem>()
+						.HasOne(i => i.Product)
+						.WithMany()
+						.HasForeignKey(i => i.ProductId)
+						.OnDelete(DeleteBehavior.NoAction);
+
+			modelBuilder.Entity<OrderItem>()
+						.HasOne(i => i.Variant)
+						.WithMany()
+						.HasForeignKey(i => i.VariantId)
+						.OnDelete(DeleteBehavior.NoAction);
+
+			modelBuilder.Entity<Payment>()
+						.Property(p => p.Amount)
+						.HasPrecision(10, 2);
+
+			modelBuilder.Entity<Payment>()
+						.HasIndex(p => p.ProviderOrderId);
+
+			modelBuilder.Entity<Payment>()
+						.HasOne(p => p.Order)
+						.WithMany(o => o.Payments)
+						.HasForeignKey(p => p.OrderId)
+						.OnDelete(DeleteBehavior.Cascade);
+		}
 	}
 }

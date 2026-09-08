@@ -20,22 +20,27 @@ namespace BellumGens.Api.Core.Providers
 
         public object CloudStorageAccount { get; private set; }
 
-        public async Task<string> SaveImage(string blob, string name)
+        public Task<string> SaveImage(string blob, string name)
+        {
+            return SaveImage(blob, name, null);
+        }
+
+        public async Task<string> SaveImage(string blob, string name, string container)
         {
 			string resultPath = "";
 			if (!string.IsNullOrEmpty(blob) && !Uri.IsWellFormedUriString(blob, UriKind.Absolute))
 			{
-                resultPath = await UploadToStorage(blob, name);
+                resultPath = await UploadToStorage(blob, name, container ?? _config["BlobService:Container"]);
             }
 			return resultPath;
 		}
 
-		private async Task<string> UploadToStorage(string blob, string name)
+		private async Task<string> UploadToStorage(string blob, string name, string container)
         {
             string connectionString = _config["BlobService:ConnectionString"];
             BlobServiceClient blobServiceClient = new(connectionString);
 
-            BlobContainerClient containerClient = blobServiceClient.GetBlobContainerClient(_config["BlobService:Container"]);
+            BlobContainerClient containerClient = blobServiceClient.GetBlobContainerClient(container);
             BlobClient blobClient = containerClient.GetBlobClient(name + ".png");
 
             string base64 = blob[(blob.IndexOf(',') + 1)..];

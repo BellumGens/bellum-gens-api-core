@@ -13,7 +13,7 @@ namespace BellumGens.Api.Core.Providers
             _appInfo = appInfo;
         }
 
-        public Task SendEmailAsync(string destination, string subject, string body)
+        public virtual Task SendEmailAsync(string destination, string subject, string body)
         {
             MailMessage msg = new();
             msg.To.Add(new MailAddress(destination));

@@ -121,4 +121,59 @@
         Terran,
         Zerg
     }
+
+    // Shop
+
+    public enum ProductType
+    {
+        Jersey,
+        Umbrella,
+        Pen,
+        Pin,
+        Bracelet,
+        Other
+    }
+
+    public enum Brand
+    {
+        BellumGens,
+        EBLeague,
+        BGEStaraZagora
+    }
+
+    public enum OrderStatus
+    {
+        AwaitingPayment,
+        Paid,
+        Shipped,
+        Delivered,
+        Cancelled,
+        Refunded
+    }
+
+    public enum PaymentStatus
+    {
+        Pending,
+        Authorised,
+        Completed,
+        Failed,
+        Cancelled
+    }
+
+    public enum PaymentProvider
+    {
+        Revolut
+    }
+
+    public enum PaymentMethod
+    {
+        Revolut,
+        CashOnDelivery
+    }
+
+    public enum DeliveryMethod
+    {
+        Courier,
+        EventPickup
+    }
 }

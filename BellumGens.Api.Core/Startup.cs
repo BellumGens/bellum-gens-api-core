@@ -9,7 +9,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.ResponseCompression;
 using BellumGens.Api.Core.Providers;
 using System;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace BellumGens.Api.Core
 {
@@ -114,6 +116,27 @@ namespace BellumGens.Api.Core
             services.AddScoped<EmailServiceProvider>();
             services.AddScoped<IStorageService, StorageService>();
 
+            // Shop
+            services.Configure<ShopOptions>(Configuration.GetSection(ShopOptions.Section));
+            services.Configure<RevolutOptions>(Configuration.GetSection(RevolutOptions.Section));
+            services.AddHttpClient<IPaymentProvider, RevolutPaymentProvider>();
+            services.AddScoped<IOrderService, OrderService>();
+            services.AddHostedService<PaymentExpirySweeper>();
+
+            services.AddRateLimiter(options =>
+            {
+                options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+                options.AddPolicy(ShopOptions.OrdersRateLimitPolicy, context =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+                        _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 10,
+                            Window = TimeSpan.FromMinutes(1),
+                            QueueLimit = 0
+                        }));
+            });
+
             services.AddResponseCompression(options =>
             {
                 options.Providers.Add<BrotliCompressionProvider>();
@@ -176,6 +199,7 @@ namespace BellumGens.Api.Core
             }
 
             app.UseRouting();
+            app.UseRateLimiter();
 
             app.UseAuthentication();
             app.UseAuthorization();
