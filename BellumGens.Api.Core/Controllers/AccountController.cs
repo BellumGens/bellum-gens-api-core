@@ -476,7 +476,7 @@ namespace BellumGens.Api.Controllers
                     {
                         provider = description.Name,
                         response_type = "token",
-                        client_id = Startup.PublicClientId,
+                        client_id = Program.PublicClientId,
                         redirect_uri = new Uri(new Uri(Request.GetDisplayUrl()), returnUrl).AbsoluteUri,
                         state
                     }, Request.Scheme),

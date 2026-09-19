@@ -23,14 +23,18 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      # The App Service is Linux, so publishing for linux-x64 ships native assets for that RID
+      # only instead of all ~22 supported platforms. Configuration must be passed to restore as
+      # well, otherwise it evaluates as Debug and pulls the dev-only SQLite provider into the
+      # assets file, which --no-restore then carries into the published output.
       - name: Restore API project
-        run: dotnet restore BellumGens.Api.Core/BellumGens.Api.Core.csproj
+        run: dotnet restore BellumGens.Api.Core/BellumGens.Api.Core.csproj -r linux-x64 -p:Configuration=Release
 
       - name: Build API project
-        run: dotnet build BellumGens.Api.Core/BellumGens.Api.Core.csproj --configuration Release --no-restore
+        run: dotnet build BellumGens.Api.Core/BellumGens.Api.Core.csproj --configuration Release --no-restore -r linux-x64 --self-contained false
 
       - name: Publish API project
-        run: dotnet publish BellumGens.Api.Core/BellumGens.Api.Core.csproj --configuration Release --no-build -o ${{env.DOTNET_ROOT}}/myapp
+        run: dotnet publish BellumGens.Api.Core/BellumGens.Api.Core.csproj --configuration Release --no-build -o ${{env.DOTNET_ROOT}}/myapp -r linux-x64 --self-contained false
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v7

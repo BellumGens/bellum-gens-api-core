@@ -7,6 +7,21 @@
     <EnableNETAnalyzers>True</EnableNETAnalyzers>
   </PropertyGroup>
 
+  <!-- SQLite is a development-only provider. It ships native binaries for every supported
+       platform (~33 MB), so it is excluded from Release publishes. Override with
+       -p:IncludeSqliteProvider=true to build Release against SQLite locally. -->
+  <PropertyGroup>
+    <IncludeSqliteProvider Condition="'$(IncludeSqliteProvider)' == '' And '$(Configuration)' == 'Debug'">true</IncludeSqliteProvider>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(IncludeSqliteProvider)' == 'true'">
+    <DefineConstants>$(DefineConstants);SQLITE_PROVIDER</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IncludeSqliteProvider)' == 'true'">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.11" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="AspNet.Security.OAuth.BattleNet" Version="10.0.0" />
     <PackageReference Include="AspNet.Security.OAuth.Twitch" Version="10.0.0" />
