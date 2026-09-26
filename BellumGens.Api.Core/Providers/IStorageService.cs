@@ -2,8 +2,8 @@
 
 namespace BellumGens.Api.Core.Providers
 {
-    public interface IStorageService
-    {
-        public Task<string> SaveImage(string blob, string name);
-    }
+	public interface IStorageService
+	{
+		public Task<string> SaveImage(string blob, string name);
+	}
 }

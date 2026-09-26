@@ -8,6 +8,10 @@
     <OutputType>Exe</OutputType>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(IncludeSqliteProvider)' == 'true' Or ('$(IncludeSqliteProvider)' == '' And '$(Configuration)' == 'Debug')">
+    <DefineConstants>$(DefineConstants);SQLITE_PROVIDER</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.11" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.11" />

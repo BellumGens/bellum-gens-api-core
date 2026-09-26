@@ -19,13 +19,13 @@ namespace BellumGens.Api.Controllers
 		private readonly ISteamService _steamService;
 		private readonly INotificationService _notificationService;
 		public TeamsController(ISteamService steamService,
-							   INotificationService notificationService,
-							   UserManager<ApplicationUser> userManager,
-							   RoleManager<IdentityRole> roleManager,
-							   SignInManager<ApplicationUser> signInManager,
-                               EmailServiceProvider sender,
-							   BellumGensDbContext context,
-							   ILogger<TeamsController> logger) : base(userManager, roleManager, signInManager, sender, context, logger)
+								INotificationService notificationService,
+								UserManager<ApplicationUser> userManager,
+								RoleManager<IdentityRole> roleManager,
+								SignInManager<ApplicationUser> signInManager,
+								IEmailService sender,
+								BellumGensDbContext context,
+								ILogger<TeamsController> logger) : base(userManager, roleManager, signInManager, sender, context, logger)
 		{
 			_steamService = steamService;
 			_notificationService = notificationService;
@@ -67,7 +67,7 @@ namespace BellumGens.Api.Controllers
 		public async Task<IActionResult> GetIsTeamAdmin(string teamid)
 		{
 			if (Guid.TryParse(teamid, out Guid id))
-            {
+			{
 				return Ok(await UserIsTeamAdmin(id));
 			}
 			ApplicationUser user = await GetAuthUser();
@@ -109,8 +109,8 @@ namespace BellumGens.Api.Controllers
 		[HttpPost]
 		public async Task<IActionResult> TeamFromSteamGroup(SteamUserGroup group)
 		{
-            ApplicationUser user = await GetAuthUser();
-            if (!await _steamService.VerifyUserIsGroupAdmin(user.SteamID, group.groupID64))
+			ApplicationUser user = await GetAuthUser();
+			if (!await _steamService.VerifyUserIsGroupAdmin(user.SteamID, group.groupID64))
 			{
 				return BadRequest("User is not a steam group owner for " + group.groupName);
 			}
@@ -138,7 +138,7 @@ namespace BellumGens.Api.Controllers
 			}
 			catch (DbUpdateException e)
 			{
-				System.Diagnostics.Trace.TraceWarning($"Attempting to register steam group twice: ${group.groupID64} msg: ${e.Message}");
+				System.Diagnostics.Trace.TraceWarning($"Attempting to register steam group twice: {group.groupID64} msg: {e.Message}");
 				return BadRequest(group.groupName + " Steam group has already been registered.");
 			}
 			return Ok(team);
@@ -163,7 +163,7 @@ namespace BellumGens.Api.Controllers
 				}
 				catch (DbUpdateException e)
 				{
-					System.Diagnostics.Trace.TraceError($"Team update error: ${e.Message}");
+					System.Diagnostics.Trace.TraceError($"Team update error: {e.Message}");
 					return BadRequest("Something went wrong!");
 				}
 				return Ok(team);
@@ -175,7 +175,7 @@ namespace BellumGens.Api.Controllers
 		[HttpPost]
 		public async Task<IActionResult> NewTeam(CSGOTeam team)
 		{
-            ApplicationUser user = await GetAuthUser();
+			ApplicationUser user = await GetAuthUser();
 
 			_dbContext.CSGOTeams.Add(team);
 
@@ -194,7 +194,7 @@ namespace BellumGens.Api.Controllers
 			}
 			catch (DbUpdateException e)
 			{
-				System.Diagnostics.Trace.TraceError($"Team create error: ${e.Message}");
+				System.Diagnostics.Trace.TraceError($"Team create error: {e.Message}");
 				return BadRequest("Something went wrong...");
 			}
 			return Ok(team);
@@ -211,8 +211,8 @@ namespace BellumGens.Api.Controllers
 			TeamMember entity = await _dbContext.TeamMembers.FindAsync(member.TeamId, member.UserId);
 			if (entity == null)
 			{
-                return NotFound("Team Member not found!");
-            }
+				return NotFound("Team Member not found!");
+			}
 
 			_dbContext.Entry(entity).CurrentValues.SetValues(member);
 			try
@@ -221,7 +221,7 @@ namespace BellumGens.Api.Controllers
 			}
 			catch (DbUpdateException e)
 			{
-				System.Diagnostics.Trace.TraceError($"Team member update error: ${e.Message}");
+				System.Diagnostics.Trace.TraceError($"Team member update error: {e.Message}");
 				return BadRequest("Something went wrong...");
 			}
 			return Ok();
@@ -238,8 +238,8 @@ namespace BellumGens.Api.Controllers
 			TeamMember entity = await _dbContext.TeamMembers.FindAsync(teamId, userId);
 			if (entity == null)
 			{
-                return NotFound("Team Member not found!");
-            }
+				return NotFound("Team Member not found!");
+			}
 
 			_dbContext.TeamMembers.Remove(entity);
 			try
@@ -248,7 +248,7 @@ namespace BellumGens.Api.Controllers
 			}
 			catch (DbUpdateException e)
 			{
-				System.Diagnostics.Trace.TraceError($"Team member delete error: ${e.Message}");
+				System.Diagnostics.Trace.TraceError($"Team member delete error: {e.Message}");
 				return BadRequest("Something went wrong...");
 			}
 			return Ok();
@@ -258,7 +258,7 @@ namespace BellumGens.Api.Controllers
 		[HttpDelete]
 		public async Task<IActionResult> AbandonTeam(Guid teamId)
 		{
-            ApplicationUser user = await GetAuthUser();
+			ApplicationUser user = await GetAuthUser();
 			CSGOTeam team = await _dbContext.CSGOTeams.FindAsync(teamId);
 			await _dbContext.Entry(team).Collection(t => t.Members).LoadAsync();
 			object response = new { removed = false };
@@ -268,7 +268,7 @@ namespace BellumGens.Api.Controllers
 				response = new { removed = true };
 			}
 			else
-            {
+			{
 				TeamMember entity = team.Members.FirstOrDefault(m => m.UserId == user.Id);
 				if (entity != null)
 				{
@@ -286,7 +286,7 @@ namespace BellumGens.Api.Controllers
 			}
 			catch (DbUpdateException e)
 			{
-				System.Diagnostics.Trace.TraceError($"Team abandon error: ${e.Message}");
+				System.Diagnostics.Trace.TraceError($"Team abandon error: {e.Message}");
 				return BadRequest("Could not remove team because there is an active tournament registration associated with it!");
 			}
 			return Ok(response);
@@ -302,7 +302,7 @@ namespace BellumGens.Api.Controllers
 			}
 
 			ApplicationUser invitingUserEntity = await GetAuthUser();
-			TeamInvite invite = await _dbContext.TeamInvites.FindAsync(invitingUserEntity.Id, model.UserId, model.TeamId);
+			TeamInvite invite = await _dbContext.TeamInvites.FirstOrDefaultAsync(i => i.InvitingUserId == invitingUserEntity.Id && i.InvitedUserId == model.UserId && i.TeamId == model.TeamId);
 			
 			if (invite != null)
 			{
@@ -327,9 +327,10 @@ namespace BellumGens.Api.Controllers
 			}
 			catch (DbUpdateException e)
 			{
-				System.Diagnostics.Trace.TraceError($"Team invite error: ${e.Message}");
+				System.Diagnostics.Trace.TraceError($"Team invite error: {e.Message}");
 				return BadRequest("Something went wrong...");
 			}
+			await _dbContext.Entry(invite).Reference(i => i.Team).LoadAsync();
 			List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(sub => sub.UserId == model.UserId).ToListAsync();
 			await _notificationService.SendNotificationAsync(subs, invite);
 			return Ok(model.UserId);
@@ -341,7 +342,14 @@ namespace BellumGens.Api.Controllers
 		{
 			if (ModelState.IsValid)
 			{
-				TeamApplication entity = await _dbContext.TeamApplications.FindAsync(application.ApplicantId, application.TeamId);
+				ApplicationUser user = await GetAuthUser();
+				application.ApplicantId = user.Id;
+				if (await _dbContext.TeamMembers.AnyAsync(m => m.TeamId == application.TeamId && m.UserId == user.Id))
+				{
+					return BadRequest("You are already a member of this team.");
+				}
+
+				TeamApplication entity = await _dbContext.TeamApplications.FirstOrDefaultAsync(a => a.ApplicantId == application.ApplicantId && a.TeamId == application.TeamId);
 				if (entity != null)
 				{
 					entity.Message = application.Message;
@@ -359,18 +367,22 @@ namespace BellumGens.Api.Controllers
 				}
 				catch (DbUpdateException e)
 				{
-					System.Diagnostics.Trace.TraceError($"Team application error: ${e.Message}");
+					System.Diagnostics.Trace.TraceError($"Team application error: {e.Message}");
 					return BadRequest("Something went wrong...");
 				}
 				TeamMember admin = await _dbContext.TeamMembers.Where(m => m.TeamId == application.TeamId && m.IsAdmin).FirstOrDefaultAsync();
 				try
 				{
+					TeamApplication saved = entity ?? application;
+					await _dbContext.Entry(saved).Reference(a => a.Team).LoadAsync();
+					await _dbContext.Entry(saved).Reference(a => a.User).LoadAsync();
+					await _dbContext.Entry(saved.User).Reference(u => u.CSGODetails).LoadAsync();
 					List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.UserId == admin.UserId).ToListAsync();
-					await _notificationService.SendNotificationAsync(subs, application);
+					await _notificationService.SendNotificationAsync(subs, saved);
 				}
 				catch (Exception e)
 				{
-					System.Diagnostics.Trace.TraceError($"Push sub error: ${e.Message}");
+					System.Diagnostics.Trace.TraceError($"Push sub error: {e.Message}");
 				}
 				return Ok(application);
 			}
@@ -400,13 +412,23 @@ namespace BellumGens.Api.Controllers
 				return BadRequest("You need to be team admin.");
 			}
 
-			TeamApplication entity = await _dbContext.TeamApplications.FindAsync(application.ApplicantId, application.TeamId);
+			TeamApplication entity = await _dbContext.TeamApplications.FirstOrDefaultAsync(a => a.ApplicantId == application.ApplicantId && a.TeamId == application.TeamId);
+			if (entity == null)
+			{
+				return NotFound();
+			}
+
+			if (await _dbContext.TeamMembers.AnyAsync(m => m.TeamId == entity.TeamId && m.UserId == entity.ApplicantId))
+			{
+				return BadRequest("User is already a member of this team.");
+			}
+
 			entity.State = NotificationState.Accepted;
 
 			_dbContext.TeamMembers.Add(new TeamMember()
 			{
-				UserId = application.ApplicantId,
-				TeamId = application.TeamId,
+				UserId = entity.ApplicantId,
+				TeamId = entity.TeamId,
 				IsActive = true,
 				IsAdmin = false,
 				IsEditor = false
@@ -417,18 +439,19 @@ namespace BellumGens.Api.Controllers
 			}
 			catch (DbUpdateException e)
 			{
-				System.Diagnostics.Trace.TraceError($"Team application approve error: ${e.Message}");
+				System.Diagnostics.Trace.TraceError($"Team application approve error: {e.Message}");
 				return BadRequest("Something went wrong...");
 			}
 
 			try
 			{
+				await _dbContext.Entry(entity).Reference(a => a.Team).LoadAsync();
 				List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.UserId == entity.ApplicantId).ToListAsync();
-				await _notificationService.SendNotificationAsync(subs, application, NotificationState.Accepted);
+				await _notificationService.SendNotificationAsync(subs, entity, NotificationState.Accepted);
 			}
 			catch (Exception e)
 			{
-				System.Diagnostics.Trace.TraceWarning($"Team application approve push notification fail: ${e.Message}");
+				System.Diagnostics.Trace.TraceWarning($"Team application approve push notification fail: {e.Message}");
 			}
 
 			return Ok(entity);
@@ -443,7 +466,12 @@ namespace BellumGens.Api.Controllers
 				return BadRequest("You need to be team admin.");
 			}
 
-			TeamApplication entity = await _dbContext.TeamApplications.FindAsync(application.ApplicantId, application.TeamId);
+			TeamApplication entity = await _dbContext.TeamApplications.FirstOrDefaultAsync(a => a.ApplicantId == application.ApplicantId && a.TeamId == application.TeamId);
+			if (entity == null)
+			{
+				return NotFound();
+			}
+
 			entity.State = NotificationState.Rejected;
 			try
 			{
@@ -451,7 +479,7 @@ namespace BellumGens.Api.Controllers
 			}
 			catch (DbUpdateException e)
 			{
-				System.Diagnostics.Trace.TraceError($"Team application reject error: ${e.Message}");
+				System.Diagnostics.Trace.TraceError($"Team application reject error: {e.Message}");
 				return BadRequest("Something went wrong... ");
 			}
 			return Ok("ok");
@@ -477,7 +505,7 @@ namespace BellumGens.Api.Controllers
 			}
 			catch (DbUpdateException e)
 			{
-				System.Diagnostics.Trace.TraceError($"Team map pool error: ${e.Message}");
+				System.Diagnostics.Trace.TraceError($"Team map pool error: {e.Message}");
 				return BadRequest("Something went wrong...");
 			}
 			return Ok("ok");
@@ -513,9 +541,9 @@ namespace BellumGens.Api.Controllers
 				}
 			}
 			else
-            {
+			{
 				_dbContext.TeamAvailabilities.Remove(day);
-            }
+			}
 
 			try
 			{
@@ -523,7 +551,7 @@ namespace BellumGens.Api.Controllers
 			}
 			catch (DbUpdateException e)
 			{
-				System.Diagnostics.Trace.TraceError($"Team availability error: ${e.Message}");
+				System.Diagnostics.Trace.TraceError($"Team availability error: {e.Message}");
 				return BadRequest("Something went wrong...");
 			}
 			return Ok(day);

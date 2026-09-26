@@ -1,18 +1,24 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
+#if SQLITE_PROVIDER
+using System.Linq;
+#endif
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+#if SQLITE_PROVIDER
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+#endif
 
 namespace BellumGens.Api.Core.Models
 {
-    // You can add profile data for the user by adding more properties to your ApplicationUser class, please visit https://go.microsoft.com/fwlink/?LinkID=317594 to learn more.
-    public class ApplicationUser : IdentityUser
-    {
-        public string ESEA { get; set; }
+	// You can add profile data for the user by adding more properties to your ApplicationUser class, please visit https://go.microsoft.com/fwlink/?LinkID=317594 to learn more.
+	public class ApplicationUser : IdentityUser
+	{
+		public string ESEA { get; set; }
 
-        public bool SearchVisible { get; set; } = true;
+		public bool SearchVisible { get; set; } = true;
 
 		public string BattleNetId { get; set; }
 
@@ -40,8 +46,8 @@ namespace BellumGens.Api.Core.Models
 
 		public virtual ICollection<TeamApplication> TeamApplications { get; set; } = new HashSet<TeamApplication>();
 
-        public virtual ICollection<TeamInvite> InvitesSent { get; set; } = new HashSet<TeamInvite>();
-    }
+		public virtual ICollection<TeamInvite> InvitesSent { get; set; } = new HashSet<TeamInvite>();
+	}
 
 	public class BellumGensDbContext : IdentityDbContext<ApplicationUser>
 	{
@@ -77,17 +83,17 @@ namespace BellumGens.Api.Core.Models
 
 		public DbSet<Subscriber> Subscribers { get; set; }
 
-        public DbSet<Tournament> Tournaments { get; set; }
+		public DbSet<Tournament> Tournaments { get; set; }
 
-        public DbSet<TournamentApplication> TournamentApplications { get; set; }
+		public DbSet<TournamentApplication> TournamentApplications { get; set; }
 
-        public DbSet<TournamentCSGOGroup> TournamentCSGOGroups { get; set; }
+		public DbSet<TournamentCSGOGroup> TournamentCSGOGroups { get; set; }
 
 		public DbSet<TournamentSC2Group> TournamentSC2Groups { get; set; }
 
 		public DbSet<TournamentGroupParticipant> TournamentGroupParticipants { get; set; }
 
-        public DbSet<TournamentCSGOMatch> TournamentCSGOMatches { get; set; }
+		public DbSet<TournamentCSGOMatch> TournamentCSGOMatches { get; set; }
 
 		public DbSet<CSGOMatchMap> CSGOMatchMaps { get; set; }
 
@@ -103,10 +109,10 @@ namespace BellumGens.Api.Core.Models
 
 		public DbSet<EarlyBird> EarlyBirds { get; set; }
 
-        public BellumGensDbContext(DbContextOptions<BellumGensDbContext> options)
-            : base(options)
-        {
-        }
+		public BellumGensDbContext(DbContextOptions<BellumGensDbContext> options)
+			: base(options)
+		{
+		}
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
@@ -132,11 +138,11 @@ namespace BellumGens.Api.Core.Models
 						.HasMany(e => e.Notifications)
 						.WithOne(e => e.InvitedUser);
 
-            modelBuilder.Entity<ApplicationUser>()
-                        .HasMany(c => c.InvitesSent)
-                        .WithOne(c => c.InvitingUser);
+			modelBuilder.Entity<ApplicationUser>()
+						.HasMany(c => c.InvitesSent)
+						.WithOne(c => c.InvitingUser);
 
-            modelBuilder.Entity<ApplicationUser>()
+			modelBuilder.Entity<ApplicationUser>()
 						.HasMany(e => e.TeamApplications)
 						.WithOne(e => e.User);
 
@@ -148,15 +154,15 @@ namespace BellumGens.Api.Core.Models
 						.HasMany(e => e.Strategies)
 						.WithOne(e => e.Team);
 
-            modelBuilder.Entity<CSGOTeam>()
-                        .HasIndex(c => c.CustomUrl)
-                        .IsUnique();
+			modelBuilder.Entity<CSGOTeam>()
+						.HasIndex(c => c.CustomUrl)
+						.IsUnique();
 
 			modelBuilder.Entity<CSGOTeam>()
 						.HasIndex(c => c.SteamGroupId)
 						.IsUnique();
 
-            modelBuilder.Entity<Company>()
+			modelBuilder.Entity<Company>()
 						.HasIndex(c => c.Name)
 						.IsUnique();
 
@@ -197,30 +203,47 @@ namespace BellumGens.Api.Core.Models
 			modelBuilder.Entity<TeamInvite>()
 						.HasOne(c => c.InvitedUser)
 						.WithMany(c => c.Notifications)
-                        .OnDelete(DeleteBehavior.NoAction);
+						.OnDelete(DeleteBehavior.NoAction);
 
 			modelBuilder.Entity<TournamentCSGOMatch>()
 						.HasOne(c => c.Team1)
 						.WithMany()
 						.OnDelete(DeleteBehavior.NoAction);
 
-            modelBuilder.Entity<TournamentCSGOMatch>()
-                        .HasOne(c => c.Team2)
-                        .WithMany()
-                        .OnDelete(DeleteBehavior.NoAction);
+			modelBuilder.Entity<TournamentCSGOMatch>()
+						.HasOne(c => c.Team2)
+						.WithMany()
+						.OnDelete(DeleteBehavior.NoAction);
+
+#if SQLITE_PROVIDER
+			if (Database.IsSqlite())
+			{
+				var converter = new ValueConverter<DateTimeOffset, long>(
+					value => value.UtcTicks,
+					value => new DateTimeOffset(value, TimeSpan.Zero));
+
+				foreach (var property in modelBuilder.Model.GetEntityTypes()
+					.SelectMany(entity => entity.GetProperties())
+					.Where(property => property.ClrType == typeof(DateTimeOffset)
+						|| property.ClrType == typeof(DateTimeOffset?)))
+				{
+					property.SetValueConverter(converter);
+				}
+			}
+#endif
 
 			//modelBuilder.Entity<TournamentApplication>()
 			//			.HasMany(e => e.GroupsPoints)
 			//			.WithOne(e => e.TournamentApplication);
 
 
-   //         modelBuilder.Entity<TournamentSC2Group>()
+	//         modelBuilder.Entity<TournamentSC2Group>()
 			//			.HasMany(g => g.Participants)
 			//			.WithOne(p => p.TournamentGroup as TournamentSC2Group);
 
-   //         modelBuilder.Entity<TournamentCSGOGroup>()
-   //                     .HasMany(g => g.Participants)
-   //                     .WithOne(p => p.TournamentGroup as TournamentCSGOGroup);
-        }
+	//         modelBuilder.Entity<TournamentCSGOGroup>()
+	//                     .HasMany(g => g.Participants)
+	//                     .WithOne(p => p.TournamentGroup as TournamentCSGOGroup);
+		}
 	}
 }

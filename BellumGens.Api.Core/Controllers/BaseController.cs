@@ -13,23 +13,23 @@ namespace BellumGens.Api.Controllers
 	[ApiController]
 	[Route("api/[controller]")]
 	public class BaseController : ControllerBase
-    {
-		protected readonly EmailServiceProvider _sender;
+	{
+		protected readonly IEmailService _sender;
 		protected readonly BellumGensDbContext _dbContext;
 		protected readonly UserManager<ApplicationUser> _userManager;
 		protected readonly RoleManager<IdentityRole> _roleManager;
 		protected readonly SignInManager<ApplicationUser> _signInManager;
 		protected readonly ILogger<BaseController> _logger;
 
-		public BaseController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, EmailServiceProvider sender, BellumGensDbContext context, ILogger<BaseController> logger)
-        {
+		public BaseController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, IEmailService sender, BellumGensDbContext context, ILogger<BaseController> logger)
+		{
 			_userManager = userManager;
 			_roleManager = roleManager;
 			_signInManager = signInManager;
 			_sender = sender;
 			_dbContext = context;
 			_logger = logger;
-        }
+		}
 
 		protected async Task<ApplicationUser> GetAuthUser()
 		{
@@ -38,12 +38,17 @@ namespace BellumGens.Api.Controllers
 
 		protected async Task<bool> UserIsInRole(string role)
 		{
-			return await _userManager.IsInRoleAsync(await GetAuthUser(), role);
+			ApplicationUser user = await GetAuthUser();
+			return user != null && await _userManager.IsInRoleAsync(user, role);
 		}
 
 		protected async Task<bool> UserIsTeamAdmin(Guid? teamId)
 		{
 			ApplicationUser user = await GetAuthUser();
+			if (user == null)
+			{
+				return false;
+			}
 			TeamMember member = await _dbContext.TeamMembers.FindAsync(teamId, user.Id);
 			return member != null ? member.IsAdmin : false;
 		}
@@ -51,6 +56,10 @@ namespace BellumGens.Api.Controllers
 		protected async Task<bool> UserIsTeamEditor(Guid teamId)
 		{
 			ApplicationUser user = await GetAuthUser();
+			if (user == null)
+			{
+				return false;
+			}
 			TeamMember member = await _dbContext.TeamMembers.FindAsync(teamId, user.Id);
 			return member != null ? member.IsEditor || member.IsAdmin : false;
 		}
@@ -58,6 +67,10 @@ namespace BellumGens.Api.Controllers
 		protected async Task<bool> UserIsTeamMember(Guid teamId)
 		{
 			ApplicationUser user = await GetAuthUser();
+			if (user == null)
+			{
+				return false;
+			}
 			TeamMember member = await _dbContext.TeamMembers.FindAsync(teamId, user.Id);
 			return member != null;
 		}

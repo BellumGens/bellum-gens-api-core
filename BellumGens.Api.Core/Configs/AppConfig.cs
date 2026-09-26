@@ -15,10 +15,10 @@ namespace BellumGens.Api.Core
 		public string Email { get; set; }
 		public string EmailUsername { get; set; }
 		public string EmailPassword { get; set; }
-        public string Bank { get; set; }
-        public string BankAccountOwner { get; set; }
-        public string BIC { get; set; }
-        public string BankAccount { get; set; }
+		public string Bank { get; set; }
+		public string BankAccountOwner { get; set; }
+		public string BIC { get; set; }
+		public string BankAccount { get; set; }
 	}
 
 	public class AppConfiguration
@@ -26,7 +26,7 @@ namespace BellumGens.Api.Core
 		private readonly AppKeysDescriptior _config;
 
 		public AppConfiguration(IConfiguration configuration)
-        {
+		{
 			_config = new AppKeysDescriptior()
 			{
 				SteamApiKey = configuration["steamApiKey"],
