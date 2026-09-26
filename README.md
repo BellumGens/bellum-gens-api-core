@@ -68,7 +68,7 @@ app to a local SQLite file for development on machines without SQL Server:
 | `Database:Provider` | Behaviour |
 |---|---|
 | `SqlServer` (default when unset) | Uses `ConnectionStrings:DefaultConnection` with EF Core migrations (`Database.Migrate()`) |
-| `Sqlite` | Uses `ConnectionStrings:DefaultConnection` as a SQLite file, created from the current model (`Database.EnsureCreated()`) |
+| `Sqlite` | Uses `ConnectionStrings:DefaultConnection` as a local SQLite file, rebuilt from the current model when its schema changes |
 
 Keep this setting out of the committed `appsettings*.json` files so each machine can differ. Configure it per machine
 with [user secrets](https://learn.microsoft.com/aspnet/core/security/app-secrets), which are loaded automatically in the
@@ -81,9 +81,7 @@ dotnet user-secrets set "Database:Provider" "Sqlite"
 dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Data Source=bellumgens.dev.db"
 ```
 
-On Windows, set no secrets and the app falls back to the SQL Server settings in `appsettings.json` — run
-`dotnet ef database update` as usual. The SQLite path needs no migration step; the schema is created on first start,
-and the `*.dev.db` file is gitignored.
+On Windows, set no secrets and the app falls back to the SQL Server settings in `appsettings.json` — run `dotnet ef database update` as usual. The SQLite path needs no manual migration step: the schema is created on first start and the local database is **deleted and recreated (including its data)** when the model changes or when an existing database has no schema record. Back up any local data you need before starting with a changed model. The `*.dev.db` file is gitignored.
 
 To check or undo the local override:
 
