@@ -24,7 +24,7 @@ namespace BellumGens.Api.Controllers
         private readonly ISteamService _steamService;
         private readonly IBattleNetService _battleNetService;
 
-		public AccountController(ISteamService steamService, IBattleNetService battleNetService, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, EmailServiceProvider sender, BellumGensDbContext context, ILogger<AccountController> logger)
+		public AccountController(ISteamService steamService, IBattleNetService battleNetService, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, IEmailService sender, BellumGensDbContext context, ILogger<AccountController> logger)
             : base(userManager, roleManager, signInManager, sender, context, logger)
         {
             _steamService = steamService;
@@ -63,7 +63,7 @@ namespace BellumGens.Api.Controllers
                         }
                         catch
                         {
-                            System.Diagnostics.Trace.TraceWarning($"Retrieval for ${user.SteamID} failed from Steam.");
+                            System.Diagnostics.Trace.TraceWarning($"Retrieval for {user.SteamID} failed from Steam.");
                         }
                     }
                     if (user.BattleNetId != null)
@@ -78,7 +78,7 @@ namespace BellumGens.Api.Controllers
                         }
                         catch
                         {
-                            System.Diagnostics.Trace.TraceWarning($"Retrieval for ${user.BattleNetId} failed from battle.net.");
+                            System.Diagnostics.Trace.TraceWarning($"Retrieval for {user.BattleNetId} failed from battle.net.");
                         }
                     }
                     model.SetUser(user, _dbContext);
@@ -135,7 +135,7 @@ namespace BellumGens.Api.Controllers
         public async Task<IActionResult> EarlyBird(EarlyBird sub)
         {
             var signupDeadline = new DateTime(2025, 12, 18, 16, 0, 0, DateTimeKind.Utc);
-            if (DateTime.Now > signupDeadline)
+            if (DateTime.UtcNow > signupDeadline)
             {
                 return BadRequest("Early bird signup period has ended.");
             }
@@ -195,17 +195,16 @@ namespace BellumGens.Api.Controllers
 		public async Task<IActionResult> UpdateUserInfo(UserPreferencesViewModel preferences)
 		{
             ApplicationUser user = await GetAuthUser();
-			bool newEmail = !string.IsNullOrEmpty(preferences.email) && preferences.email != user.Email && !user.EmailConfirmed;
-			user.Email = preferences.email;
+			// An empty email leaves the stored address untouched. A different email is never written directly:
+			// it only replaces the stored address once the user confirms it via ConfirmEmailChange.
+			bool newEmail = !string.IsNullOrWhiteSpace(preferences.email) && preferences.email != user.Email;
 			user.SearchVisible = preferences.searchVisible;
 			try
 			{
 				await _dbContext.SaveChangesAsync();
 				if (newEmail)
 				{
-					string code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-					var callbackUrl = Url.ActionLink("ConfirmEmail", "Account", new { userId = user.Id, code });
-					await _sender.SendEmailAsync(user.Email, "Confirm your email", string.Format(emailConfirmation, callbackUrl));
+					await SendChangeEmailConfirmation(user, preferences.email);
 				}
 			}
 			catch (Exception e)
@@ -213,7 +212,7 @@ namespace BellumGens.Api.Controllers
                 System.Diagnostics.Trace.TraceError("UserInfo update error: " + e.Message);
                 return BadRequest("Something went wrong...");
 			}
-			return Ok(new { newEmail, preferences.email });
+			return Ok(new { newEmail, email = user.Email });
 		}
 
 		[AllowAnonymous]
@@ -237,12 +236,38 @@ namespace BellumGens.Api.Controllers
 			return Redirect(CORSConfig.returnOrigin + "/emailconfirm/error");
         }
 
+		[AllowAnonymous]
+        [HttpGet]
+        [Route("ConfirmEmailChange", Name = "ConfirmEmailChange")]
+		public async Task<IActionResult> ConfirmEmailChange(string userId, string email, string code)
+		{
+			if (userId == null || email == null || code == null)
+			{
+				return Redirect(CORSConfig.returnOrigin + "/emailconfirm/error");
+			}
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user != null)
+            {
+                var result = await _userManager.ChangeEmailAsync(user, email, code);
+                if (result.Succeeded)
+                {
+                    return Redirect(CORSConfig.returnOrigin + "/emailconfirm");
+                }
+            }
+			return Redirect(CORSConfig.returnOrigin + "/emailconfirm/error");
+        }
+
         // POST api/Account/Login
         [Route("Login")]
         [AllowAnonymous]
         public async Task<IActionResult> Login(LoginBindingModel login)
         {
-            var result = await _signInManager.PasswordSignInAsync(login.UserName, login.Password, login.RememberMe, false);
+            var result = await _signInManager.PasswordSignInAsync(login.UserName, login.Password, login.RememberMe, lockoutOnFailure: true);
+
+            if (result.IsLockedOut)
+            {
+                return BadRequest("Account temporarily locked due to too many failed login attempts. Please try again in a few minutes.");
+            }
 
             if (result.Succeeded)
             {
@@ -250,10 +275,22 @@ namespace BellumGens.Api.Controllers
                 UserStatsViewModel model = new(user, true);
                 if (user.SteamID != null)
                 {
-                    if (string.IsNullOrEmpty(user.CSGODetails.AvatarFull))
+                    try
                     {
-                        model = await _steamService.GetSteamUserDetails(user.Id);
-                        model.SetUser(user, _dbContext);
+                        await _dbContext.Entry(user).Reference(u => u.CSGODetails).LoadAsync();
+                        if (string.IsNullOrEmpty(user.CSGODetails?.AvatarFull))
+                        {
+                            UserStatsViewModel steamModel = await _steamService.GetSteamUserDetails(user.SteamID);
+                            if (steamModel != null)
+                            {
+                                steamModel.SetUser(user, _dbContext);
+                                model = steamModel;
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        System.Diagnostics.Trace.TraceWarning($"Retrieval for {user.SteamID} failed from Steam.");
                     }
                 }
                 var logins = await _userManager.GetLoginsAsync(user);
@@ -344,23 +381,25 @@ namespace BellumGens.Api.Controllers
             }
 
             if (user.UserName != model.UserName)
-                user.UserName = model.UserName;
-            if (user.Email != model.Email)
             {
-                user.Email = model.Email;
+                user.UserName = model.UserName;
                 result = await _userManager.UpdateAsync(user);
-                if (result.Succeeded)
+                if (!result.Succeeded)
                 {
-                    try
-                    {
-                        string code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-                        var callbackUrl = Url.ActionLink("ConfirmEmail", "Account", new { userId = user.Id, code });
-                        await _sender.SendEmailAsync(user.Email, "Confirm your email", string.Format(emailConfirmation, callbackUrl));
-                    }
-                    catch (Exception e)
-                    {
-                        System.Diagnostics.Trace.TraceError("Email confirmation send exception: " + e.Message);
-                    }
+                    return GetErrorResult(result);
+                }
+            }
+
+            // The new email only replaces the stored one once it's confirmed via ConfirmEmailChange.
+            if (!string.IsNullOrWhiteSpace(model.Email) && user.Email != model.Email)
+            {
+                try
+                {
+                    await SendChangeEmailConfirmation(user, model.Email);
+                }
+                catch (Exception e)
+                {
+                    System.Diagnostics.Trace.TraceError("Email confirmation send exception: " + e.Message);
                 }
             }
 
@@ -378,14 +417,25 @@ namespace BellumGens.Api.Controllers
                 return Redirect(CORSConfig.returnOrigin + "/unauthorized");
             }
 
-            ExternalLoginInfo info = await _signInManager.GetExternalLoginInfoAsync();
-            Uri returnUri = new(!string.IsNullOrEmpty(returnUrl) ? returnUrl : CORSConfig.returnOrigin);
+            Uri returnUri = new(ValidateReturnURL(returnUrl) ? returnUrl : CORSConfig.returnOrigin);
             string returnHost = returnUri.GetLeftPart(UriPartial.Authority);
             string returnPath = returnUri.AbsolutePath;
             IdentityResult result;
 
+            ExternalLoginInfo info = await _signInManager.GetExternalLoginInfoAsync();
+            if (info == null)
+            {
+                return Redirect(returnHost + "/unauthorized");
+            }
+
             if (userId != null)
             {
+                // userId comes from the query string, so only link the external login to the signed-in user's own account.
+                ApplicationUser authUser = await GetAuthUser();
+                if (authUser == null || authUser.Id != userId)
+                {
+                    return Redirect(returnHost + "/unauthorized");
+                }
                 result = await AddLogin(userId, info);
                 if (!result.Succeeded)
                 {
@@ -422,9 +472,9 @@ namespace BellumGens.Api.Controllers
                             BattleNetBattleTag = battletag,
                             BattleNetId = info.ProviderKey
                         };
-                        await _dbContext.SaveChangesAsync();
                     }
                 }
+                await _dbContext.SaveChangesAsync();
             }
 
             var signInResult = await _signInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, isPersistent: true, bypassTwoFactor: true);
@@ -539,7 +589,11 @@ namespace BellumGens.Api.Controllers
                     };
                     break;
                 default:
-                    break;
+                    return IdentityResult.Failed(new IdentityError
+                    {
+                        Code = "UnsupportedLoginProvider",
+                        Description = $"Login provider '{info.LoginProvider}' is not supported."
+                    });
             }
 
 			IdentityResult result = await _userManager.CreateAsync(user);
@@ -568,10 +622,22 @@ namespace BellumGens.Api.Controllers
                         break;
                     case "Steam":
                         string steamid = _steamService.SteamUserId(providerId);
-                        if (user.SteamID != steamid)
+                        await _dbContext.Entry(user).Reference(u => u.CSGODetails).LoadAsync();
+                        if (user.SteamID != steamid || user.CSGODetails == null)
                         {
+                            // SteamId is the CSGODetails primary key, so point the user at the details row for the
+                            // new Steam ID instead of mutating the key of the existing one.
+                            CSGODetails previous = user.CSGODetails;
+                            CSGODetails details = previous?.SteamId == steamid
+                                ? previous
+                                : await _dbContext.CSGODetails.FindAsync(steamid) ?? new CSGODetails() { SteamId = steamid };
+                            user.CSGODetails = details;
                             user.SteamID = steamid;
-                            user.CSGODetails.SteamId = steamid;
+                            if (previous != null && previous != details &&
+                                !await _dbContext.Users.AnyAsync(u => u.Id != user.Id && u.SteamID == previous.SteamId))
+                            {
+                                _dbContext.CSGODetails.Remove(previous);
+                            }
                             await _dbContext.SaveChangesAsync();
                         }
                         break;
@@ -615,12 +681,27 @@ namespace BellumGens.Api.Controllers
                 }
                 else
                 {
-                    string code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-                    var callbackUrl = Url.RouteUrl("ConfirmEmail", new { userId = user.Id, code }, Request.Scheme);
-                    await _sender.SendEmailAsync(info.Email, "Confirm your email", string.Format(emailConfirmation, callbackUrl));
+                    // The account already exists at this point, so a failure to send the email must not fail the request.
+                    try
+                    {
+                        string code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+                        var callbackUrl = Url.RouteUrl("ConfirmEmail", new { userId = user.Id, code }, Request.Scheme);
+                        await _sender.SendEmailAsync(info.Email, "Confirm your email", string.Format(emailConfirmation, callbackUrl));
+                    }
+                    catch (Exception e)
+                    {
+                        System.Diagnostics.Trace.TraceError("Registration email confirmation send exception: " + e.Message);
+                    }
                 }
             }
             return result;
+        }
+
+        private async Task SendChangeEmailConfirmation(ApplicationUser user, string newEmail)
+        {
+            string code = await _userManager.GenerateChangeEmailTokenAsync(user, newEmail);
+            var callbackUrl = Url.ActionLink("ConfirmEmailChange", "Account", new { userId = user.Id, email = newEmail, code });
+            await _sender.SendEmailAsync(newEmail, "Confirm your email", string.Format(emailConfirmation, callbackUrl));
         }
 
         private IActionResult GetErrorResult(IdentityResult result)
@@ -649,12 +730,12 @@ namespace BellumGens.Api.Controllers
 
         private static bool ValidateReturnURL(string returnUrl)
         {
-            foreach (string endpoint in CORSConfig.validOrigins)
+            if (!Uri.TryCreate(returnUrl, UriKind.Absolute, out Uri uri))
             {
-                if (returnUrl.StartsWith(endpoint))
-                    return true;
+                return false;
             }
-            return false;
+            string origin = uri.GetLeftPart(UriPartial.Authority);
+            return CORSConfig.validOrigins.Any(o => string.Equals(o, origin, StringComparison.OrdinalIgnoreCase));
         } 
 
         private class ExternalLoginData

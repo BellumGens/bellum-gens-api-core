@@ -48,10 +48,9 @@ namespace BellumGens.Api.Core.Tests
                 userManager.Object, contextAccessor.Object, claimsFactory.Object, null!, null!, null!, null!);
         }
 
-        public static EmailServiceProvider CreateMockEmailServiceProvider()
+        public static Mock<IEmailService> CreateMockEmailService()
         {
-            var appConfig = CreateAppConfiguration();
-            return new EmailServiceProvider(appConfig);
+            return new Mock<IEmailService>();
         }
 
         public static Mock<ISteamService> CreateMockSteamService()

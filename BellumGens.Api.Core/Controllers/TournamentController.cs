@@ -19,7 +19,7 @@ namespace BellumGens.Api.Controllers
         private readonly AppConfiguration _appInfo;
         private readonly INotificationService _notificationService;
 
-        public TournamentController(AppConfiguration appInfo, INotificationService notificationsService, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, EmailServiceProvider sender, BellumGensDbContext context, ILogger<AccountController> logger)
+        public TournamentController(AppConfiguration appInfo, INotificationService notificationsService, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, IEmailService sender, BellumGensDbContext context, ILogger<AccountController> logger)
             : base(userManager, roleManager, signInManager, sender, context, logger)
         {
             _appInfo = appInfo;
@@ -47,8 +47,12 @@ namespace BellumGens.Api.Controllers
         {
             if (ModelState.IsValid)
             {
-                Company c = await _dbContext.Companies.FindAsync(application.CompanyId);
                 ApplicationUser user = await GetAuthUser();
+                if (user == null)
+                {
+                    return Unauthorized();
+                }
+                Company c = await _dbContext.Companies.FindAsync(application.CompanyId);
                 if (application.Game == Game.StarCraft2)
                 {
                     if (string.IsNullOrEmpty(application.BattleNetId))
@@ -63,7 +67,7 @@ namespace BellumGens.Api.Controllers
                 }
                 else
                 {
-                    if (application.TeamId == Guid.Empty)
+                    if (application.TeamId == null || application.TeamId == Guid.Empty)
                     {
                         return BadRequest("Моля попълнете отбор във формата за регистрация!");
                     }
@@ -72,7 +76,7 @@ namespace BellumGens.Api.Controllers
                         return BadRequest("Вече има направена регистрация за този отбор!");
                     }
                 }
-                if (c == null)
+                if (c == null && application.CompanyId != null)
                 {
                     _dbContext.Companies.Add(new Company()
                     {
@@ -81,6 +85,10 @@ namespace BellumGens.Api.Controllers
                 }
                 await application.UniqueHash(_dbContext);
                 application.UserId = user.Id;
+                if (!await UserIsTournamentAdmin())
+                {
+                    application.State = TournamentApplicationState.Pending;
+                }
                 _dbContext.TournamentApplications.Add(application);
                 
                 try
@@ -128,10 +136,19 @@ namespace BellumGens.Api.Controllers
         {
             if (ModelState.IsValid)
             {
+                ApplicationUser user = await GetAuthUser();
+                if (user == null)
+                {
+                    return Unauthorized();
+                }
                 if (tournamentId == null)
                 {
+                    Tournament t = await _dbContext.Tournaments.FindAsync(application.TournamentId);
+                    if (t == null)
+                    {
+                        return BadRequest("Tournament not found.");
+                    }
                     Company c = await _dbContext.Companies.FindAsync(application.CompanyId);
-                    ApplicationUser user = await GetAuthUser();
                     if (c == null && application.CompanyId != null)
                     {
                         _dbContext.Companies.Add(new Company()
@@ -139,9 +156,12 @@ namespace BellumGens.Api.Controllers
                             Name = application.CompanyId
                         });
                     }
-                    Tournament t = _dbContext.Tournaments.Find(application.TournamentId);
                     await application.UniqueHash(_dbContext);
                     application.UserId = user.Id;
+                    if (!await UserIsTournamentAdmin())
+                    {
+                        application.State = TournamentApplicationState.Pending;
+                    }
                     _dbContext.TournamentApplications.Add(application);
 
                     try
@@ -174,6 +194,19 @@ namespace BellumGens.Api.Controllers
                     TournamentApplication tournamentApplication = await _dbContext.TournamentApplications.FindAsync(application.Id);
                     if (tournamentApplication != null)
                     {
+                        bool isAdmin = await UserIsTournamentAdmin();
+                        if (tournamentApplication.UserId != user.Id && !isAdmin)
+                        {
+                            return BadRequest("You can only update your own registration.");
+                        }
+                        application.UserId = tournamentApplication.UserId;
+                        application.Hash = tournamentApplication.Hash;
+                        application.DateSubmitted = tournamentApplication.DateSubmitted;
+                        if (!isAdmin)
+                        {
+                            application.State = tournamentApplication.State;
+                            application.TournamentId = tournamentApplication.TournamentId;
+                        }
                         _dbContext.Entry(tournamentApplication).CurrentValues.SetValues(application);
                         try
                         {
@@ -195,6 +228,10 @@ namespace BellumGens.Api.Controllers
         public async Task<TournamentApplication> GetRegistrationForTournament(Guid tournamentId)
         {
             ApplicationUser user = await GetAuthUser();
+            if (user == null)
+            {
+                return null;
+            }
             return await _dbContext.TournamentApplications.Where(a => a.TournamentId == tournamentId && a.UserId == user.Id).FirstOrDefaultAsync();
         }
 
@@ -202,6 +239,10 @@ namespace BellumGens.Api.Controllers
         public async Task<IActionResult> GetUserRegistrations()
         {
             ApplicationUser user = await GetAuthUser();
+            if (user == null)
+            {
+                return Unauthorized();
+            }
             return Ok(await _dbContext.TournamentApplications.Include(a => a.Tournament).Where(a => a.UserId == user.Id).ToListAsync());
         }
 
@@ -255,25 +296,49 @@ namespace BellumGens.Api.Controllers
         public async Task<IActionResult> SendCheckinEmails(Guid tournamentId)
         {
             List<TournamentApplication> applications = await _dbContext.TournamentApplications.Include(a => a.Tournament).Where(a => a.TournamentId == tournamentId && a.State != TournamentApplicationState.Banned).ToListAsync();
-            var options = new ParallelOptions { MaxDegreeOfParallelism = 4 };
 
-            await Parallel.ForEachAsync(applications, options, async (app, token) =>
+            // DbContext is not thread-safe: load every push subscription we need up front, so the
+            // parallel loop below only does network I/O (SMTP and web push) and never touches _dbContext.
+            List<string> userIds = applications.Where(a => a.UserId != null).Select(a => a.UserId).Distinct().ToList();
+            Dictionary<string, List<BellumGensPushSubscription>> subsByUser =
+                (await _dbContext.BellumGensPushSubscriptions.Where(s => userIds.Contains(s.UserId)).ToListAsync())
+                    .GroupBy(s => s.UserId)
+                    .ToDictionary(g => g.Key, g => g.ToList());
+
+            // The URL helper is request-scoped as well, so build the check-in links sequentially too.
+            var checkins = applications
+                .Select(app => (app, callbackUrl: Url.ActionLink("WeeklyCheckin", "Tournament", new { id = app.Id, hash = app.Hash })))
+                .ToList();
+
+            var options = new ParallelOptions { MaxDegreeOfParallelism = 4 };
+            await Parallel.ForEachAsync(checkins, options, async (checkin, token) =>
             {
+                var (app, callbackUrl) = checkin;
                 try
                 {
-                    var callbackUrl = Url.ActionLink("WeeklyCheckin", "Tournament", new { id = app.Id, hash = app.Hash });
                     string message = $@"Greetings, {app.FirstName},
-                        <p>The checkin for {app.Tournament.Name} is live. <a href='{callbackUrl}' target='_blank'>Use this link</a> to check in within the next 1 hour.</p>
+                        <p>The checkin for {app.Tournament?.Name} is live. <a href='{callbackUrl}' target='_blank'>Use this link</a> to check in within the next 1 hour.</p>
                         <p>All live communications during the matches are performed on our discord server. <a href='https://discord.gg/bnTcpa9' target='_blank'>Join us there</a>!</p>
                         <p>Thank you from the Bellum Gens team and GL HF in your matches!</p>
                         <a href='https://bellumgens.com' target='_blank'>https://bellumgens.com</a>";
                     await _sender.SendEmailAsync(app.Email, "BGE: Time to check in", message).ConfigureAwait(false);
-                    List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.UserId == app.UserId).ToListAsync();
-                    await _notificationService.SendNotificationAsync(subs, app, callbackUrl);
                 }
                 catch (Exception e)
                 {
-                    System.Diagnostics.Trace.TraceError("Tournament registration error: " + e.Message);
+                    System.Diagnostics.Trace.TraceError($"Tournament checkin email error for registration {app.Id}: " + e.Message);
+                }
+
+                // A failed email must not prevent the push notification (and vice versa).
+                if (app.UserId != null && subsByUser.TryGetValue(app.UserId, out List<BellumGensPushSubscription> subs))
+                {
+                    try
+                    {
+                        await _notificationService.SendNotificationAsync(subs, app, callbackUrl).ConfigureAwait(false);
+                    }
+                    catch (Exception e)
+                    {
+                        System.Diagnostics.Trace.TraceError($"Tournament checkin push notification error for registration {app.Id}: " + e.Message);
+                    }
                 }
             });
             return Ok(new { message = $"{applications.Count} emails sent" });
@@ -284,10 +349,14 @@ namespace BellumGens.Api.Controllers
         public async Task<IActionResult> WeeklyCheckin(Guid id)
         {
             ApplicationUser user = await GetAuthUser();
-            TournamentApplication entity = await _dbContext.TournamentApplications.FindAsync(id);
-            if (entity.UserId == user.Id || await UserIsInRole("admin"))
+            if (user == null)
             {
-                if (entity != null && entity.State != TournamentApplicationState.Banned)
+                return Unauthorized();
+            }
+            TournamentApplication entity = await _dbContext.TournamentApplications.FindAsync(id);
+            if (entity != null && (entity.UserId == user.Id || await UserIsInRole("admin")))
+            {
+                if (entity.State != TournamentApplicationState.Banned)
                 {
                     entity.State = TournamentApplicationState.Confirmed;
 
@@ -337,6 +406,11 @@ namespace BellumGens.Api.Controllers
             TournamentApplication entity = await _dbContext.TournamentApplications.FindAsync(id);
             if (entity != null)
             {
+                application.Id = entity.Id;
+                application.UserId = entity.UserId;
+                application.Hash = entity.Hash;
+                application.TournamentId = entity.TournamentId;
+                application.DateSubmitted = entity.DateSubmitted;
                 _dbContext.Entry(entity).CurrentValues.SetValues(application);
 
                 try
@@ -362,8 +436,8 @@ namespace BellumGens.Api.Controllers
                 await _dbContext.TournamentApplications.Include(a => a.Team).Where(r => r.Game == Game.CSGO && r.Tournament.Active).ToListAsync();
 
             List<TournamentCSGOMatch> matches = tournamentId != null ?
-                await _dbContext.TournamentCSGOMatches.Where(m => m.TournamentId == tournamentId).ToListAsync() :
-                await _dbContext.TournamentCSGOMatches.Where(m => m.Tournament.Active).ToListAsync();
+                await _dbContext.TournamentCSGOMatches.Where(m => m.TournamentId == tournamentId).Include(m => m.Maps).ToListAsync() :
+                await _dbContext.TournamentCSGOMatches.Where(m => m.Tournament.Active).Include(m => m.Maps).ToListAsync();
 
             List<TournamentCSGOParticipant> registrations = new();
             foreach (TournamentApplication app in entities)
@@ -392,8 +466,10 @@ namespace BellumGens.Api.Controllers
                 await _dbContext.TournamentSC2Matches.Where(m => m.Tournament.Active).ToListAsync();
 
             List<TournamentSC2Participant> registrations = new();
-            
-            foreach (TournamentApplication app in entities)
+
+            // TournamentSC2Participant dereferences the registration's user; a registration whose user
+            // is missing (UserId cleared or the account removed) would otherwise fail the whole list.
+            foreach (TournamentApplication app in entities.Where(a => a.User != null))
             {
                 registrations.Add(new TournamentSC2Participant(app, matches.FindAll(m => m.Player1Id == app.UserId || m.Player2Id == app.UserId)));
             }
@@ -405,8 +481,16 @@ namespace BellumGens.Api.Controllers
         public async Task<IActionResult> DeleteRegistraion(Guid id)
         {
             ApplicationUser user = await GetAuthUser();
+            if (user == null)
+            {
+                return Unauthorized();
+            }
             TournamentApplication application = await _dbContext.TournamentApplications.FindAsync(id);
-            if (application?.UserId == user.Id || await UserIsInRole("admin"))
+            if (application == null)
+            {
+                return NotFound();
+            }
+            if (application.UserId == user.Id || await UserIsInRole("admin"))
             {
                 _dbContext.TournamentApplications.Remove(application);
                 try
@@ -511,11 +595,17 @@ namespace BellumGens.Api.Controllers
             TournamentCSGOGroup entity = await _dbContext.TournamentCSGOGroups.FindAsync(id);
             if (entity != null)
             {
+                group.Id = entity.Id;
                 _dbContext.Entry(entity).CurrentValues.SetValues(group);
             }
             else
             {
-                group.TournamentId = (await _dbContext.Tournaments.FirstOrDefaultAsync(t => t.Active)).ID;
+                Tournament active = await _dbContext.Tournaments.FirstOrDefaultAsync(t => t.Active);
+                if (active == null)
+                {
+                    return BadRequest("There is no active tournament.");
+                }
+                group.TournamentId = active.ID;
                 _dbContext.TournamentCSGOGroups.Add(group);
             }
 
@@ -539,11 +629,17 @@ namespace BellumGens.Api.Controllers
             TournamentSC2Group entity = await _dbContext.TournamentSC2Groups.FindAsync(id);
             if (entity != null)
             {
+                group.Id = entity.Id;
                 _dbContext.Entry(entity).CurrentValues.SetValues(group);
             }
             else
             {
-                group.TournamentId = (await _dbContext.Tournaments.FirstOrDefaultAsync(t => t.Active)).ID;
+                Tournament active = await _dbContext.Tournaments.FirstOrDefaultAsync(t => t.Active);
+                if (active == null)
+                {
+                    return BadRequest("There is no active tournament.");
+                }
+                group.TournamentId = active.ID;
                 _dbContext.TournamentSC2Groups.Add(group);
             }
 
@@ -737,7 +833,7 @@ namespace BellumGens.Api.Controllers
         [Authorize(Roles = "admin, event-admin")]
         public async Task<IActionResult> SubmitCSGOMatch(Guid? id, TournamentCSGOMatch match)
         {
-            foreach (CSGOMatchMap map in match.Maps)
+            foreach (CSGOMatchMap map in match.Maps ?? Enumerable.Empty<CSGOMatchMap>())
             {
                 CSGOMatchMap mapEntity = await _dbContext.CSGOMatchMaps.FindAsync(map.Id);
                 if (mapEntity != null)
@@ -754,6 +850,7 @@ namespace BellumGens.Api.Controllers
 
             if (entity != null)
             {
+                match.Id = entity.Id;
                 _dbContext.Entry(entity).CurrentValues.SetValues(match);
                 match = entity;
             }
@@ -786,6 +883,10 @@ namespace BellumGens.Api.Controllers
         public async Task<IActionResult> DeleteCSGOMatch(Guid? id)
         {
             TournamentCSGOMatch entity = await _dbContext.TournamentCSGOMatches.FindAsync(id);
+            if (entity == null)
+            {
+                return NotFound();
+            }
             _dbContext.TournamentCSGOMatches.Remove(entity);
 
             try
@@ -808,6 +909,7 @@ namespace BellumGens.Api.Controllers
             CSGOMatchMap entity = await _dbContext.CSGOMatchMaps.FindAsync(id);
             if (entity != null)
             {
+                map.Id = entity.Id;
                 _dbContext.Entry(entity).CurrentValues.SetValues(map);
             }
             else
@@ -833,6 +935,10 @@ namespace BellumGens.Api.Controllers
         public async Task<IActionResult> DeleteCSGOMatchMap(Guid? id)
         {
             CSGOMatchMap entity = await _dbContext.CSGOMatchMaps.FindAsync(id);
+            if (entity == null)
+            {
+                return NotFound();
+            }
             _dbContext.CSGOMatchMaps.Remove(entity);
 
             try
@@ -852,7 +958,7 @@ namespace BellumGens.Api.Controllers
         [Authorize(Roles = "admin, event-admin")]
         public async Task<IActionResult> SubmitSC2Match(Guid? id, TournamentSC2Match match)
         {
-            foreach (SC2MatchMap map in match.Maps)
+            foreach (SC2MatchMap map in match.Maps ?? Enumerable.Empty<SC2MatchMap>())
             {
                 SC2MatchMap mapEntity = await _dbContext.SC2MatchMaps.FindAsync(map.Id);
                 if (mapEntity != null)
@@ -868,6 +974,7 @@ namespace BellumGens.Api.Controllers
             TournamentSC2Match entity = await _dbContext.TournamentSC2Matches.FindAsync(id);
             if (entity != null)
             {
+                match.Id = entity.Id;
                 _dbContext.Entry(entity).CurrentValues.SetValues(match);
                 match = entity;
             }
@@ -901,6 +1008,10 @@ namespace BellumGens.Api.Controllers
         public async Task<IActionResult> DeleteSC2Match(Guid? id)
         {
             TournamentSC2Match entity = await _dbContext.TournamentSC2Matches.FindAsync(id);
+            if (entity == null)
+            {
+                return NotFound();
+            }
             _dbContext.TournamentSC2Matches.Remove(entity);
 
             try
@@ -923,6 +1034,7 @@ namespace BellumGens.Api.Controllers
             SC2MatchMap entity = await _dbContext.SC2MatchMaps.FindAsync(id);
             if (entity != null)
             {
+                map.Id = entity.Id;
                 _dbContext.Entry(entity).CurrentValues.SetValues(map);
             }
             else
@@ -948,6 +1060,10 @@ namespace BellumGens.Api.Controllers
         public async Task<IActionResult> DeleteSC2MatchMap(Guid? id)
         {
             SC2MatchMap entity = await _dbContext.SC2MatchMaps.FindAsync(id);
+            if (entity == null)
+            {
+                return NotFound();
+            }
             _dbContext.SC2MatchMaps.Remove(entity);
 
             try
@@ -962,5 +1078,10 @@ namespace BellumGens.Api.Controllers
             return Ok(entity);
         }
         #endregion
+
+        private async Task<bool> UserIsTournamentAdmin()
+        {
+            return await UserIsInRole("admin") || await UserIsInRole("event-admin");
+        }
     }
 }

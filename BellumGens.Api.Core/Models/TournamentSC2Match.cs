@@ -12,7 +12,7 @@ namespace BellumGens.Api.Core.Models
 
         public Guid? GroupId { get; set; }
 
-        public virtual ICollection<SC2MatchMap> Maps { get; set; }
+        public virtual ICollection<SC2MatchMap> Maps { get; set; } = new HashSet<SC2MatchMap>();
 
         public SC2Race? Player1Race { get; set; }
 

@@ -10,7 +10,7 @@ namespace BellumGens.Api.Controllers
 {
 	public class PushController : BaseController
     {
-		public PushController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, EmailServiceProvider sender, BellumGensDbContext context, ILogger<PushController> logger)
+		public PushController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, IEmailService sender, BellumGensDbContext context, ILogger<PushController> logger)
 			: base(userManager, roleManager, signInManager, sender, context, logger)
 		{
 		}

@@ -23,7 +23,7 @@ namespace BellumGens.Api.Controllers
 							   UserManager<ApplicationUser> userManager,
 							   RoleManager<IdentityRole> roleManager,
 							   SignInManager<ApplicationUser> signInManager,
-                               EmailServiceProvider sender,
+                               IEmailService sender,
 							   BellumGensDbContext context,
 							   ILogger<UsersController> logger) : base(userManager, roleManager, signInManager, sender, context, logger)
 		{
@@ -43,7 +43,7 @@ namespace BellumGens.Api.Controllers
             {
                 if (registered.SteamID != null)
                 {
-                    user = await _steamService.GetSteamUserDetails(registered.SteamID);
+                    user = await _steamService.GetSteamUserDetails(registered.SteamID) ?? new UserStatsViewModel();
                 }
 
                 if (registered.BattleNetId != null)
@@ -55,6 +55,10 @@ namespace BellumGens.Api.Controllers
 			else
 			{
                 user = await _steamService.GetSteamUserDetails(userid);
+                if (user?.SteamUser == null)
+                {
+                    return NotFound();
+                }
                 registered = await _dbContext.Users.Include(u => u.CSGODetails).Include(u => u.StarCraft2Details).Include(u => u.MemberOf).ThenInclude(m => m.Team).FirstOrDefaultAsync(u => u.SteamID == user.SteamUser.steamID64);
 				if (registered != null)
 				{
@@ -98,6 +102,8 @@ namespace BellumGens.Api.Controllers
 		[HttpPut]
 		public async Task<IActionResult> SetAvailability(UserAvailability newAvailability)
 		{
+			ApplicationUser user = await GetAuthUser();
+			newAvailability.UserId = user.Id;
 			if (newAvailability.Available)
             {
 				bool exists = _dbContext.UserAvailabilities.Any(a => a.UserId == newAvailability.UserId && a.Day == newAvailability.Day);
@@ -121,7 +127,7 @@ namespace BellumGens.Api.Controllers
 			}
             catch (DbUpdateException e)
 			{
-				System.Diagnostics.Trace.TraceError($"User availability error: ${e.Message}");
+				System.Diagnostics.Trace.TraceError($"User availability error: {e.Message}");
 				return BadRequest("Something went wrong... ");
 			}
 			return Ok(newAvailability);
@@ -140,6 +146,8 @@ namespace BellumGens.Api.Controllers
 		[HttpPut]
 		public async Task<IActionResult> SetMapPool(UserMapPool mapPool)
 		{
+			ApplicationUser user = await GetAuthUser();
+			mapPool.UserId = user.Id;
 			if (mapPool.IsPlayed)
             {
 				_dbContext.UserMapPool.Add(mapPool);
@@ -155,7 +163,7 @@ namespace BellumGens.Api.Controllers
 			}
 			catch (DbUpdateException e)
 			{
-				System.Diagnostics.Trace.TraceError($"User map pool error: ${e.Message}");
+				System.Diagnostics.Trace.TraceError($"User map pool error: {e.Message}");
 				return BadRequest("Something went wrong... ");
 			}
 			return Ok(mapPool);
@@ -165,15 +173,19 @@ namespace BellumGens.Api.Controllers
 		[HttpPut]
 		public async Task<IActionResult> SetPrimaryRole(PlaystyleRole id, Role role)
 		{
-			ApplicationUser user = await GetAuthUser();
-			user.CSGODetails.PreferredPrimaryRole = id;
+			CSGODetails details = await GetAuthUserCSGODetails();
+			if (details == null)
+			{
+				return BadRequest(SteamAccountRequiredMessage);
+			}
+			details.PreferredPrimaryRole = id;
 			try
 			{
 				await _dbContext.SaveChangesAsync();
 			}
 			catch (DbUpdateException e)
 			{
-				System.Diagnostics.Trace.TraceError($"User primary role error: ${e.Message}");
+				System.Diagnostics.Trace.TraceError($"User primary role error: {e.Message}");
 				return BadRequest("Something went wrong... ");
 			}
 			return Ok(role);
@@ -183,15 +195,19 @@ namespace BellumGens.Api.Controllers
 		[HttpPut]
 		public async Task<IActionResult> SetSecondaryRole(PlaystyleRole id, Role role)
 		{
-			ApplicationUser user = await GetAuthUser();
-			user.CSGODetails.PreferredSecondaryRole = id;
+			CSGODetails details = await GetAuthUserCSGODetails();
+			if (details == null)
+			{
+				return BadRequest(SteamAccountRequiredMessage);
+			}
+			details.PreferredSecondaryRole = id;
 			try
 			{
 				await _dbContext.SaveChangesAsync();
 			}
 			catch (DbUpdateException e)
 			{
-				System.Diagnostics.Trace.TraceError($"User secondary role error: ${e.Message}");
+				System.Diagnostics.Trace.TraceError($"User secondary role error: {e.Message}");
 				return BadRequest("Something went wrong... ");
 			}
 			return Ok(role);
@@ -201,25 +217,32 @@ namespace BellumGens.Api.Controllers
 		[HttpPut]
 		public async Task<IActionResult> AcceptTeamInvite(TeamInvite invite)
 		{
-			TeamInvite entity = await _dbContext.TeamInvites.FindAsync(invite.InvitingUserId, invite.InvitedUserId, invite.TeamId);
+			TeamInvite entity = await _dbContext.TeamInvites.FirstOrDefaultAsync(i => i.InvitingUserId == invite.InvitingUserId && i.InvitedUserId == invite.InvitedUserId && i.TeamId == invite.TeamId);
 			if (entity == null)
 			{
 				return NotFound();
 			}
 
 			ApplicationUser user = await GetAuthUser();
-			if (invite.InvitedUserId != user.Id)
+			if (entity.InvitedUserId != user.Id)
 			{
 				return BadRequest("This invite was not sent to you...");
 			}
-			CSGOTeam team = await _dbContext.CSGOTeams.FindAsync(invite.TeamId);
-			team.Members.Add(new TeamMember()
+			if (!await _dbContext.CSGOTeams.AnyAsync(t => t.TeamId == entity.TeamId))
 			{
-				UserId = user.Id,
-				IsActive = true,
-                IsAdmin = false,
-				IsEditor = false
-			});
+				return NotFound();
+			}
+			if (!await _dbContext.TeamMembers.AnyAsync(m => m.TeamId == entity.TeamId && m.UserId == user.Id))
+			{
+				_dbContext.TeamMembers.Add(new TeamMember()
+				{
+					TeamId = entity.TeamId,
+					UserId = user.Id,
+					IsActive = true,
+					IsAdmin = false,
+					IsEditor = false
+				});
+			}
 			entity.State = NotificationState.Accepted;
 			try
 			{
@@ -227,10 +250,13 @@ namespace BellumGens.Api.Controllers
 			}
 			catch (DbUpdateException e)
 			{
-				System.Diagnostics.Trace.TraceError($"User team invite accept error: ${e.Message}");
+				System.Diagnostics.Trace.TraceError($"User team invite accept error: {e.Message}");
 				return BadRequest("Something went wrong...");
 			}
-			List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.UserId == entity.InvitingUser.Id).ToListAsync();
+			await _dbContext.Entry(entity).Reference(i => i.Team).LoadAsync();
+			await _dbContext.Entry(entity).Reference(i => i.InvitedUser).LoadAsync();
+			await _dbContext.Entry(entity.InvitedUser).Reference(u => u.CSGODetails).LoadAsync();
+			List<BellumGensPushSubscription> subs = await _dbContext.BellumGensPushSubscriptions.Where(s => s.UserId == entity.InvitingUserId).ToListAsync();
 			await _notificationService.SendNotificationAsync(subs, entity, NotificationState.Accepted);
 			return Ok(entity);
 		}
@@ -239,10 +265,16 @@ namespace BellumGens.Api.Controllers
 		[HttpPut]
 		public async Task<IActionResult> RejectTeamInvite(TeamInvite invite)
 		{
-			TeamInvite entity = await _dbContext.TeamInvites.FindAsync(invite.InvitingUserId, invite.InvitedUserId, invite.TeamId);
+			TeamInvite entity = await _dbContext.TeamInvites.FirstOrDefaultAsync(i => i.InvitingUserId == invite.InvitingUserId && i.InvitedUserId == invite.InvitedUserId && i.TeamId == invite.TeamId);
 			if (entity == null)
 			{
 				return NotFound();
+			}
+
+			ApplicationUser user = await GetAuthUser();
+			if (entity.InvitedUserId != user.Id)
+			{
+				return BadRequest("This invite was not sent to you...");
 			}
 
 			entity.State = NotificationState.Rejected;
@@ -252,11 +284,28 @@ namespace BellumGens.Api.Controllers
 			}
 			catch (DbUpdateException e)
 			{
-				System.Diagnostics.Trace.TraceError($"User team invite reject error: ${e.Message}");
+				System.Diagnostics.Trace.TraceError($"User team invite reject error: {e.Message}");
 				return BadRequest("Something went wrong... ");
 			}
 			return Ok(entity);
         }
+
+		private const string SteamAccountRequiredMessage = "You need to link a Steam account to set your CS:GO roles...";
+
+		/// <summary>
+		/// Lazy loading is disabled, so the CSGODetails navigation on the user returned by the
+		/// UserManager has to be loaded explicitly.
+		/// </summary>
+		private async Task<CSGODetails> GetAuthUserCSGODetails()
+		{
+			ApplicationUser user = await GetAuthUser();
+			if (user == null)
+			{
+				return null;
+			}
+			await _dbContext.Entry(user).Reference(u => u.CSGODetails).LoadAsync();
+			return user.CSGODetails;
+		}
 
         [Route("Tournaments")]
         [AllowAnonymous]

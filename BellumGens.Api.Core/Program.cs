@@ -105,10 +105,13 @@ builder.Services.Configure<IdentityOptions>(options =>
 });
 
 builder.Services.AddSingleton<AppConfiguration>();
-builder.Services.AddScoped<ISteamService, SteamServiceProvider>();
-builder.Services.AddScoped<IBattleNetService, BattleNetServiceProvider>();
+builder.Services.AddHttpClient<ISteamService, SteamServiceProvider>();
+builder.Services.AddSingleton(_ => new BattleNetTokenCache(TimeProvider.System));
+builder.Services.AddHttpClient<IBattleNetService, BattleNetServiceProvider>();
+builder.Services.AddHttpClient<WebPush.IWebPushClient, WebPush.WebPushClient>();
 builder.Services.AddScoped<INotificationService, NotificationsService>();
-builder.Services.AddScoped<EmailServiceProvider>();
+builder.Services.AddScoped<IEmailService, EmailServiceProvider>();
+builder.Services.AddSingleton<IBlobContainerProvider, ConfigurationBlobContainerProvider>();
 builder.Services.AddScoped<IStorageService, StorageService>();
 
 builder.Services.AddResponseCompression(options =>

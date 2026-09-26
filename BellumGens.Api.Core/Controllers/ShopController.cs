@@ -16,7 +16,7 @@ namespace BellumGens.Api.Controllers
     {
         private const int baseJerseyPrice = 60;
         private const decimal baseDiscount = .3M;
-        public ShopController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, EmailServiceProvider sender, BellumGensDbContext context, ILogger<ShopController> logger)
+        public ShopController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, IEmailService sender, BellumGensDbContext context, ILogger<ShopController> logger)
             : base(userManager, roleManager, signInManager, sender, context, logger)
         {
         }

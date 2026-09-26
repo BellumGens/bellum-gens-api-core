@@ -18,7 +18,7 @@ namespace BellumGens.Api.Core.Tests
             var mockUserManager = TestUtils.CreateMockUserManager();
             var mockRoleManager = TestUtils.CreateMockRoleManager();
             var mockSignInManager = TestUtils.CreateMockSignInManager(mockUserManager);
-            var emailService = TestUtils.CreateMockEmailServiceProvider();
+            var emailService = TestUtils.CreateMockEmailService().Object;
             var mockLogger = TestUtils.CreateMockLogger<PushController>();
 
             using var dbContext = TestUtils.CreateInMemoryDbContext();

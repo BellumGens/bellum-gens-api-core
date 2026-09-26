@@ -6,6 +6,7 @@ using BellumGens.Api.Core.Models;
 using BellumGens.Api.Core.Providers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
@@ -17,7 +18,7 @@ namespace BellumGens.Api.Core.Tests
         private readonly Mock<UserManager<ApplicationUser>> _mockUserManager;
         private readonly Mock<RoleManager<IdentityRole>> _mockRoleManager;
         private readonly Mock<SignInManager<ApplicationUser>> _mockSignInManager;
-        private readonly EmailServiceProvider _emailService;
+        private readonly Mock<IEmailService> _mockEmailService;
         private readonly Mock<IStorageService> _mockStorageService;
         private readonly Mock<INotificationService> _mockNotificationService;
         private readonly Mock<ILogger<StrategyController>> _mockLogger;
@@ -27,7 +28,7 @@ namespace BellumGens.Api.Core.Tests
             _mockUserManager = TestUtils.CreateMockUserManager();
             _mockRoleManager = TestUtils.CreateMockRoleManager();
             _mockSignInManager = TestUtils.CreateMockSignInManager(_mockUserManager);
-            _emailService = TestUtils.CreateMockEmailServiceProvider();
+            _mockEmailService = TestUtils.CreateMockEmailService();
             _mockStorageService = TestUtils.CreateMockStorageService();
             _mockNotificationService = TestUtils.CreateMockNotificationService();
             _mockLogger = TestUtils.CreateMockLogger<StrategyController>();
@@ -38,7 +39,7 @@ namespace BellumGens.Api.Core.Tests
             return new StrategyController(
                 _mockStorageService.Object, _mockNotificationService.Object,
                 _mockUserManager.Object, _mockRoleManager.Object,
-                _mockSignInManager.Object, _emailService, dbContext, _mockLogger.Object);
+                _mockSignInManager.Object, _mockEmailService.Object, dbContext, _mockLogger.Object);
         }
 
         [Fact]
@@ -436,7 +437,7 @@ namespace BellumGens.Api.Core.Tests
             var result = await controller.DeleteStrategy(stratId);
 
             Assert.IsType<OkObjectResult>(result);
-            Assert.Null(await dbContext.CSGOStrategies.FindAsync(stratId));
+            Assert.Null(await dbContext.CSGOStrategies.FindAsync([stratId], TestContext.Current.CancellationToken));
         }
 
         [Fact]
@@ -492,7 +493,7 @@ namespace BellumGens.Api.Core.Tests
             var result = await controller.DeleteStrategyComment(commentId);
 
             var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.Null(await dbContext.StrategyComments.FindAsync(commentId));
+            Assert.Null(await dbContext.StrategyComments.FindAsync([commentId], TestContext.Current.CancellationToken));
         }
 
         [Fact]
@@ -569,6 +570,634 @@ namespace BellumGens.Api.Core.Tests
             var okResult = Assert.IsType<OkObjectResult>(result);
             var vote = Assert.IsType<StrategyVote>(okResult.Value);
             Assert.Equal(VoteDirection.Down, vote.Vote);
+        }
+
+        private ApplicationUser SeedAuthUser(BellumGensDbContext dbContext, string userId)
+        {
+            var user = new ApplicationUser { Id = userId, UserName = userId };
+            dbContext.Users.Add(user);
+            _mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+            return user;
+        }
+
+        private static Guid SeedTeam(BellumGensDbContext dbContext, params TeamMember[] members)
+        {
+            var teamId = Guid.NewGuid();
+            dbContext.CSGOTeams.Add(new CSGOTeam
+            {
+                TeamId = teamId, TeamName = "Team", CustomUrl = "team-" + teamId, SteamGroupId = "sg-" + teamId
+            });
+            foreach (var member in members)
+            {
+                member.TeamId = teamId;
+                member.IsActive = true;
+                dbContext.TeamMembers.Add(member);
+            }
+            return teamId;
+        }
+
+        [Fact]
+        public async Task SubmitStrategy_ForTeam_ReturnsBadRequest_WhenUserIsMemberButNotEditor()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            SeedAuthUser(dbContext, "user1");
+            var teamId = SeedTeam(dbContext,
+                new TeamMember { UserId = "user1", IsEditor = false, IsAdmin = false },
+                new TeamMember { UserId = "admin", IsAdmin = true });
+            dbContext.SaveChanges();
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser("user1"));
+
+            var result = await controller.SubmitStrategy(new CSGOStrategy
+            {
+                Title = "Team Strat", TeamId = teamId, Side = Side.TSide, Map = CSGOMap.Dust2
+            });
+
+            var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+            Assert.Contains("team editor", badRequest.Value?.ToString(), StringComparison.OrdinalIgnoreCase);
+            Assert.Empty(await dbContext.CSGOStrategies.ToListAsync(TestContext.Current.CancellationToken));
+            _mockStorageService.Verify(s => s.SaveImage(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task SubmitStrategy_ForTeam_ReturnsBadRequest_WhenUserIsNotTeamMember()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            SeedAuthUser(dbContext, "user1");
+            var teamId = SeedTeam(dbContext, new TeamMember { UserId = "admin", IsAdmin = true });
+            dbContext.SaveChanges();
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser("user1"));
+
+            var result = await controller.SubmitStrategy(new CSGOStrategy
+            {
+                Title = "Team Strat", TeamId = teamId, Side = Side.TSide, Map = CSGOMap.Dust2
+            });
+
+            Assert.IsType<BadRequestObjectResult>(result);
+            Assert.Empty(await dbContext.CSGOStrategies.ToListAsync(TestContext.Current.CancellationToken));
+        }
+
+        [Theory]
+        [InlineData(true, false)]
+        [InlineData(false, true)]
+        public async Task SubmitStrategy_ForTeam_CreatesStrategy_WhenUserIsEditorOrAdmin(bool isEditor, bool isAdmin)
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            SeedAuthUser(dbContext, "user1");
+            var teamId = SeedTeam(dbContext, new TeamMember { UserId = "user1", IsEditor = isEditor, IsAdmin = isAdmin });
+            dbContext.SaveChanges();
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser("user1"));
+
+            var result = await controller.SubmitStrategy(new CSGOStrategy
+            {
+                Title = "Team Execute", TeamId = teamId, Side = Side.CTSide, Map = CSGOMap.Mirage
+            });
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var saved = Assert.IsType<CSGOStrategy>(okResult.Value);
+            Assert.Equal("user1", saved.UserId);
+            Assert.Equal(teamId, saved.TeamId);
+            Assert.Equal("Team-Execute", saved.CustomUrl);
+
+            var stored = Assert.Single(await dbContext.CSGOStrategies.ToListAsync(TestContext.Current.CancellationToken));
+            Assert.Equal("Team Execute", stored.Title);
+            Assert.Equal(teamId, stored.TeamId);
+            // No image was submitted, so there is nothing to upload
+            _mockStorageService.Verify(s => s.SaveImage(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task SubmitStrategy_Create_GeneratesUniqueCustomUrl_WhenTitleUrlIsTaken()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            SeedAuthUser(dbContext, "user1");
+            dbContext.CSGOStrategies.Add(new CSGOStrategy
+            {
+                Title = "Dust2 Split", UserId = "other", CustomUrl = "Dust2-Split",
+                Side = Side.TSide, Map = CSGOMap.Dust2
+            });
+            dbContext.SaveChanges();
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser("user1"));
+
+            var result = await controller.SubmitStrategy(new CSGOStrategy
+            {
+                Title = "Dust2 Split", Side = Side.TSide, Map = CSGOMap.Dust2
+            });
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var saved = Assert.IsType<CSGOStrategy>(okResult.Value);
+            Assert.StartsWith("Dust2-Split-", saved.CustomUrl);
+            Assert.Equal("Dust2-Split-".Length + 6, saved.CustomUrl.Length);
+            Assert.Equal(2, await dbContext.CSGOStrategies.CountAsync(TestContext.Current.CancellationToken));
+        }
+
+        [Fact]
+        public async Task SubmitStrategy_Update_ByOwner_UploadsImageAndUpdatesEntity()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            SeedAuthUser(dbContext, "user1");
+            var stratId = Guid.NewGuid();
+            var originalTimestamp = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            dbContext.CSGOStrategies.Add(new CSGOStrategy
+            {
+                Id = stratId, Title = "Old Title", UserId = "user1", CustomUrl = "old-title",
+                Side = Side.TSide, Map = CSGOMap.Dust2, LastUpdated = originalTimestamp
+            });
+            dbContext.SaveChanges();
+
+            // Raw base64 payload (not an http(s) URL, so the controller sends it to storage)
+            const string imageData = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+            const string uploadedUrl = "https://storage.example.com/strategies/image.png";
+            _mockStorageService.Setup(s => s.SaveImage(imageData, stratId.ToString())).ReturnsAsync(uploadedUrl);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser("user1"));
+
+            var result = await controller.SubmitStrategy(new CSGOStrategy
+            {
+                Id = stratId, Title = "New Title", UserId = "user1", CustomUrl = "old-title",
+                Description = "Updated", StratImage = imageData, Side = Side.CTSide, Map = CSGOMap.Dust2
+            });
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var returned = Assert.IsType<CSGOStrategy>(okResult.Value);
+            Assert.Equal(uploadedUrl, returned.StratImage);
+            _mockStorageService.Verify(s => s.SaveImage(imageData, stratId.ToString()), Times.Once);
+
+            var stored = Assert.Single(await dbContext.CSGOStrategies.ToListAsync(TestContext.Current.CancellationToken));
+            Assert.Equal(stratId, stored.Id);
+            Assert.Equal("New Title", stored.Title);
+            Assert.Equal("Updated", stored.Description);
+            Assert.Equal(Side.CTSide, stored.Side);
+            Assert.Equal(uploadedUrl, stored.StratImage);
+            Assert.Equal("user1", stored.UserId);
+            Assert.True(stored.LastUpdated > originalTimestamp);
+        }
+
+        [Fact]
+        public async Task SubmitStrategy_Update_WithAbsoluteImageUrl_DoesNotCallStorage()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            SeedAuthUser(dbContext, "user1");
+            var stratId = Guid.NewGuid();
+            const string existingUrl = "https://storage.example.com/strategies/existing.png";
+            dbContext.CSGOStrategies.Add(new CSGOStrategy
+            {
+                Id = stratId, Title = "Title", UserId = "user1", CustomUrl = "title",
+                StratImage = existingUrl, Side = Side.TSide, Map = CSGOMap.Dust2
+            });
+            dbContext.SaveChanges();
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser("user1"));
+
+            var result = await controller.SubmitStrategy(new CSGOStrategy
+            {
+                Id = stratId, Title = "Renamed", UserId = "user1", CustomUrl = "title",
+                StratImage = existingUrl, Side = Side.TSide, Map = CSGOMap.Dust2
+            });
+
+            Assert.IsType<OkObjectResult>(result);
+            _mockStorageService.Verify(s => s.SaveImage(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+            var stored = await dbContext.CSGOStrategies.FindAsync([stratId], TestContext.Current.CancellationToken);
+            Assert.NotNull(stored);
+            Assert.Equal("Renamed", stored.Title);
+            Assert.Equal(existingUrl, stored.StratImage);
+        }
+
+        [Fact]
+        public async Task SubmitStrategy_Update_ReturnsBadRequest_WhenImageUploadFails()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            SeedAuthUser(dbContext, "user1");
+            var stratId = Guid.NewGuid();
+            dbContext.CSGOStrategies.Add(new CSGOStrategy
+            {
+                Id = stratId, Title = "Old Title", UserId = "user1", CustomUrl = "old-title",
+                Side = Side.TSide, Map = CSGOMap.Dust2
+            });
+            dbContext.SaveChanges();
+
+            _mockStorageService.Setup(s => s.SaveImage(It.IsAny<string>(), It.IsAny<string>()))
+                .ThrowsAsync(new FormatException("Invalid image data"));
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser("user1"));
+
+            var result = await controller.SubmitStrategy(new CSGOStrategy
+            {
+                Id = stratId, Title = "New Title", UserId = "user1", CustomUrl = "old-title",
+                StratImage = "not-valid-base64", Side = Side.TSide, Map = CSGOMap.Dust2
+            });
+
+            var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+            Assert.Equal("Invalid image data", badRequest.Value);
+            _mockStorageService.Verify(s => s.SaveImage("not-valid-base64", stratId.ToString()), Times.Once);
+            var stored = await dbContext.CSGOStrategies.FindAsync([stratId], TestContext.Current.CancellationToken);
+            Assert.NotNull(stored);
+            Assert.Equal("Old Title", stored.Title);
+        }
+
+        [Fact]
+        public async Task SubmitStrategy_Update_TeamStrategyWithoutOwner_AssignsCurrentUser()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            SeedAuthUser(dbContext, "user1");
+            var teamId = SeedTeam(dbContext, new TeamMember { UserId = "user1", IsEditor = true });
+            var stratId = Guid.NewGuid();
+            dbContext.CSGOStrategies.Add(new CSGOStrategy
+            {
+                Id = stratId, Title = "Unowned", TeamId = teamId, UserId = null, CustomUrl = "unowned",
+                Side = Side.TSide, Map = CSGOMap.Nuke
+            });
+            dbContext.SaveChanges();
+
+            const string imageUrl = "https://storage.example.com/strategies/unowned.png";
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser("user1"));
+
+            var result = await controller.SubmitStrategy(new CSGOStrategy
+            {
+                Id = stratId, Title = "Now Owned", TeamId = teamId, CustomUrl = "unowned",
+                StratImage = imageUrl, Side = Side.TSide, Map = CSGOMap.Nuke
+            });
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var returned = Assert.IsType<CSGOStrategy>(okResult.Value);
+            Assert.Equal("user1", returned.UserId);
+            var stored = await dbContext.CSGOStrategies.FindAsync([stratId], TestContext.Current.CancellationToken);
+            Assert.NotNull(stored);
+            Assert.Equal("user1", stored.UserId);
+            Assert.Equal("Now Owned", stored.Title);
+            Assert.Equal(teamId, stored.TeamId);
+        }
+
+        [Fact]
+        public async Task DeleteStrategy_ReturnsBadRequest_WhenStrategyNotFound()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            SeedAuthUser(dbContext, "user1");
+            dbContext.CSGOStrategies.Add(new CSGOStrategy
+            {
+                Title = "Mine", UserId = "user1", CustomUrl = "mine", Side = Side.TSide, Map = CSGOMap.Dust2
+            });
+            dbContext.SaveChanges();
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser("user1"));
+
+            var result = await controller.DeleteStrategy(Guid.NewGuid());
+
+            Assert.IsType<BadRequestObjectResult>(result);
+            Assert.Equal(1, await dbContext.CSGOStrategies.CountAsync(TestContext.Current.CancellationToken));
+        }
+
+        [Theory]
+        [InlineData(true, false)]
+        [InlineData(false, true)]
+        public async Task DeleteStrategy_TeamStrategy_ReturnsOk_WhenUserIsEditorOrAdmin(bool isEditor, bool isAdmin)
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            SeedAuthUser(dbContext, "user1");
+            var teamId = SeedTeam(dbContext, new TeamMember { UserId = "user1", IsEditor = isEditor, IsAdmin = isAdmin });
+            var stratId = Guid.NewGuid();
+            dbContext.CSGOStrategies.Add(new CSGOStrategy
+            {
+                Id = stratId, Title = "Team Strat", TeamId = teamId, UserId = "someoneelse", CustomUrl = "team-strat",
+                Side = Side.TSide, Map = CSGOMap.Dust2
+            });
+            dbContext.SaveChanges();
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser("user1"));
+
+            var result = await controller.DeleteStrategy(stratId);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.Equal("Ok", okResult.Value);
+            Assert.Null(await dbContext.CSGOStrategies.FindAsync([stratId], TestContext.Current.CancellationToken));
+        }
+
+        [Fact]
+        public async Task DeleteStrategy_TeamStrategy_ReturnsBadRequest_WhenUserIsMemberButNotEditor()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            SeedAuthUser(dbContext, "user1");
+            var teamId = SeedTeam(dbContext,
+                new TeamMember { UserId = "user1", IsEditor = false, IsAdmin = false },
+                new TeamMember { UserId = "admin", IsAdmin = true });
+            var stratId = Guid.NewGuid();
+            dbContext.CSGOStrategies.Add(new CSGOStrategy
+            {
+                Id = stratId, Title = "Team Strat", TeamId = teamId, UserId = "admin", CustomUrl = "team-strat",
+                Side = Side.TSide, Map = CSGOMap.Dust2
+            });
+            dbContext.SaveChanges();
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser("user1"));
+
+            var result = await controller.DeleteStrategy(stratId);
+
+            Assert.IsType<BadRequestObjectResult>(result);
+            Assert.NotNull(await dbContext.CSGOStrategies.FindAsync([stratId], TestContext.Current.CancellationToken));
+        }
+
+        [Fact]
+        public async Task DeleteStrategy_TeamStrategy_ReturnsBadRequest_WhenUserIsNotTeamMember()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            SeedAuthUser(dbContext, "user1");
+            var teamId = SeedTeam(dbContext, new TeamMember { UserId = "admin", IsAdmin = true });
+            var stratId = Guid.NewGuid();
+            dbContext.CSGOStrategies.Add(new CSGOStrategy
+            {
+                Id = stratId, Title = "Team Strat", TeamId = teamId, UserId = "admin", CustomUrl = "team-strat",
+                Side = Side.TSide, Map = CSGOMap.Dust2
+            });
+            dbContext.SaveChanges();
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser("user1"));
+
+            var result = await controller.DeleteStrategy(stratId);
+
+            Assert.IsType<BadRequestObjectResult>(result);
+            Assert.NotNull(await dbContext.CSGOStrategies.FindAsync([stratId], TestContext.Current.CancellationToken));
+        }
+
+        [Fact]
+        public async Task SubmitStrategy_TeamStrategy_ReturnsBadRequest_WhenNonMemberEditsTeamThatHasAnAdmin()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            SeedAuthUser(dbContext, "attacker");
+            var teamId = SeedTeam(dbContext, new TeamMember { UserId = "admin1", IsAdmin = true, IsEditor = true });
+            var stratId = Guid.NewGuid();
+            dbContext.CSGOStrategies.Add(new CSGOStrategy
+            {
+                Id = stratId, Title = "Team Strat", TeamId = teamId, UserId = "admin1", CustomUrl = "team-strat",
+                Side = Side.TSide, Map = CSGOMap.Nuke
+            });
+            dbContext.SaveChanges();
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser("attacker"));
+
+            var result = await controller.SubmitStrategy(new CSGOStrategy
+            {
+                Id = stratId, Title = "Hijacked", TeamId = null, UserId = "attacker", CustomUrl = "team-strat",
+                StratImage = "https://storage.example.com/x.png", Side = Side.TSide, Map = CSGOMap.Nuke
+            });
+
+            Assert.IsType<BadRequestObjectResult>(result);
+            var stored = Assert.Single(dbContext.CSGOStrategies);
+            Assert.Equal("Team Strat", stored.Title);
+            Assert.Equal(teamId, stored.TeamId);
+            Assert.Equal("admin1", stored.UserId);
+        }
+
+        [Fact]
+        public async Task SubmitStrategy_ReturnsBadRequest_WhenStrategyBelongsToAnotherUser()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            SeedAuthUser(dbContext, "user1");
+            var stratId = Guid.NewGuid();
+            dbContext.CSGOStrategies.Add(new CSGOStrategy
+            {
+                Id = stratId, Title = "Owner Strat", UserId = "owner1", CustomUrl = "owner-strat",
+                Side = Side.CTSide, Map = CSGOMap.Mirage
+            });
+            dbContext.SaveChanges();
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser("user1"));
+
+            var result = await controller.SubmitStrategy(new CSGOStrategy
+            {
+                Id = stratId, Title = "Overwritten", UserId = "user1", CustomUrl = "owner-strat",
+                Side = Side.CTSide, Map = CSGOMap.Mirage
+            });
+
+            Assert.IsType<BadRequestObjectResult>(result);
+            var stored = Assert.Single(dbContext.CSGOStrategies);
+            Assert.Equal("Owner Strat", stored.Title);
+            Assert.Equal("owner1", stored.UserId);
+        }
+
+        [Fact]
+        public async Task SubmitStrategy_Update_KeepsExistingOwner_WhenPayloadHasDifferentUserId()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            SeedAuthUser(dbContext, "editor1");
+            var teamId = SeedTeam(dbContext,
+                new TeamMember { UserId = "owner1", IsAdmin = true, IsEditor = true },
+                new TeamMember { UserId = "editor1", IsEditor = true });
+            var stratId = Guid.NewGuid();
+            dbContext.CSGOStrategies.Add(new CSGOStrategy
+            {
+                Id = stratId, Title = "Team Strat", TeamId = teamId, UserId = "owner1", CustomUrl = "team-strat",
+                Side = Side.TSide, Map = CSGOMap.Inferno
+            });
+            dbContext.SaveChanges();
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser("editor1"));
+
+            var result = await controller.SubmitStrategy(new CSGOStrategy
+            {
+                Id = stratId, Title = "Edited", TeamId = teamId, UserId = "editor1", CustomUrl = "team-strat",
+                StratImage = "https://storage.example.com/x.png", Side = Side.TSide, Map = CSGOMap.Inferno
+            });
+
+            Assert.IsType<OkObjectResult>(result);
+            var stored = Assert.Single(dbContext.CSGOStrategies);
+            Assert.Equal("Edited", stored.Title);
+            Assert.Equal("owner1", stored.UserId);
+        }
+
+        private const string PngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+        private const string PngDataUri = "data:image/png;base64," + PngBase64;
+
+        [Theory]
+        [InlineData(PngDataUri)]
+        [InlineData(PngBase64)]
+        public async Task SubmitStrategy_Create_UploadsImage_AndStoresUploadedUrl(string image)
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            SeedAuthUser(dbContext, "user1");
+            dbContext.SaveChanges();
+
+            const string uploadedUrl = "https://storage.example.com/strategies/new.png";
+            string? uploadedName = null;
+            _mockStorageService.Setup(s => s.SaveImage(image, It.IsAny<string>()))
+                .Callback<string, string>((_, name) => uploadedName = name)
+                .ReturnsAsync(uploadedUrl);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser("user1"));
+
+            var result = await controller.SubmitStrategy(new CSGOStrategy
+            {
+                Title = "New Strat", StratImage = image, Side = Side.TSide, Map = CSGOMap.Dust2
+            });
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var returned = Assert.IsType<CSGOStrategy>(okResult.Value);
+            Assert.NotEqual(Guid.Empty, returned.Id);
+            Assert.Equal(uploadedUrl, returned.StratImage);
+            _mockStorageService.Verify(s => s.SaveImage(image, It.IsAny<string>()), Times.Once);
+            // The blob is named after the id the strategy is saved with
+            Assert.Equal(returned.Id.ToString(), uploadedName);
+
+            dbContext.ChangeTracker.Clear();
+            var stored = Assert.Single(await dbContext.CSGOStrategies.ToListAsync(TestContext.Current.CancellationToken));
+            Assert.Equal(returned.Id, stored.Id);
+            Assert.Equal(uploadedUrl, stored.StratImage);
+        }
+
+        [Fact]
+        public async Task SubmitStrategy_Create_WithClientSuppliedId_UsesItForBlobName()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            SeedAuthUser(dbContext, "user1");
+            dbContext.SaveChanges();
+
+            var stratId = Guid.NewGuid();
+            const string uploadedUrl = "https://storage.example.com/strategies/client-id.png";
+            _mockStorageService.Setup(s => s.SaveImage(PngDataUri, stratId.ToString())).ReturnsAsync(uploadedUrl);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser("user1"));
+
+            var result = await controller.SubmitStrategy(new CSGOStrategy
+            {
+                Id = stratId, Title = "Client Id", StratImage = PngDataUri, Side = Side.TSide, Map = CSGOMap.Dust2
+            });
+
+            Assert.IsType<OkObjectResult>(result);
+            _mockStorageService.Verify(s => s.SaveImage(PngDataUri, stratId.ToString()), Times.Once);
+            var stored = await dbContext.CSGOStrategies.FindAsync([stratId], TestContext.Current.CancellationToken);
+            Assert.NotNull(stored);
+            Assert.Equal(uploadedUrl, stored.StratImage);
+        }
+
+        [Theory]
+        [InlineData("https://storage.example.com/strategies/existing.png")]
+        [InlineData("http://storage.example.com/strategies/existing.png")]
+        public async Task SubmitStrategy_Create_WithHttpImageUrl_DoesNotCallStorage(string imageUrl)
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            SeedAuthUser(dbContext, "user1");
+            dbContext.SaveChanges();
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser("user1"));
+
+            var result = await controller.SubmitStrategy(new CSGOStrategy
+            {
+                Title = "Linked Image", StratImage = imageUrl, Side = Side.TSide, Map = CSGOMap.Dust2
+            });
+
+            Assert.IsType<OkObjectResult>(result);
+            _mockStorageService.Verify(s => s.SaveImage(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+            var stored = Assert.Single(await dbContext.CSGOStrategies.ToListAsync(TestContext.Current.CancellationToken));
+            Assert.Equal(imageUrl, stored.StratImage);
+        }
+
+        [Fact]
+        public async Task SubmitStrategy_Create_ReturnsBadRequest_AndDoesNotSave_WhenImageUploadFails()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            SeedAuthUser(dbContext, "user1");
+            dbContext.SaveChanges();
+
+            _mockStorageService.Setup(s => s.SaveImage(It.IsAny<string>(), It.IsAny<string>()))
+                .ThrowsAsync(new FormatException("Invalid image data"));
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser("user1"));
+
+            var result = await controller.SubmitStrategy(new CSGOStrategy
+            {
+                Title = "Broken Image", StratImage = "not-valid-base64", Side = Side.TSide, Map = CSGOMap.Dust2
+            });
+
+            var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+            Assert.Equal("Invalid image data", badRequest.Value);
+            _mockStorageService.Verify(s => s.SaveImage("not-valid-base64", It.IsAny<string>()), Times.Once);
+            Assert.Empty(await dbContext.CSGOStrategies.ToListAsync(TestContext.Current.CancellationToken));
+        }
+
+        [Fact]
+        public async Task SubmitStrategy_Update_WithDataUriImage_UploadsImage()
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            SeedAuthUser(dbContext, "user1");
+            var stratId = Guid.NewGuid();
+            dbContext.CSGOStrategies.Add(new CSGOStrategy
+            {
+                Id = stratId, Title = "Title", UserId = "user1", CustomUrl = "title",
+                StratImage = "https://storage.example.com/strategies/old.png", Side = Side.TSide, Map = CSGOMap.Dust2
+            });
+            dbContext.SaveChanges();
+
+            const string uploadedUrl = "https://storage.example.com/strategies/new.png";
+            _mockStorageService.Setup(s => s.SaveImage(PngDataUri, stratId.ToString())).ReturnsAsync(uploadedUrl);
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser("user1"));
+
+            var result = await controller.SubmitStrategy(new CSGOStrategy
+            {
+                Id = stratId, Title = "Title", UserId = "user1", CustomUrl = "title",
+                StratImage = PngDataUri, Side = Side.TSide, Map = CSGOMap.Dust2
+            });
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var returned = Assert.IsType<CSGOStrategy>(okResult.Value);
+            Assert.Equal(uploadedUrl, returned.StratImage);
+            _mockStorageService.Verify(s => s.SaveImage(PngDataUri, stratId.ToString()), Times.Once);
+            var stored = await dbContext.CSGOStrategies.FindAsync([stratId], TestContext.Current.CancellationToken);
+            Assert.NotNull(stored);
+            Assert.Equal(uploadedUrl, stored.StratImage);
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        public async Task SubmitStrategy_Update_WithoutImage_DoesNotCallStorage(string? image)
+        {
+            using var dbContext = TestUtils.CreateInMemoryDbContext();
+            SeedAuthUser(dbContext, "user1");
+            var stratId = Guid.NewGuid();
+            dbContext.CSGOStrategies.Add(new CSGOStrategy
+            {
+                Id = stratId, Title = "Title", UserId = "user1", CustomUrl = "title",
+                Side = Side.TSide, Map = CSGOMap.Dust2
+            });
+            dbContext.SaveChanges();
+
+            var controller = CreateController(dbContext);
+            TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser("user1"));
+
+            var result = await controller.SubmitStrategy(new CSGOStrategy
+            {
+                Id = stratId, Title = "Renamed", UserId = "user1", CustomUrl = "title",
+                StratImage = image!, Side = Side.TSide, Map = CSGOMap.Dust2
+            });
+
+            Assert.IsType<OkObjectResult>(result);
+            _mockStorageService.Verify(s => s.SaveImage(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+            var stored = await dbContext.CSGOStrategies.FindAsync([stratId], TestContext.Current.CancellationToken);
+            Assert.NotNull(stored);
+            Assert.Equal("Renamed", stored.Title);
         }
     }
 }

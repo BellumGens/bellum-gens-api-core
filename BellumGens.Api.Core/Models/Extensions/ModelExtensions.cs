@@ -52,7 +52,7 @@ namespace BellumGens.Api.Core.Models.Extensions
 		public static double GetTotalAvailability(this List<UserAvailability> availabilities)
 		{
 			double total = 0;
-			foreach (Availability availability in availabilities)
+			foreach (Availability availability in availabilities.Where(a => a.Available))
 			{
 				total += (availability.To - availability.From).TotalHours;
 			}
@@ -62,7 +62,7 @@ namespace BellumGens.Api.Core.Models.Extensions
 		public static double GetTotalAvailability(this List<TeamAvailability> availabilities)
 		{
 			double total = 0;
-			foreach (Availability availability in availabilities)
+			foreach (Availability availability in availabilities.Where(a => a.Available))
 			{
 				total += (availability.To - availability.From).TotalHours;
 			}
@@ -71,143 +71,45 @@ namespace BellumGens.Api.Core.Models.Extensions
 
 		public static double GetTotalOverlap(this CSGOTeam team, ApplicationUser user)
 		{
-			double total = 0;
-			foreach (TeamAvailability practice in team.PracticeSchedule.Where(d => d.Available))
-			{
-				UserAvailability availability = user.Availability.SingleOrDefault(a => a.Day == practice.Day && a.Available);
-				if (availability != null)
-				{
-					/* CASE 0
-					 * user     |------------|
-					 * team	                     |----------------------|
-					 * OR
-					 * user                           |------------|
-					 * team	   |----------------------|
-					 */
-					if (practice.To <= availability.From || practice.From >= availability.To)
-						continue;
-
-					/* CASE 1
-					 * user     |------------|
-					 * team	|----------------------|	
-					 */
-					if (practice.From <= availability.From && practice.To >= availability.To)
-						total += (availability.To - availability.From).TotalHours;
-					/* CASE 2
-					 * user |----------------------| 
-					 * team    |------------|
-					 */
-					else if (practice.From >= availability.From && practice.To <= availability.To)
-						total += (practice.To - practice.From).TotalHours;
-					/* CASE 3
-					 * user	            |---------| 
-					 * team   |------------|
-					 */
-					else if (practice.To > availability.From)
-						total += (practice.To - availability.From).TotalHours;
-					/* CASE 4
-					 * user	  |---------| 
-					 * team         |------------|
-					 */
-					else if (practice.From < availability.To)
-						total += (availability.To - practice.From).TotalHours;
-				}
-			}
-			return total;
+			return SumOverlap(team.PracticeSchedule, user.Availability);
 		}
 
 		public static double GetTotalOverlap(this List<TeamAvailability> practiseSchedule, ApplicationUser user)
 		{
+			return SumOverlap(practiseSchedule, user.Availability);
+		}
+
+		public static double GetTotalOverlap(this ApplicationUser player, ApplicationUser user)
+		{
+			return SumOverlap(player.Availability, user.Availability);
+		}
+
+		/// <summary>
+		/// Sums, in hours, the intersection of each available window in <paramref name="schedule"/>
+		/// with the available window for the same day in <paramref name="availabilities"/>.
+		/// </summary>
+		private static double SumOverlap(IEnumerable<Availability> schedule, IEnumerable<UserAvailability> availabilities)
+		{
 			double total = 0;
-			foreach (TeamAvailability practice in practiseSchedule.Where(d => d.Available))
+			foreach (Availability practice in schedule.Where(d => d.Available))
 			{
-				UserAvailability availability = user.Availability.SingleOrDefault(a => a.Day == practice.Day && a.Available);
+				UserAvailability availability = availabilities.SingleOrDefault(a => a.Day == practice.Day && a.Available);
 				if (availability != null)
 				{
-					/* CASE 0
-					 * user     |------------|
-					 * team	                     |----------------------|
-					 * OR
-					 * user                           |------------|
-					 * team	   |----------------------|
-					 */
-					if (practice.To <= availability.From || practice.From >= availability.To)
-						continue;
-
-					/* CASE 1
-					 * user     |------------|
-					 * team	|----------------------|	
-					 */
-					if (practice.From <= availability.From && practice.To >= availability.To)
-						total += (availability.To - availability.From).TotalHours;
-					/* CASE 2
-					 * user |----------------------| 
-					 * team    |------------|
-					 */
-					else if (practice.From >= availability.From && practice.To <= availability.To)
-						total += (practice.To - practice.From).TotalHours;
-					/* CASE 3
-					 * user	            |---------| 
-					 * team   |------------|
-					 */
-					else if (practice.To > availability.From)
-						total += (practice.To - availability.From).TotalHours;
-					/* CASE 4
-					 * user	  |---------| 
-					 * team         |------------|
-					 */
-					else if (practice.From < availability.To)
-						total += (availability.To - practice.From).TotalHours;
+					total += GetOverlap(practice, availability);
 				}
 			}
 			return total;
 		}
 
-		public static double GetTotalOverlap(this ApplicationUser player, ApplicationUser user)
+		/// <summary>
+		/// Standard interval intersection: max(0, min(endA, endB) - max(startA, startB)), in hours.
+		/// </summary>
+		private static double GetOverlap(Availability first, Availability second)
 		{
-			double total = 0;
-			foreach (UserAvailability practice in player.Availability.Where(d => d.Available))
-			{
-				UserAvailability availability = user.Availability.SingleOrDefault(a => a.Day == practice.Day && a.Available);
-				if (availability != null)
-				{
-					/* CASE 0
-					 * user     |------------|
-					 * player	                     |----------------------|
-					 * OR
-					 * user                           |------------|
-					 * player  |----------------------|
-					 */
-					if (practice.To <= availability.From || practice.From >= availability.To)
-						continue;
-
-					/* CASE 1
-					 * user     |------------|
-					 * player |----------------------|	
-					 */
-					if (practice.From <= availability.From && practice.To >= availability.To)
-						total += (availability.To - availability.From).TotalHours;
-					/* CASE 2
-					 * user    |----------------------| 
-					 * player    |------------|
-					 */
-					else if (practice.From >= availability.From && practice.To <= availability.To)
-						total += (practice.To - practice.From).TotalHours;
-					/* CASE 3
-					 * user	            |---------| 
-					 * player   |------------|
-					 */
-					else if (practice.To > availability.From)
-						total += (practice.To - availability.From).TotalHours;
-					/* CASE 4
-					 * user	  |---------| 
-					 * player      |------------|
-					 */
-					else if (practice.From < availability.To)
-						total += (availability.To - practice.From).TotalHours;
-				}
-			}
-			return total;
+			DateTimeOffset start = first.From > second.From ? first.From : second.From;
+			DateTimeOffset end = first.To < second.To ? first.To : second.To;
+			return Math.Max(0, (end - start).TotalHours);
 		}
 	}
 }

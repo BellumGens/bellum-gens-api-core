@@ -17,7 +17,7 @@ namespace BellumGens.Api.Core.Tests
         private readonly Mock<UserManager<ApplicationUser>> _mockUserManager;
         private readonly Mock<RoleManager<IdentityRole>> _mockRoleManager;
         private readonly Mock<SignInManager<ApplicationUser>> _mockSignInManager;
-        private readonly EmailServiceProvider _emailService;
+        private readonly Mock<IEmailService> _mockEmailService;
         private readonly Mock<ILogger<AdminController>> _mockLogger;
 
         public AdminControllerTests()
@@ -25,7 +25,7 @@ namespace BellumGens.Api.Core.Tests
             _mockUserManager = TestUtils.CreateMockUserManager();
             _mockRoleManager = TestUtils.CreateMockRoleManager();
             _mockSignInManager = TestUtils.CreateMockSignInManager(_mockUserManager);
-            _emailService = TestUtils.CreateMockEmailServiceProvider();
+            _mockEmailService = TestUtils.CreateMockEmailService();
             _mockLogger = TestUtils.CreateMockLogger<AdminController>();
         }
 
@@ -33,7 +33,7 @@ namespace BellumGens.Api.Core.Tests
         {
             return new AdminController(
                 _mockUserManager.Object, _mockRoleManager.Object,
-                _mockSignInManager.Object, _emailService, dbContext, _mockLogger.Object);
+                _mockSignInManager.Object, _mockEmailService.Object, dbContext, _mockLogger.Object);
         }
 
         [Fact]

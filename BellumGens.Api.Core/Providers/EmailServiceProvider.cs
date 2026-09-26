@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace BellumGens.Api.Core.Providers
 {
-	public class EmailServiceProvider
+	public class EmailServiceProvider : IEmailService
 	{
         private readonly AppConfiguration _appInfo;
         public EmailServiceProvider(AppConfiguration appInfo)
@@ -13,9 +13,9 @@ namespace BellumGens.Api.Core.Providers
             _appInfo = appInfo;
         }
 
-        public Task SendEmailAsync(string destination, string subject, string body)
+        public async Task SendEmailAsync(string destination, string subject, string body)
         {
-            MailMessage msg = new();
+            using MailMessage msg = new();
             msg.To.Add(new MailAddress(destination));
             msg.Bcc.Add(new MailAddress("info@eb-league.com"));
             msg.From = new MailAddress(_appInfo.Config.Email, "Bellum Gens");
@@ -23,7 +23,7 @@ namespace BellumGens.Api.Core.Providers
             msg.Body = body;
             msg.IsBodyHtml = true;
 
-            SmtpClient client = new()
+            using SmtpClient client = new()
             {
                 UseDefaultCredentials = false,
                 Credentials = new NetworkCredential(_appInfo.Config.EmailUsername, _appInfo.Config.EmailPassword),
@@ -32,7 +32,7 @@ namespace BellumGens.Api.Core.Providers
                 DeliveryMethod = SmtpDeliveryMethod.Network,
                 EnableSsl = true
             };
-            return client.SendMailAsync(msg);
+            await client.SendMailAsync(msg);
         }
     }
 }

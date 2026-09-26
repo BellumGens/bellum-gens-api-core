@@ -14,7 +14,7 @@ namespace BellumGens.Api.Controllers
     [Authorize]
     public class AdminController : BaseController
     {
-        public AdminController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, EmailServiceProvider sender, BellumGensDbContext context, ILogger<AdminController> logger)
+        public AdminController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, IEmailService sender, BellumGensDbContext context, ILogger<AdminController> logger)
             : base(userManager, roleManager, signInManager, sender, context, logger)
         {
         }
