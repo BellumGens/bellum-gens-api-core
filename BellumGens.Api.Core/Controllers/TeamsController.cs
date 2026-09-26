@@ -19,13 +19,13 @@ namespace BellumGens.Api.Controllers
 		private readonly ISteamService _steamService;
 		private readonly INotificationService _notificationService;
 		public TeamsController(ISteamService steamService,
-							   INotificationService notificationService,
-							   UserManager<ApplicationUser> userManager,
-							   RoleManager<IdentityRole> roleManager,
-							   SignInManager<ApplicationUser> signInManager,
-                               IEmailService sender,
-							   BellumGensDbContext context,
-							   ILogger<TeamsController> logger) : base(userManager, roleManager, signInManager, sender, context, logger)
+								INotificationService notificationService,
+								UserManager<ApplicationUser> userManager,
+								RoleManager<IdentityRole> roleManager,
+								SignInManager<ApplicationUser> signInManager,
+								IEmailService sender,
+								BellumGensDbContext context,
+								ILogger<TeamsController> logger) : base(userManager, roleManager, signInManager, sender, context, logger)
 		{
 			_steamService = steamService;
 			_notificationService = notificationService;
@@ -67,7 +67,7 @@ namespace BellumGens.Api.Controllers
 		public async Task<IActionResult> GetIsTeamAdmin(string teamid)
 		{
 			if (Guid.TryParse(teamid, out Guid id))
-            {
+			{
 				return Ok(await UserIsTeamAdmin(id));
 			}
 			ApplicationUser user = await GetAuthUser();
@@ -109,8 +109,8 @@ namespace BellumGens.Api.Controllers
 		[HttpPost]
 		public async Task<IActionResult> TeamFromSteamGroup(SteamUserGroup group)
 		{
-            ApplicationUser user = await GetAuthUser();
-            if (!await _steamService.VerifyUserIsGroupAdmin(user.SteamID, group.groupID64))
+			ApplicationUser user = await GetAuthUser();
+			if (!await _steamService.VerifyUserIsGroupAdmin(user.SteamID, group.groupID64))
 			{
 				return BadRequest("User is not a steam group owner for " + group.groupName);
 			}
@@ -175,7 +175,7 @@ namespace BellumGens.Api.Controllers
 		[HttpPost]
 		public async Task<IActionResult> NewTeam(CSGOTeam team)
 		{
-            ApplicationUser user = await GetAuthUser();
+			ApplicationUser user = await GetAuthUser();
 
 			_dbContext.CSGOTeams.Add(team);
 
@@ -211,8 +211,8 @@ namespace BellumGens.Api.Controllers
 			TeamMember entity = await _dbContext.TeamMembers.FindAsync(member.TeamId, member.UserId);
 			if (entity == null)
 			{
-                return NotFound("Team Member not found!");
-            }
+				return NotFound("Team Member not found!");
+			}
 
 			_dbContext.Entry(entity).CurrentValues.SetValues(member);
 			try
@@ -238,8 +238,8 @@ namespace BellumGens.Api.Controllers
 			TeamMember entity = await _dbContext.TeamMembers.FindAsync(teamId, userId);
 			if (entity == null)
 			{
-                return NotFound("Team Member not found!");
-            }
+				return NotFound("Team Member not found!");
+			}
 
 			_dbContext.TeamMembers.Remove(entity);
 			try
@@ -258,7 +258,7 @@ namespace BellumGens.Api.Controllers
 		[HttpDelete]
 		public async Task<IActionResult> AbandonTeam(Guid teamId)
 		{
-            ApplicationUser user = await GetAuthUser();
+			ApplicationUser user = await GetAuthUser();
 			CSGOTeam team = await _dbContext.CSGOTeams.FindAsync(teamId);
 			await _dbContext.Entry(team).Collection(t => t.Members).LoadAsync();
 			object response = new { removed = false };
@@ -268,7 +268,7 @@ namespace BellumGens.Api.Controllers
 				response = new { removed = true };
 			}
 			else
-            {
+			{
 				TeamMember entity = team.Members.FirstOrDefault(m => m.UserId == user.Id);
 				if (entity != null)
 				{
@@ -541,9 +541,9 @@ namespace BellumGens.Api.Controllers
 				}
 			}
 			else
-            {
+			{
 				_dbContext.TeamAvailabilities.Remove(day);
-            }
+			}
 
 			try
 			{

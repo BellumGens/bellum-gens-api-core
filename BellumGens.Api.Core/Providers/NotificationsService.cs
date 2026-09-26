@@ -17,7 +17,7 @@ namespace BellumGens.Api.Core.Providers
 		private readonly ILogger<NotificationsService> _logger;
 
 		public NotificationsService(IWebPushClient webPushClient, AppConfiguration appInfo, ILogger<NotificationsService> logger)
-        {
+		{
 			_webPushClient = webPushClient;
 			_logger = logger;
 			// VAPID details are passed per send (rather than configured on the client at registration)
@@ -48,7 +48,7 @@ namespace BellumGens.Api.Core.Providers
 		public Task SendNotificationAsync(List<BellumGensPushSubscription> subs, StrategyComment comment)
 		{
 			return SendToAllAsync(subs, () => new BellumGensNotificationWrapper(comment));
-        }
+		}
 
 		public Task SendNotificationAsync(List<BellumGensPushSubscription> subs, TournamentApplication application, string callbackUrl)
 		{

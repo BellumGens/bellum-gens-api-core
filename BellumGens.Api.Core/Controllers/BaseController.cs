@@ -13,7 +13,7 @@ namespace BellumGens.Api.Controllers
 	[ApiController]
 	[Route("api/[controller]")]
 	public class BaseController : ControllerBase
-    {
+	{
 		protected readonly IEmailService _sender;
 		protected readonly BellumGensDbContext _dbContext;
 		protected readonly UserManager<ApplicationUser> _userManager;
@@ -22,14 +22,14 @@ namespace BellumGens.Api.Controllers
 		protected readonly ILogger<BaseController> _logger;
 
 		public BaseController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, IEmailService sender, BellumGensDbContext context, ILogger<BaseController> logger)
-        {
+		{
 			_userManager = userManager;
 			_roleManager = roleManager;
 			_signInManager = signInManager;
 			_sender = sender;
 			_dbContext = context;
 			_logger = logger;
-        }
+		}
 
 		protected async Task<ApplicationUser> GetAuthUser()
 		{

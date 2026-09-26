@@ -30,8 +30,8 @@ namespace BellumGens.Api.Core.Models
 		[DatabaseGenerated(DatabaseGeneratedOption.Identity)]
 		public Guid TeamId { get; set; }
 
-        [MaxLength(64)]
-        public string SteamGroupId { get; set; }
+		[MaxLength(64)]
+		public string SteamGroupId { get; set; }
 
 		public string TeamName { get; set; }
 

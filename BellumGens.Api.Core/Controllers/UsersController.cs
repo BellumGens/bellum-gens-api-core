@@ -13,23 +13,23 @@ namespace BellumGens.Api.Controllers
 {
 	[Authorize]
 	public class UsersController : BaseController
-    {
+	{
 		private readonly ISteamService _steamService;
 		private readonly IBattleNetService _battleNetService;
 		private readonly INotificationService _notificationService;
 		public UsersController(ISteamService steamService,
-							   IBattleNetService battleNetService,
-                               INotificationService notificationService,
-							   UserManager<ApplicationUser> userManager,
-							   RoleManager<IdentityRole> roleManager,
-							   SignInManager<ApplicationUser> signInManager,
-                               IEmailService sender,
-							   BellumGensDbContext context,
-							   ILogger<UsersController> logger) : base(userManager, roleManager, signInManager, sender, context, logger)
+								IBattleNetService battleNetService,
+								INotificationService notificationService,
+								UserManager<ApplicationUser> userManager,
+								RoleManager<IdentityRole> roleManager,
+								SignInManager<ApplicationUser> signInManager,
+								IEmailService sender,
+								BellumGensDbContext context,
+								ILogger<UsersController> logger) : base(userManager, roleManager, signInManager, sender, context, logger)
 		{
 			_steamService = steamService;
-            _battleNetService = battleNetService;
-            _notificationService = notificationService;
+			_battleNetService = battleNetService;
+			_notificationService = notificationService;
 		}
 
 		[HttpGet]
@@ -39,42 +39,42 @@ namespace BellumGens.Api.Controllers
 			ApplicationUser registered = await _dbContext.Users.Include(u => u.CSGODetails).Include(u => u.StarCraft2Details).Include(u => u.MemberOf).ThenInclude(m => m.Team).FirstOrDefaultAsync(u => u.Id == userid);
 			UserStatsViewModel user = new UserStatsViewModel();
 
-            if (registered != null)
-            {
-                if (registered.SteamID != null)
-                {
-                    user = await _steamService.GetSteamUserDetails(registered.SteamID) ?? new UserStatsViewModel();
-                }
+			if (registered != null)
+			{
+				if (registered.SteamID != null)
+				{
+					user = await _steamService.GetSteamUserDetails(registered.SteamID) ?? new UserStatsViewModel();
+				}
 
-                if (registered.BattleNetId != null)
-                {
-                    user.SC2Player = await _battleNetService.GetStarCraft2Player(registered.BattleNetId);
-                }
-                user.SetUser(registered, _dbContext);
-            }
+				if (registered.BattleNetId != null)
+				{
+					user.SC2Player = await _battleNetService.GetStarCraft2Player(registered.BattleNetId);
+				}
+				user.SetUser(registered, _dbContext);
+			}
 			else
 			{
-                user = await _steamService.GetSteamUserDetails(userid);
-                if (user?.SteamUser == null)
-                {
-                    return NotFound();
-                }
-                registered = await _dbContext.Users.Include(u => u.CSGODetails).Include(u => u.StarCraft2Details).Include(u => u.MemberOf).ThenInclude(m => m.Team).FirstOrDefaultAsync(u => u.SteamID == user.SteamUser.steamID64);
+				user = await _steamService.GetSteamUserDetails(userid);
+				if (user?.SteamUser == null)
+				{
+					return NotFound();
+				}
+				registered = await _dbContext.Users.Include(u => u.CSGODetails).Include(u => u.StarCraft2Details).Include(u => u.MemberOf).ThenInclude(m => m.Team).FirstOrDefaultAsync(u => u.SteamID == user.SteamUser.steamID64);
 				if (registered != null)
 				{
-                    user.SetUser(registered, _dbContext);
-                }
-            }
+					user.SetUser(registered, _dbContext);
+				}
+			}
 			return Ok(user);
 		}
 
-        [Route("UserGroups")]
-        [AllowAnonymous]
-        public async Task<IActionResult> GetUserGroups(string userid)
-        {
-            UserStatsViewModel user = await _steamService.GetSteamUserDetails(userid);
-            return Ok(user?.SteamUser?.groups);
-        }
+		[Route("UserGroups")]
+		[AllowAnonymous]
+		public async Task<IActionResult> GetUserGroups(string userid)
+		{
+			UserStatsViewModel user = await _steamService.GetSteamUserDetails(userid);
+			return Ok(user?.SteamUser?.groups);
+		}
 
 		[Route("UserTeams")]
 		[AllowAnonymous]
@@ -105,27 +105,27 @@ namespace BellumGens.Api.Controllers
 			ApplicationUser user = await GetAuthUser();
 			newAvailability.UserId = user.Id;
 			if (newAvailability.Available)
-            {
+			{
 				bool exists = _dbContext.UserAvailabilities.Any(a => a.UserId == newAvailability.UserId && a.Day == newAvailability.Day);
 				if (exists)
-                {
+				{
 					_dbContext.UserAvailabilities.Update(newAvailability);
-                }
+				}
 				else
-                {
+				{
 					_dbContext.UserAvailabilities.Add(newAvailability);
 				}
-            }
+			}
 			else
-            {
+			{
 				_dbContext.UserAvailabilities.Remove(newAvailability);
-            }
+			}
 
 			try
 			{
 				await _dbContext.SaveChangesAsync();
 			}
-            catch (DbUpdateException e)
+			catch (DbUpdateException e)
 			{
 				System.Diagnostics.Trace.TraceError($"User availability error: {e.Message}");
 				return BadRequest("Something went wrong... ");
@@ -149,13 +149,13 @@ namespace BellumGens.Api.Controllers
 			ApplicationUser user = await GetAuthUser();
 			mapPool.UserId = user.Id;
 			if (mapPool.IsPlayed)
-            {
+			{
 				_dbContext.UserMapPool.Add(mapPool);
-            }
+			}
 			else if (_dbContext.UserMapPool.Contains(mapPool))
-            {
+			{
 				_dbContext.UserMapPool.Remove(mapPool);
-            }
+			}
 
 			try
 			{
@@ -288,7 +288,7 @@ namespace BellumGens.Api.Controllers
 				return BadRequest("Something went wrong... ");
 			}
 			return Ok(entity);
-        }
+		}
 
 		private const string SteamAccountRequiredMessage = "You need to link a Steam account to set your CS:GO roles...";
 
@@ -307,14 +307,14 @@ namespace BellumGens.Api.Controllers
 			return user.CSGODetails;
 		}
 
-        [Route("Tournaments")]
-        [AllowAnonymous]
-        public async Task<IActionResult> GetTournaments(string userid)
-        {
-            List<PlayerTournamentViewModel> model = new();
+		[Route("Tournaments")]
+		[AllowAnonymous]
+		public async Task<IActionResult> GetTournaments(string userid)
+		{
+			List<PlayerTournamentViewModel> model = new();
 
-            await _dbContext.Tournaments
-                            .Include(t => t.SC2Matches)
+			await _dbContext.Tournaments
+							.Include(t => t.SC2Matches)
 								.ThenInclude(m => m.Player1)
 									.ThenInclude(p1 => p1.StarCraft2Details)
 							.Include(t => t.SC2Matches)
@@ -322,9 +322,9 @@ namespace BellumGens.Api.Controllers
 									.ThenInclude(p2 => p2.StarCraft2Details)
 							.Where(t => t.SC2Matches.Any(m => m.Player1Id == userid || m.Player2Id == userid))
 							.OrderByDescending(t => t.StartDate)
-                            .ForEachAsync(tournament => model.Add(new PlayerTournamentViewModel(tournament, userid)));
+							.ForEachAsync(tournament => model.Add(new PlayerTournamentViewModel(tournament, userid)));
 
-            return Ok(model);
-        }
-    }
+			return Ok(model);
+		}
+	}
 }

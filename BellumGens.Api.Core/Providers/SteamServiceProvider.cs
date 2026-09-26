@@ -27,11 +27,11 @@ namespace BellumGens.Api.Core.Providers
 		//private static readonly string _steamAppNewsUrl = "https://api.steampowered.com/ISteamNews/GetNewsForApp/v0002/?appid={0}&maxlength=300&format=json";
 
 		public SteamServiceProvider(HttpClient client, IMemoryCache cache, AppConfiguration appInfo)
-        {
+		{
 			_client = client;
 			_cache = cache;
 			_appInfo = appInfo;
-        }
+		}
 
 		public async Task<CSGOPlayerStats> GetStatsForCSGOUser(string username)
 		{
@@ -40,8 +40,8 @@ namespace BellumGens.Api.Core.Providers
 			return JsonSerializer.Deserialize<CSGOPlayerStats>(statsForGameResponse);
 		}
 
-        public async Task<SteamUser> GetSteamUser(string name)
-        {
+		public async Task<SteamUser> GetSteamUser(string name)
+		{
 			if (_cache.Get(name) is UserStatsViewModel)
 			{
 				UserStatsViewModel viewModel = _cache.Get(name) as UserStatsViewModel;
@@ -178,7 +178,7 @@ namespace BellumGens.Api.Core.Providers
 		public Uri NormalizeUsername(string name)
 		{
 			string pattern = "^[0-9]{17}$",
-				   url = "^http(s)?://steamcommunity.com";
+					url = "^http(s)?://steamcommunity.com";
 			return Regex.IsMatch(name, url) ?
 					new Uri(name + "/?xml=1") :
 					Regex.IsMatch(name, pattern) ?

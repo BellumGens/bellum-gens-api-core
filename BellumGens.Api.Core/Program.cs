@@ -17,19 +17,19 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 string[] devCors = [
-    "http://localhost:4200",
-    "http://localhost:4000",
-    "http://localhost:4201",
-    "http://localhost:4001"
+	"http://localhost:4200",
+	"http://localhost:4000",
+	"http://localhost:4201",
+	"http://localhost:4001"
 ];
 
 string[] prodCors = [
-    "https://bellumgens.com",
-    "https://www.bellumgens.com",
-    "https://eb-league.com",
-    "https://www.eb-league.com",
-    "http://staging.bellumgens.com",
-    "http://staging.eb-league.com"
+	"https://bellumgens.com",
+	"https://www.bellumgens.com",
+	"https://eb-league.com",
+	"https://www.eb-league.com",
+	"http://staging.bellumgens.com",
+	"http://staging.eb-league.com"
 ];
 
 var builder = WebApplication.CreateBuilder(args);
@@ -39,74 +39,74 @@ Program.PublicClientId = builder.Configuration["publicClientId"];
 builder.Services.AddDbContext<BellumGensDbContext>(options =>
 {
 #if SQLITE_PROVIDER
-    if (string.Equals(builder.Configuration.GetValue<string>("Database:Provider"), "Sqlite", StringComparison.OrdinalIgnoreCase))
-    {
-        options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"));
-        return;
-    }
+	if (string.Equals(builder.Configuration.GetValue<string>("Database:Provider"), "Sqlite", StringComparison.OrdinalIgnoreCase))
+	{
+		options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"));
+		return;
+	}
 #endif
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+	options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
 
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options => options.SignIn.RequireConfirmedAccount = true)
-    .AddEntityFrameworkStores<BellumGensDbContext>()
-    .AddDefaultTokenProviders();
+	.AddEntityFrameworkStores<BellumGensDbContext>()
+	.AddDefaultTokenProviders();
 
 builder.Services.AddMemoryCache();
 
 builder.Services.AddAuthentication("Cookies")
-    .AddCookie(options =>
-    {
-        options.Cookie.HttpOnly = true;
-        options.Cookie.SameSite = SameSiteMode.None;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-        options.ExpireTimeSpan = TimeSpan.FromDays(14);
-        options.SlidingExpiration = true;
-    })
-    .AddBattleNet(options =>
-    {
-        options.ClientId = builder.Configuration.GetValue<string>("battleNet:clientId");
-        options.ClientSecret = builder.Configuration.GetValue<string>("battleNet:secret");
-        options.Scope.Clear();
-        options.Scope.Add("sc2.profile");
-    })
-    .AddTwitch(options =>
-    {
-        options.ClientId = builder.Configuration.GetValue<string>("twitch:clientId");
-        options.ClientSecret = builder.Configuration.GetValue<string>("twitch:secret");
-        options.CallbackPath = "/signin-twitch";
-    })
-    .AddSteam(options =>
-    {
-        options.ApplicationKey = builder.Configuration["steamApiKey"];
-    });
+	.AddCookie(options =>
+	{
+		options.Cookie.HttpOnly = true;
+		options.Cookie.SameSite = SameSiteMode.None;
+		options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+		options.ExpireTimeSpan = TimeSpan.FromDays(14);
+		options.SlidingExpiration = true;
+	})
+	.AddBattleNet(options =>
+	{
+		options.ClientId = builder.Configuration.GetValue<string>("battleNet:clientId");
+		options.ClientSecret = builder.Configuration.GetValue<string>("battleNet:secret");
+		options.Scope.Clear();
+		options.Scope.Add("sc2.profile");
+	})
+	.AddTwitch(options =>
+	{
+		options.ClientId = builder.Configuration.GetValue<string>("twitch:clientId");
+		options.ClientSecret = builder.Configuration.GetValue<string>("twitch:secret");
+		options.CallbackPath = "/signin-twitch";
+	})
+	.AddSteam(options =>
+	{
+		options.ApplicationKey = builder.Configuration["steamApiKey"];
+	});
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
-    options.Cookie.HttpOnly = true;
-    options.Cookie.SameSite = SameSiteMode.None;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-    options.ExpireTimeSpan = TimeSpan.FromDays(14);
-    options.SlidingExpiration = true;
+	options.Cookie.HttpOnly = true;
+	options.Cookie.SameSite = SameSiteMode.None;
+	options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+	options.ExpireTimeSpan = TimeSpan.FromDays(14);
+	options.SlidingExpiration = true;
 });
 
 builder.Services.Configure<IdentityOptions>(options =>
 {
-    // Password settings.
-    options.Password.RequireDigit = true;
-    options.Password.RequireLowercase = true;
-    options.Password.RequireNonAlphanumeric = true;
-    options.Password.RequiredLength = 8;
-    options.Password.RequiredUniqueChars = 1;
+	// Password settings.
+	options.Password.RequireDigit = true;
+	options.Password.RequireLowercase = true;
+	options.Password.RequireNonAlphanumeric = true;
+	options.Password.RequiredLength = 8;
+	options.Password.RequiredUniqueChars = 1;
 
-    // Lockout settings.
-    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
-    options.Lockout.MaxFailedAccessAttempts = 5;
-    options.Lockout.AllowedForNewUsers = true;
+	// Lockout settings.
+	options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+	options.Lockout.MaxFailedAccessAttempts = 5;
+	options.Lockout.AllowedForNewUsers = true;
 
-    // User settings.
-    options.User.RequireUniqueEmail = false;
-    options.User.AllowedUserNameCharacters = string.Empty;
+	// User settings.
+	options.User.RequireUniqueEmail = false;
+	options.User.AllowedUserNameCharacters = string.Empty;
 });
 
 builder.Services.AddSingleton<AppConfiguration>();
@@ -121,25 +121,25 @@ builder.Services.AddScoped<IStorageService, StorageService>();
 
 builder.Services.AddResponseCompression(options =>
 {
-    options.Providers.Add<BrotliCompressionProvider>();
-    options.Providers.Add<GzipCompressionProvider>();
-    options.EnableForHttps = true;
-    options.MimeTypes = new[]
-    {
-        // Default
-        "text/plain",
-        "text/css",
-        "application/javascript",
-        "text/html",
-        "application/xml",
-        "text/xml",
-        "application/json",
-        "text/json",
+	options.Providers.Add<BrotliCompressionProvider>();
+	options.Providers.Add<GzipCompressionProvider>();
+	options.EnableForHttps = true;
+	options.MimeTypes = new[]
+	{
+		// Default
+		"text/plain",
+		"text/css",
+		"application/javascript",
+		"text/html",
+		"application/xml",
+		"text/xml",
+		"application/json",
+		"text/json",
 
-        // Custom
-        "image/svg+xml",
-        "application/font-woff2"
-    };
+		// Custom
+		"image/svg+xml",
+		"application/font-woff2"
+	};
 });
 
 builder.Services.AddControllers();
@@ -149,42 +149,42 @@ var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
-    app.UseDeveloperExceptionPage();
+	app.UseDeveloperExceptionPage();
 
-    //app.UseOpenApi();
-    //app.UseSwaggerUi3();
+	//app.UseOpenApi();
+	//app.UseSwaggerUi3();
 }
 
 using (var serviceScope = app.Services.CreateScope())
 {
-    var context = serviceScope.ServiceProvider.GetRequiredService<BellumGensDbContext>();
+	var context = serviceScope.ServiceProvider.GetRequiredService<BellumGensDbContext>();
 #if SQLITE_PROVIDER
-    if (context.Database.IsSqlite())
-    {
-        SqliteDevelopmentDatabase.EnsureCurrentModel(context);
-    }
-    else
+	if (context.Database.IsSqlite())
+	{
+		SqliteDevelopmentDatabase.EnsureCurrentModel(context);
+	}
+	else
 #endif
-    {
-        context.Database.Migrate();
-    }
+	{
+		context.Database.Migrate();
+	}
 }
 
 app.UseHttpsRedirection();
 
 if (app.Environment.IsDevelopment())
 {
-    app.UseCors(o => o.AllowAnyHeader()
-                      .AllowAnyMethod()
-                      .AllowCredentials()
-                      .WithOrigins(devCors));
+	app.UseCors(o => o.AllowAnyHeader()
+						.AllowAnyMethod()
+						.AllowCredentials()
+						.WithOrigins(devCors));
 }
 else
 {
-    app.UseCors(o => o.AllowAnyHeader()
-                      .AllowAnyMethod()
-                      .AllowCredentials()
-                      .WithOrigins(prodCors));
+	app.UseCors(o => o.AllowAnyHeader()
+						.AllowAnyMethod()
+						.AllowCredentials()
+						.WithOrigins(prodCors));
 }
 
 app.UseRouting();
@@ -199,32 +199,32 @@ app.Run();
 
 partial class Program
 {
-    internal static string PublicClientId { get; set; }
+	internal static string PublicClientId { get; set; }
 }
 
 #if SQLITE_PROVIDER
 internal static class SqliteDevelopmentDatabase
 {
-    /// <summary>Recreates the development SQLite database, losing local data, when its model schema changes.</summary>
-    internal static void EnsureCurrentModel(BellumGensDbContext context)
-    {
-        var schemaHash = Convert.ToHexString(SHA256.HashData(
-            Encoding.UTF8.GetBytes(context.Database.GenerateCreateScript())));
-        var created = context.Database.EnsureCreated();
-        var hasSchemaRecord = !created && context.Database.SqlQueryRaw<string>(
-            "SELECT name AS Value FROM sqlite_master WHERE type = 'table' AND name = '__DevSchema'")
-            .AsEnumerable().Any();
+	/// <summary>Recreates the development SQLite database, losing local data, when its model schema changes.</summary>
+	internal static void EnsureCurrentModel(BellumGensDbContext context)
+	{
+		var schemaHash = Convert.ToHexString(SHA256.HashData(
+			Encoding.UTF8.GetBytes(context.Database.GenerateCreateScript())));
+		var created = context.Database.EnsureCreated();
+		var hasSchemaRecord = !created && context.Database.SqlQueryRaw<string>(
+			"SELECT name AS Value FROM sqlite_master WHERE type = 'table' AND name = '__DevSchema'")
+			.AsEnumerable().Any();
 
-        if (!created && (!hasSchemaRecord || context.Database.SqlQueryRaw<string>(
-                "SELECT Hash AS Value FROM \"__DevSchema\" LIMIT 1").AsEnumerable().FirstOrDefault() != schemaHash))
-        {
-            context.Database.EnsureDeleted();
-            context.Database.EnsureCreated();
-        }
+		if (!created && (!hasSchemaRecord || context.Database.SqlQueryRaw<string>(
+				"SELECT Hash AS Value FROM \"__DevSchema\" LIMIT 1").AsEnumerable().FirstOrDefault() != schemaHash))
+		{
+			context.Database.EnsureDeleted();
+			context.Database.EnsureCreated();
+		}
 
-        context.Database.ExecuteSqlRaw("CREATE TABLE IF NOT EXISTS \"__DevSchema\" (\"Hash\" TEXT NOT NULL)");
-        context.Database.ExecuteSqlRaw("DELETE FROM \"__DevSchema\"");
-        context.Database.ExecuteSqlInterpolated($"INSERT INTO \"__DevSchema\" (\"Hash\") VALUES ({schemaHash})");
-    }
+		context.Database.ExecuteSqlRaw("CREATE TABLE IF NOT EXISTS \"__DevSchema\" (\"Hash\" TEXT NOT NULL)");
+		context.Database.ExecuteSqlRaw("DELETE FROM \"__DevSchema\"");
+		context.Database.ExecuteSqlInterpolated($"INSERT INTO \"__DevSchema\" (\"Hash\") VALUES ({schemaHash})");
+	}
 }
 #endif

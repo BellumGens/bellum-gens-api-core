@@ -70,7 +70,7 @@ namespace BellumGens.Api.Controllers
 				{
 					return BadRequest("You must sign in to perform search by availability...");
 				}
-                ApplicationUser user = await GetAuthUser();
+				ApplicationUser user = await GetAuthUser();
 				List<UserAvailability> availabilities = await _dbContext.UserAvailabilities.Where(a => a.UserId == user.Id).ToListAsync();
 				if (!availabilities.Any(a => a.Available))
 				{
@@ -85,10 +85,10 @@ namespace BellumGens.Api.Controllers
 		[Route("Players")]
 		[HttpGet]
 		public async Task<IActionResult> SearchPlayers(PlaystyleRole? role, double overlap, Guid? teamid)
-        {
-            List<ApplicationUser> users = new();
-            List<UserStatsViewModel> players = new();
-            if (overlap <= 0 && role == null)
+		{
+			List<ApplicationUser> users = new();
+			List<UserStatsViewModel> players = new();
+			if (overlap <= 0 && role == null)
 			{
 				users = await _dbContext.Users.Where(u => u.SearchVisible).ToListAsync();
 
@@ -157,5 +157,5 @@ namespace BellumGens.Api.Controllers
 			}
 			return Ok(players);
 		}
-    }
+	}
 }

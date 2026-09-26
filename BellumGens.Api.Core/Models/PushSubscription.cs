@@ -7,13 +7,13 @@ namespace BellumGens.Api.Core.Models
 {
 	public class BellumGensPushSubscription
 	{
-        public string UserId { get; set; }
+		public string UserId { get; set; }
 
 		public string Endpoint { get; set; }
 
 		public TimeSpan? ExpirationTime { get; set; }
 
-        public string P256dh { get; set; }
+		public string P256dh { get; set; }
 
 		public string Auth { get; set; }
 
@@ -138,7 +138,7 @@ namespace BellumGens.Api.Core.Models
 					}
 				}
 			};
-        }
+		}
 
 		public BellumGensNotificationWrapper(TournamentApplication application, string callbackUrl)
 		{
@@ -146,7 +146,7 @@ namespace BellumGens.Api.Core.Models
 			{
 				Title = "Time to check-in",
 				Icon = "https://bellumgens.com/assets/login/bge-white-2024.svg",
-                Renotify = true,
+				Renotify = true,
 				Actions = new List<BellumGensNotificationAction>()
 				{
 					new BellumGensNotificationAction()
@@ -156,10 +156,10 @@ namespace BellumGens.Api.Core.Models
 					}
 				},
 				Data = new
-                {
-                    callbackUrl
-                }
-            };
+				{
+					callbackUrl
+				}
+			};
 		}
 
 		public BellumGensNotification Notification { get; set; }

@@ -7,32 +7,32 @@ namespace BellumGens.Api.Core.Providers
 {
 	public class EmailServiceProvider : IEmailService
 	{
-        private readonly AppConfiguration _appInfo;
-        public EmailServiceProvider(AppConfiguration appInfo)
-        {
-            _appInfo = appInfo;
-        }
+		private readonly AppConfiguration _appInfo;
+		public EmailServiceProvider(AppConfiguration appInfo)
+		{
+			_appInfo = appInfo;
+		}
 
-        public async Task SendEmailAsync(string destination, string subject, string body)
-        {
-            using MailMessage msg = new();
-            msg.To.Add(new MailAddress(destination));
-            msg.Bcc.Add(new MailAddress("info@eb-league.com"));
-            msg.From = new MailAddress(_appInfo.Config.Email, "Bellum Gens");
-            msg.Subject = subject;
-            msg.Body = body;
-            msg.IsBodyHtml = true;
+		public async Task SendEmailAsync(string destination, string subject, string body)
+		{
+			using MailMessage msg = new();
+			msg.To.Add(new MailAddress(destination));
+			msg.Bcc.Add(new MailAddress("info@eb-league.com"));
+			msg.From = new MailAddress(_appInfo.Config.Email, "Bellum Gens");
+			msg.Subject = subject;
+			msg.Body = body;
+			msg.IsBodyHtml = true;
 
-            using SmtpClient client = new()
-            {
-                UseDefaultCredentials = false,
-                Credentials = new NetworkCredential(_appInfo.Config.EmailUsername, _appInfo.Config.EmailPassword),
-                Port = 587,
-                Host = "smtp.office365.com",
-                DeliveryMethod = SmtpDeliveryMethod.Network,
-                EnableSsl = true
-            };
-            await client.SendMailAsync(msg);
-        }
-    }
+			using SmtpClient client = new()
+			{
+				UseDefaultCredentials = false,
+				Credentials = new NetworkCredential(_appInfo.Config.EmailUsername, _appInfo.Config.EmailPassword),
+				Port = 587,
+				Host = "smtp.office365.com",
+				DeliveryMethod = SmtpDeliveryMethod.Network,
+				EnableSsl = true
+			};
+			await client.SendMailAsync(msg);
+		}
+	}
 }

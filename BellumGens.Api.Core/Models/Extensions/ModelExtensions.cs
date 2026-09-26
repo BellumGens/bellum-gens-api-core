@@ -16,20 +16,20 @@ namespace BellumGens.Api.Core.Models.Extensions
 		}
 
 		public static string GetSteamUserId(this ClaimsPrincipal identity)
-        {
-            var parts = identity.GetUserId().Split('/');
-            return parts.Length >= 6 ? parts[5] : null;
-        }
+		{
+			var parts = identity.GetUserId().Split('/');
+			return parts.Length >= 6 ? parts[5] : null;
+		}
 
-        public static string GetResolvedUserId(this ClaimsPrincipal identity)
-        {
-            string userId = identity.GetSteamUserId();
-            if (userId == null)
-                userId = identity.GetUserId();
-            return userId;
-        }
+		public static string GetResolvedUserId(this ClaimsPrincipal identity)
+		{
+			string userId = identity.GetSteamUserId();
+			if (userId == null)
+				userId = identity.GetUserId();
+			return userId;
+		}
 
-        public static double GetTotalAvailability(this ApplicationUser user)
+		public static double GetTotalAvailability(this ApplicationUser user)
 		{
 			double total = 0;
 			foreach (Availability availability in user.Availability.Where(a => a.Available))
