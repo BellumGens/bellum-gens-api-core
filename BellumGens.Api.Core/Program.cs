@@ -1,4 +1,9 @@
 using System;
+#if SQLITE_PROVIDER
+using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
+#endif
 using BellumGens.Api.Core;
 using BellumGens.Api.Core.Models;
 using BellumGens.Api.Core.Providers;
@@ -153,9 +158,7 @@ using (var serviceScope = app.Services.CreateScope())
 #if SQLITE_PROVIDER
     if (context.Database.IsSqlite())
     {
-        // SQL Server migrations aren't guaranteed to apply cleanly against SQLite,
-        // so the dev-only SQLite database is created directly from the current model.
-        context.Database.EnsureCreated();
+        SqliteDevelopmentDatabase.EnsureCurrentModel(context);
     }
     else
 #endif
@@ -195,3 +198,29 @@ partial class Program
 {
     internal static string PublicClientId { get; set; }
 }
+
+#if SQLITE_PROVIDER
+internal static class SqliteDevelopmentDatabase
+{
+    internal static void EnsureCurrentModel(BellumGensDbContext context)
+    {
+        var schemaHash = Convert.ToHexString(SHA256.HashData(
+            Encoding.UTF8.GetBytes(context.Database.GenerateCreateScript())));
+        var created = context.Database.EnsureCreated();
+        var hasSchemaRecord = context.Database.SqlQueryRaw<string>(
+            "SELECT name AS Value FROM sqlite_master WHERE type = 'table' AND name = '__DevSchema'")
+            .AsEnumerable().Any();
+
+        if (!created && (!hasSchemaRecord || context.Database.SqlQueryRaw<string>(
+                "SELECT Hash AS Value FROM \"__DevSchema\"").AsEnumerable().SingleOrDefault() != schemaHash))
+        {
+            context.Database.EnsureDeleted();
+            context.Database.EnsureCreated();
+        }
+
+        context.Database.ExecuteSqlRaw("CREATE TABLE IF NOT EXISTS \"__DevSchema\" (\"Hash\" TEXT NOT NULL)");
+        context.Database.ExecuteSqlRaw("DELETE FROM \"__DevSchema\"");
+        context.Database.ExecuteSqlInterpolated($"INSERT INTO \"__DevSchema\" (\"Hash\") VALUES ({schemaHash})");
+    }
+}
+#endif

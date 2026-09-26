@@ -49,6 +49,7 @@
 
   <ItemGroup>
     <None Include="..\.editorconfig" Link=".editorconfig" />
+    <InternalsVisibleTo Include="BellumGens.Api.Core.Tests" />
   </ItemGroup>
 
 </Project>
