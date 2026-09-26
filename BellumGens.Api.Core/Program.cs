@@ -208,7 +208,7 @@ internal static class SqliteDevelopmentDatabase
         var schemaHash = Convert.ToHexString(SHA256.HashData(
             Encoding.UTF8.GetBytes(context.Database.GenerateCreateScript())));
         var created = context.Database.EnsureCreated();
-        var hasSchemaRecord = context.Database.SqlQueryRaw<string>(
+        var hasSchemaRecord = !created && context.Database.SqlQueryRaw<string>(
             "SELECT name AS Value FROM sqlite_master WHERE type = 'table' AND name = '__DevSchema'")
             .AsEnumerable().Any();
 

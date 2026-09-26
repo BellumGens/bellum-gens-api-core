@@ -8,7 +8,7 @@
     <OutputType>Exe</OutputType>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+  <PropertyGroup Condition="'$(IncludeSqliteProvider)' == 'true' Or ('$(IncludeSqliteProvider)' == '' And '$(Configuration)' == 'Debug')">
     <DefineConstants>$(DefineConstants);SQLITE_PROVIDER</DefineConstants>
   </PropertyGroup>
 
