@@ -113,6 +113,13 @@ namespace BellumGens.Api.Core.Providers
 					try
 					{
 						model.UserStats = JsonSerializer.Deserialize<CSGOPlayerStats>(await statsForGameResponse.Content.ReadAsStringAsync());
+						// Private profiles can come back as a successful response carrying an error payload;
+						// the derived stats would read as zeros and overwrite the stored ones.
+						if (model.UserStats?.playerstats?.success != true)
+						{
+							model.UserStatsException = true;
+							return model;
+						}
 						_cache.Set(name, model, DateTime.Now.AddDays(5));
 						return model;
 					}

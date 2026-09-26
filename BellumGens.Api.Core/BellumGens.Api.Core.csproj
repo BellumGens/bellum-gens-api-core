@@ -38,7 +38,7 @@
     </PackageReference>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="StarCraft2Models" Version="9.0.0" />
-    <PackageReference Include="SteamModels" Version="9.0.1" />
+    <PackageReference Include="SteamModels" Version="10.0.1" />
     <PackageReference Include="WebPush" Version="1.0.13" />
   </ItemGroup>
 
