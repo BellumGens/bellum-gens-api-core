@@ -10,7 +10,7 @@ public class SqliteDevelopmentDatabaseTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void RebuildsOnlyWhenSchemaChangesOrRecordIsMissing(bool removeRecord)
+    public void RebuildsWhenSchemaChangesOrRecordIsMissing(bool removeRecord)
     {
         var databasePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.dev.db");
         var options = new DbContextOptionsBuilder<BellumGensDbContext>()

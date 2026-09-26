@@ -202,6 +202,7 @@ partial class Program
 #if SQLITE_PROVIDER
 internal static class SqliteDevelopmentDatabase
 {
+    /// <summary>Recreates the development SQLite database, losing local data, when its model schema changes.</summary>
     internal static void EnsureCurrentModel(BellumGensDbContext context)
     {
         var schemaHash = Convert.ToHexString(SHA256.HashData(
@@ -212,7 +213,7 @@ internal static class SqliteDevelopmentDatabase
             .AsEnumerable().Any();
 
         if (!created && (!hasSchemaRecord || context.Database.SqlQueryRaw<string>(
-                "SELECT Hash AS Value FROM \"__DevSchema\"").AsEnumerable().SingleOrDefault() != schemaHash))
+                "SELECT Hash AS Value FROM \"__DevSchema\" LIMIT 1").AsEnumerable().FirstOrDefault() != schemaHash))
         {
             context.Database.EnsureDeleted();
             context.Database.EnsureCreated();
