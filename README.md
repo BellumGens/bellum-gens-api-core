@@ -81,11 +81,7 @@ dotnet user-secrets set "Database:Provider" "Sqlite"
 dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Data Source=bellumgens.dev.db"
 ```
 
-On Windows, set no secrets and the app falls back to the SQL Server settings in `appsettings.json` — run
-`dotnet ef database update` as usual. The SQLite path needs no manual migration step: the schema is created on first
-start and the local database is **deleted and recreated (including its data)** when the model changes or when an
-existing database has no schema record. Back up any local data you need before starting with a changed model.
-The `*.dev.db` file is gitignored.
+On Windows, set no secrets and the app falls back to the SQL Server settings in `appsettings.json` — run `dotnet ef database update` as usual. The SQLite path needs no manual migration step: the schema is created on first start and the local database is **deleted and recreated (including its data)** when the model changes or when an existing database has no schema record. Back up any local data you need before starting with a changed model. The `*.dev.db` file is gitignored.
 
 To check or undo the local override:
 
