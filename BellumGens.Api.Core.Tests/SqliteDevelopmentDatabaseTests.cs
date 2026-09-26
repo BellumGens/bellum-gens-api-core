@@ -68,6 +68,9 @@ public class SqliteDevelopmentDatabaseTests
 				context.CSGOStrategies.AddRange(
 					new CSGOStrategy { Title = "Earlier", LastUpdated = earlier },
 					new CSGOStrategy { Title = "Later", LastUpdated = later });
+				context.PromoCodes.AddRange(
+					new Promo { Code = "Expiring", Expiration = earlier },
+					new Promo { Code = "NoExpiration", Expiration = null });
 				await context.SaveChangesAsync(TestContext.Current.CancellationToken);
 			}
 
@@ -78,6 +81,10 @@ public class SqliteDevelopmentDatabaseTests
 					.ToListAsync(TestContext.Current.CancellationToken);
 
 				Assert.Equal(["Later", "Earlier"], strategies.Select(strategy => strategy.Title));
+				Assert.Equal(earlier, await context.PromoCodes
+					.Where(promo => promo.Expiration != null)
+					.Select(promo => promo.Expiration)
+					.SingleAsync(TestContext.Current.CancellationToken));
 			}
 		}
 		finally
