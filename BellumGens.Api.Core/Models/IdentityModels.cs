@@ -1,11 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
+#if SQLITE_PROVIDER
 using System.Linq;
+#endif
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+#if SQLITE_PROVIDER
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+#endif
 
 namespace BellumGens.Api.Core.Models
 {
@@ -211,7 +215,8 @@ namespace BellumGens.Api.Core.Models
 						.WithMany()
 						.OnDelete(DeleteBehavior.NoAction);
 
-			if (Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite")
+#if SQLITE_PROVIDER
+			if (Database.IsSqlite())
 			{
 				var converter = new ValueConverter<DateTimeOffset, long>(
 					value => value.UtcTicks,
@@ -225,6 +230,7 @@ namespace BellumGens.Api.Core.Models
 					property.SetValueConverter(converter);
 				}
 			}
+#endif
 
 			//modelBuilder.Entity<TournamentApplication>()
 			//			.HasMany(e => e.GroupsPoints)
