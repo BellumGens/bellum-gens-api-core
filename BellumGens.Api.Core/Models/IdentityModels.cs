@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Linq;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace BellumGens.Api.Core.Models
 {
@@ -208,6 +210,21 @@ namespace BellumGens.Api.Core.Models
 						.HasOne(c => c.Team2)
 						.WithMany()
 						.OnDelete(DeleteBehavior.NoAction);
+
+			if (Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite")
+			{
+				var converter = new ValueConverter<DateTimeOffset, long>(
+					value => value.UtcTicks,
+					value => new DateTimeOffset(value, TimeSpan.Zero));
+
+				foreach (var property in modelBuilder.Model.GetEntityTypes()
+					.SelectMany(entity => entity.GetProperties())
+					.Where(property => property.ClrType == typeof(DateTimeOffset)
+						|| property.ClrType == typeof(DateTimeOffset?)))
+				{
+					property.SetValueConverter(converter);
+				}
+			}
 
 			//modelBuilder.Entity<TournamentApplication>()
 			//			.HasMany(e => e.GroupsPoints)

@@ -49,5 +49,42 @@ public class SqliteDevelopmentDatabaseTests
 			context.Database.EnsureDeleted();
 		}
 	}
+
+	[Fact]
+	public async Task OrdersDateTimeOffsetsByInstant()
+	{
+		var databasePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.dev.db");
+		var options = new DbContextOptionsBuilder<BellumGensDbContext>()
+			.UseSqlite($"Data Source={databasePath}")
+			.Options;
+		var earlier = new DateTimeOffset(2026, 1, 1, 10, 0, 0, TimeSpan.FromHours(2));
+		var later = new DateTimeOffset(2026, 1, 1, 9, 0, 0, TimeSpan.Zero);
+
+		try
+		{
+			using (var context = new BellumGensDbContext(options))
+			{
+				context.Database.EnsureCreated();
+				context.CSGOStrategies.AddRange(
+					new CSGOStrategy { Title = "Earlier", LastUpdated = earlier },
+					new CSGOStrategy { Title = "Later", LastUpdated = later });
+				await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+			}
+
+			using (var context = new BellumGensDbContext(options))
+			{
+				var strategies = await context.CSGOStrategies
+					.OrderByDescending(strategy => strategy.LastUpdated)
+					.ToListAsync(TestContext.Current.CancellationToken);
+
+				Assert.Equal(["Later", "Earlier"], strategies.Select(strategy => strategy.Title));
+			}
+		}
+		finally
+		{
+			using var context = new BellumGensDbContext(options);
+			context.Database.EnsureDeleted();
+		}
+	}
 }
 #endif
