@@ -25,17 +25,19 @@ namespace BellumGens.Api.Core.Tests
 		private readonly Mock<BlobClient> _blob;
 		private readonly StorageService _service;
 		private byte[]? _uploadedBytes;
+		private BlobUploadOptions? _uploadOptions;
 
 		public StorageServiceTests()
 		{
 			_blob = new Mock<BlobClient>();
 			_blob.SetupGet(b => b.Uri).Returns(StoredUri);
-			_blob.Setup(b => b.UploadAsync(It.IsAny<Stream>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-				.Callback<Stream, bool, CancellationToken>((stream, _, _) =>
+			_blob.Setup(b => b.UploadAsync(It.IsAny<Stream>(), It.IsAny<BlobUploadOptions>(), It.IsAny<CancellationToken>()))
+				.Callback<Stream, BlobUploadOptions, CancellationToken>((stream, options, _) =>
 				{
 					using var copy = new MemoryStream();
 					stream.CopyTo(copy);
 					_uploadedBytes = copy.ToArray();
+					_uploadOptions = options;
 				})
 				.ReturnsAsync(Mock.Of<Response<BlobContentInfo>>());
 
@@ -51,7 +53,7 @@ namespace BellumGens.Api.Core.Tests
 		private void VerifyNoUpload()
 		{
 			_containerProvider.Verify(p => p.GetContainerClient(), Times.Never);
-			_blob.Verify(b => b.UploadAsync(It.IsAny<Stream>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
+			_blob.Verify(b => b.UploadAsync(It.IsAny<Stream>(), It.IsAny<BlobUploadOptions>(), It.IsAny<CancellationToken>()), Times.Never);
 		}
 
 		[Theory]
@@ -80,16 +82,42 @@ namespace BellumGens.Api.Core.Tests
 
 		// Regression: Uri.IsWellFormedUriString(..., Absolute) is true for data: URIs, so they were never uploaded.
 		[Theory]
-		[InlineData("data:image/png;base64,")]
-		[InlineData("data:image/jpeg;base64,")]
-		public async Task SaveImage_WithDataUri_UploadsDecodedBytesAndReturnsStoredUrl(string prefix)
+		[InlineData("data:image/png;base64,", "strat-id.png", "image/png")]
+		[InlineData("data:image/jpeg;base64,", "strat-id.jpg", "image/jpeg")]
+		[InlineData("data:image/gif;base64,", "strat-id.gif", "image/gif")]
+		[InlineData("data:image/webp;base64,", "strat-id.webp", "image/webp")]
+		[InlineData("DATA:Image/JPEG;charset=utf-8;BASE64,", "strat-id.jpg", "image/jpeg")]
+		public async Task SaveImage_WithDataUri_UploadsDecodedBytesAndReturnsStoredUrl(string prefix, string blobName, string contentType)
 		{
 			var result = await _service.SaveImage(prefix + PngBase64, "strat-id");
 
 			Assert.Equal(StoredUri.ToString(), result);
 			Assert.Equal(PngBytes, _uploadedBytes);
-			_container.Verify(c => c.GetBlobClient("strat-id.png"), Times.Once);
-			_blob.Verify(b => b.UploadAsync(It.IsAny<Stream>(), true, It.IsAny<CancellationToken>()), Times.Once);
+			_container.Verify(c => c.GetBlobClient(blobName), Times.Once);
+			_blob.Verify(b => b.UploadAsync(It.IsAny<Stream>(), It.IsAny<BlobUploadOptions>(), It.IsAny<CancellationToken>()), Times.Once);
+			// Regression: the media type was discarded, so JPEG bytes were stored as strat-id.png without a content type.
+			Assert.Equal(contentType, _uploadOptions?.HttpHeaders?.ContentType);
+			Assert.Null(_uploadOptions?.Conditions);
+		}
+
+		[Theory]
+		[InlineData("data:image/svg+xml;base64,")]
+		[InlineData("data:text/html;base64,")]
+		public async Task SaveImage_WithUnsupportedMediaType_ThrowsWithoutUploading(string prefix)
+		{
+			await Assert.ThrowsAsync<NotSupportedException>(() => _service.SaveImage(prefix + PngBase64, "strat-id"));
+
+			VerifyNoUpload();
+		}
+
+		[Theory]
+		[InlineData("data:image/png,")]
+		[InlineData("image/png;base64,")]
+		public async Task SaveImage_WithMalformedDataUriHeader_ThrowsFormatExceptionWithoutUploading(string prefix)
+		{
+			await Assert.ThrowsAsync<FormatException>(() => _service.SaveImage(prefix + PngBase64, "strat-id"));
+
+			VerifyNoUpload();
 		}
 
 		[Fact]
@@ -99,6 +127,8 @@ namespace BellumGens.Api.Core.Tests
 
 			Assert.Equal(StoredUri.ToString(), result);
 			Assert.Equal(PngBytes, _uploadedBytes);
+			_container.Verify(c => c.GetBlobClient("strat-id.png"), Times.Once);
+			Assert.Equal("image/png", _uploadOptions?.HttpHeaders?.ContentType);
 		}
 
 		[Fact]
@@ -112,7 +142,7 @@ namespace BellumGens.Api.Core.Tests
 		[Fact]
 		public async Task SaveImage_WhenUploadFails_PropagatesTheError()
 		{
-			_blob.Setup(b => b.UploadAsync(It.IsAny<Stream>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+			_blob.Setup(b => b.UploadAsync(It.IsAny<Stream>(), It.IsAny<BlobUploadOptions>(), It.IsAny<CancellationToken>()))
 				.ThrowsAsync(new RequestFailedException(403, "AuthorizationFailure"));
 
 			await Assert.ThrowsAsync<RequestFailedException>(() => _service.SaveImage(PngBase64, "strat-id"));

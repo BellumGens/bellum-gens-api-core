@@ -1,6 +1,8 @@
 ﻿using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using Microsoft.Extensions.Configuration;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,6 +11,15 @@ namespace BellumGens.Api.Core.Providers
 {
 	public class StorageService : IStorageService
 	{
+		// SVG is excluded: served from the public container it could run script.
+		private static readonly Dictionary<string, string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
+		{
+			{ "image/png", ".png" },
+			{ "image/jpeg", ".jpg" },
+			{ "image/gif", ".gif" },
+			{ "image/webp", ".webp" }
+		};
+
 		private readonly IBlobContainerProvider _containerProvider;
 
 		public StorageService(IBlobContainerProvider containerProvider)
@@ -21,8 +32,9 @@ namespace BellumGens.Api.Core.Providers
 		/// <list type="bullet">
 		/// <item>null/empty input returns "".</item>
 		/// <item>An http(s) URL is an already stored image and is returned unchanged.</item>
-		/// <item>Anything else is image data (a <c>data:image/...;base64,</c> URI or raw base64): it is uploaded
-		/// and the stored blob's URL is returned.</item>
+		/// <item>Anything else is image data (a <c>data:image/...;base64,</c> URI or raw base64, taken as PNG): it is
+		/// uploaded with a matching extension and content type, and the stored blob's URL is returned. PNG, JPEG, GIF
+		/// and WebP are accepted; other types throw <see cref="NotSupportedException"/>.</item>
 		/// </list>
 		/// </summary>
 		public async Task<string> SaveImage(string blob, string name)
@@ -49,16 +61,32 @@ namespace BellumGens.Api.Core.Providers
 
 		private async Task<string> UploadToStorage(string blob, string name)
 		{
-			// Strips a "data:image/png;base64," prefix; raw base64 contains no comma.
-			string base64 = blob[(blob.IndexOf(',') + 1)..];
-			byte[] bytes = Convert.FromBase64String(base64);
+			// Raw base64 contains no comma and is treated as PNG.
+			int comma = blob.IndexOf(',');
+			string mediaType = comma < 0 ? "image/png" : ParseDataUriMediaType(blob[..comma]);
+			if (!ImageExtensions.TryGetValue(mediaType, out string extension))
+			{
+				throw new NotSupportedException($"Unsupported image type '{mediaType}'.");
+			}
+			byte[] bytes = Convert.FromBase64String(blob[(comma + 1)..]);
 
 			BlobContainerClient containerClient = _containerProvider.GetContainerClient();
-			BlobClient blobClient = containerClient.GetBlobClient(name + ".png");
+			BlobClient blobClient = containerClient.GetBlobClient(name + extension);
 
 			using MemoryStream ms = new(bytes);
-			await blobClient.UploadAsync(ms, true);
+			// No access conditions, so an existing blob is overwritten.
+			await blobClient.UploadAsync(ms, new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = mediaType } });
 			return blobClient.Uri.ToString();
+		}
+
+		/// <summary>Returns the media type of a "data:image/png;base64" header, lower-cased.</summary>
+		private static string ParseDataUriMediaType(string header)
+		{
+			if (!header.StartsWith("data:", StringComparison.OrdinalIgnoreCase) || !header.EndsWith(";base64", StringComparison.OrdinalIgnoreCase))
+			{
+				throw new FormatException("Image data must be a base64 data URI or raw base64.");
+			}
+			return header[5..].Split(';')[0].Trim().ToLowerInvariant();
 		}
 	}
 

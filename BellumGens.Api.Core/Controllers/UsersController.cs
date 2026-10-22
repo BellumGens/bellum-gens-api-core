@@ -103,6 +103,10 @@ namespace BellumGens.Api.Controllers
 		public async Task<IActionResult> SetAvailability(UserAvailability newAvailability)
 		{
 			ApplicationUser user = await GetAuthUser();
+			if (user == null)
+			{
+				return Unauthorized();
+			}
 			newAvailability.UserId = user.Id;
 			if (newAvailability.Available)
 			{
@@ -147,6 +151,10 @@ namespace BellumGens.Api.Controllers
 		public async Task<IActionResult> SetMapPool(UserMapPool mapPool)
 		{
 			ApplicationUser user = await GetAuthUser();
+			if (user == null)
+			{
+				return Unauthorized();
+			}
 			mapPool.UserId = user.Id;
 			if (mapPool.IsPlayed)
 			{
@@ -224,6 +232,10 @@ namespace BellumGens.Api.Controllers
 			}
 
 			ApplicationUser user = await GetAuthUser();
+			if (user == null)
+			{
+				return Unauthorized();
+			}
 			if (entity.InvitedUserId != user.Id)
 			{
 				return BadRequest("This invite was not sent to you...");
@@ -272,6 +284,10 @@ namespace BellumGens.Api.Controllers
 			}
 
 			ApplicationUser user = await GetAuthUser();
+			if (user == null)
+			{
+				return Unauthorized();
+			}
 			if (entity.InvitedUserId != user.Id)
 			{
 				return BadRequest("This invite was not sent to you...");

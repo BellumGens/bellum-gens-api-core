@@ -161,6 +161,11 @@ using (var serviceScope = app.Services.CreateScope())
 #if SQLITE_PROVIDER
 	if (context.Database.IsSqlite())
 	{
+		// EnsureCurrentModel deletes the database when the model changes, so it must never touch a non-development database.
+		if (!app.Environment.IsDevelopment())
+		{
+			throw new InvalidOperationException("The SQLite provider is only supported in the Development environment.");
+		}
 		SqliteDevelopmentDatabase.EnsureCurrentModel(context);
 	}
 	else

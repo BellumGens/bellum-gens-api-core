@@ -370,6 +370,66 @@ namespace BellumGens.Api.Core.Tests
 			};
 		}
 
+		// Regression: [Authorize] only guarantees a principal; for a deleted account GetAuthUser() returns null
+		// and these endpoints threw a NullReferenceException instead of answering 401.
+		private UsersController CreateControllerForDeletedAccount(BellumGensDbContext dbContext, string userId = "deleted-user")
+		{
+			_mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync((ApplicationUser)null!);
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+			return controller;
+		}
+
+		[Fact]
+		public async Task SetAvailability_WithDeletedAccount_ReturnsUnauthorized()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var controller = CreateControllerForDeletedAccount(dbContext);
+
+			var result = await controller.SetAvailability(new UserAvailability { UserId = "user1", Day = DayOfWeek.Friday, Available = true });
+
+			Assert.IsType<UnauthorizedResult>(result);
+			Assert.Empty(dbContext.UserAvailabilities);
+		}
+
+		[Fact]
+		public async Task SetMapPool_WithDeletedAccount_ReturnsUnauthorized()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var controller = CreateControllerForDeletedAccount(dbContext);
+
+			var result = await controller.SetMapPool(new UserMapPool { UserId = "user1", Map = CSGOMap.Nuke, IsPlayed = true });
+
+			Assert.IsType<UnauthorizedResult>(result);
+			Assert.Empty(dbContext.UserMapPool);
+		}
+
+		[Fact]
+		public async Task AcceptTeamInvite_WithDeletedAccount_ReturnsUnauthorized()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var (_, invite) = SetupInvite(dbContext, "user1");
+			var controller = CreateControllerForDeletedAccount(dbContext, "user1");
+
+			var result = await controller.AcceptTeamInvite(InvitePayload(invite));
+
+			Assert.IsType<UnauthorizedResult>(result);
+			Assert.Equal(NotificationState.NotSeen, dbContext.TeamInvites.Single().State);
+		}
+
+		[Fact]
+		public async Task RejectTeamInvite_WithDeletedAccount_ReturnsUnauthorized()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var (_, invite) = SetupInvite(dbContext, "user1");
+			var controller = CreateControllerForDeletedAccount(dbContext, "user1");
+
+			var result = await controller.RejectTeamInvite(InvitePayload(invite));
+
+			Assert.IsType<UnauthorizedResult>(result);
+			Assert.Equal(NotificationState.NotSeen, dbContext.TeamInvites.Single().State);
+		}
+
 		[Fact]
 		public async Task AcceptTeamInvite_InviteNotFound_ReturnsNotFound()
 		{

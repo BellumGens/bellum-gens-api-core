@@ -71,6 +71,10 @@ namespace BellumGens.Api.Controllers
 				return Ok(await UserIsTeamAdmin(id));
 			}
 			ApplicationUser user = await GetAuthUser();
+			if (user == null)
+			{
+				return Ok(false);
+			}
 			return Ok(await _dbContext.CSGOTeams.AnyAsync(t => t.CustomUrl == teamid && t.Members.Any(m => m.UserId == user.Id && m.IsAdmin)));
 		}
 
@@ -110,6 +114,10 @@ namespace BellumGens.Api.Controllers
 		public async Task<IActionResult> TeamFromSteamGroup(SteamUserGroup group)
 		{
 			ApplicationUser user = await GetAuthUser();
+			if (user == null)
+			{
+				return Unauthorized();
+			}
 			if (!await _steamService.VerifyUserIsGroupAdmin(user.SteamID, group.groupID64))
 			{
 				return BadRequest("User is not a steam group owner for " + group.groupName);
@@ -176,6 +184,10 @@ namespace BellumGens.Api.Controllers
 		public async Task<IActionResult> NewTeam(CSGOTeam team)
 		{
 			ApplicationUser user = await GetAuthUser();
+			if (user == null)
+			{
+				return Unauthorized();
+			}
 
 			_dbContext.CSGOTeams.Add(team);
 
@@ -259,6 +271,10 @@ namespace BellumGens.Api.Controllers
 		public async Task<IActionResult> AbandonTeam(Guid teamId)
 		{
 			ApplicationUser user = await GetAuthUser();
+			if (user == null)
+			{
+				return Unauthorized();
+			}
 			CSGOTeam team = await _dbContext.CSGOTeams.FindAsync(teamId);
 			await _dbContext.Entry(team).Collection(t => t.Members).LoadAsync();
 			object response = new { removed = false };
@@ -302,6 +318,10 @@ namespace BellumGens.Api.Controllers
 			}
 
 			ApplicationUser invitingUserEntity = await GetAuthUser();
+			if (invitingUserEntity == null)
+			{
+				return Unauthorized();
+			}
 			TeamInvite invite = await _dbContext.TeamInvites.FirstOrDefaultAsync(i => i.InvitingUserId == invitingUserEntity.Id && i.InvitedUserId == model.UserId && i.TeamId == model.TeamId);
 			
 			if (invite != null)
@@ -343,6 +363,10 @@ namespace BellumGens.Api.Controllers
 			if (ModelState.IsValid)
 			{
 				ApplicationUser user = await GetAuthUser();
+				if (user == null)
+				{
+					return Unauthorized();
+				}
 				application.ApplicantId = user.Id;
 				if (await _dbContext.TeamMembers.AnyAsync(m => m.TeamId == application.TeamId && m.UserId == user.Id))
 				{

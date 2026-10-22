@@ -995,6 +995,35 @@ namespace BellumGens.Api.Core.Tests
 			VerifyNoApplicationNotificationSent();
 		}
 
+		// Regression: a deleted account made GetAuthUser() return null and the anti-spoofing assignment threw.
+		[Fact]
+		public async Task ApplyToTeam_ReturnsUnauthorized_WhenAccountNoLongerExists()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var teamId = SeedTeamWithRoles(dbContext, "apply-deleted", "sg-apply-deleted");
+
+			var controller = CreateControllerAs(dbContext, "deleted-user");
+
+			var result = await controller.ApplyToTeam(new TeamApplication { ApplicantId = ApplicantId, TeamId = teamId, Message = "let me in" });
+
+			Assert.IsType<UnauthorizedResult>(result);
+			Assert.Empty(dbContext.TeamApplications);
+			VerifyNoApplicationNotificationSent();
+		}
+
+		[Fact]
+		public async Task GetIsTeamAdmin_ReturnsFalse_WhenAccountNoLongerExistsWithCustomUrl()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			SeedTeamWithRoles(dbContext, "admin-deleted", "sg-admin-deleted");
+
+			var controller = CreateControllerAs(dbContext, "deleted-user");
+
+			var result = await controller.GetIsTeamAdmin("admin-deleted");
+
+			Assert.False(Assert.IsType<bool>(Assert.IsType<OkObjectResult>(result).Value));
+		}
+
 		// ---- ApproveApplication ----
 
 		[Theory]
