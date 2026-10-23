@@ -19,7 +19,7 @@ namespace BellumGens.Api.Core.Tests
 			expired.Items.Add(new OrderItem { ProductId = umbrella.Id, ProductName = "Umbrella", UnitPrice = 15m, Quantity = 1, LineTotal = 15m });
 			expired.Payments.Add(new Payment { OrderId = expired.Id, ProviderOrderId = "rev_1", Amount = 21m, Status = PaymentStatus.Failed });
 			db.ShopOrders.Add(expired);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var provider = TestUtils.CreateMockPaymentProvider();
 
 			int cancelled = await PaymentExpirySweeper.SweepAsync(db, TestUtils.CreateOrderService(db), provider.Object, DateTimeOffset.Now, Logger, CancellationToken.None);
@@ -37,7 +37,7 @@ namespace BellumGens.Api.Core.Tests
 			var fresh = TestUtils.CreateShopOrder(expiresOn: DateTimeOffset.Now.AddMinutes(30));
 			var paid = TestUtils.CreateShopOrder(OrderStatus.Paid, DateTimeOffset.Now.AddMinutes(-30));
 			db.ShopOrders.AddRange(fresh, paid);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
 			int cancelled = await PaymentExpirySweeper.SweepAsync(db, TestUtils.CreateOrderService(db), TestUtils.CreateMockPaymentProvider().Object, DateTimeOffset.Now, Logger, CancellationToken.None);
 
@@ -54,7 +54,7 @@ namespace BellumGens.Api.Core.Tests
 			var payment = new Payment { OrderId = order.Id, ProviderOrderId = "rev_1", Amount = 36m, Status = PaymentStatus.Pending };
 			order.Payments.Add(payment);
 			db.ShopOrders.Add(order);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var provider = TestUtils.CreateMockPaymentProvider();
 			provider.Setup(p => p.GetOrderAsync("rev_1", It.IsAny<CancellationToken>()))
 				.ReturnsAsync(new PaymentOrderResult { ProviderOrderId = "rev_1", Status = PaymentStatus.Completed, RawState = "completed" });
@@ -73,7 +73,7 @@ namespace BellumGens.Api.Core.Tests
 			var order = TestUtils.CreateShopOrder(expiresOn: DateTimeOffset.Now.AddMinutes(-5));
 			order.Payments.Add(new Payment { OrderId = order.Id, ProviderOrderId = "rev_1", Amount = 36m, Status = PaymentStatus.Pending });
 			db.ShopOrders.Add(order);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var provider = TestUtils.CreateMockPaymentProvider(configured: false);
 
 			int cancelled = await PaymentExpirySweeper.SweepAsync(db, TestUtils.CreateOrderService(db), provider.Object, DateTimeOffset.Now, Logger, CancellationToken.None);
@@ -90,7 +90,7 @@ namespace BellumGens.Api.Core.Tests
 			var order = TestUtils.CreateShopOrder(expiresOn: DateTimeOffset.Now.AddMinutes(-5));
 			order.Payments.Add(new Payment { OrderId = order.Id, ProviderOrderId = "rev_1", Amount = 36m, Status = PaymentStatus.Pending });
 			db.ShopOrders.Add(order);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var provider = TestUtils.CreateMockPaymentProvider();
 			provider.Setup(p => p.GetOrderAsync("rev_1", It.IsAny<CancellationToken>()))
 				.ReturnsAsync(new PaymentOrderResult { ProviderOrderId = "rev_1", Status = PaymentStatus.Pending, RawState = "pending" });
@@ -108,7 +108,7 @@ namespace BellumGens.Api.Core.Tests
 			var order = TestUtils.CreateShopOrder(expiresOn: DateTimeOffset.Now.AddMinutes(-5));
 			order.Payments.Add(new Payment { OrderId = order.Id, ProviderOrderId = "rev_1", Amount = 36m, Status = PaymentStatus.Pending });
 			db.ShopOrders.Add(order);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var provider = TestUtils.CreateMockPaymentProvider();
 			provider.Setup(p => p.GetOrderAsync("rev_1", It.IsAny<CancellationToken>()))
 				.ThrowsAsync(new PaymentProviderException("Revolut returned 500."));

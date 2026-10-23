@@ -19,14 +19,14 @@ namespace BellumGens.Api.Core.Tests
 			var pen = TestUtils.CreateProduct("Pen", 10m, type: ProductType.Pen);
 			db.Products.AddRange(umbrella, pen);
 			db.PromoCodes.Add(new Promo { Code = "SAVE10", Discount = 0.10m });
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var service = TestUtils.CreateOrderService(db);
 
 			var quote = await service.QuoteAsync(new QuoteRequest
 			{
 				Lines = new List<CartLineRequest> { Line(umbrella, 2), Line(pen) },
 				PromoCode = "save10"
-			});
+			}, TestContext.Current.CancellationToken);
 
 			Assert.True(quote.IsValid);
 			Assert.Equal(40m, quote.Subtotal);
@@ -44,10 +44,10 @@ namespace BellumGens.Api.Core.Tests
 			using var db = TestUtils.CreateInMemoryDbContext();
 			var product = TestUtils.CreateProduct("Umbrella", 25m);
 			db.Products.Add(product);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var service = TestUtils.CreateOrderService(db);
 
-			var quote = await service.QuoteAsync(new QuoteRequest { Lines = new List<CartLineRequest> { Line(product, 2) } });
+			var quote = await service.QuoteAsync(new QuoteRequest { Lines = new List<CartLineRequest> { Line(product, 2) } }, TestContext.Current.CancellationToken);
 
 			Assert.Equal(50m, quote.Subtotal);
 			Assert.True(quote.FreeShipping);
@@ -61,14 +61,14 @@ namespace BellumGens.Api.Core.Tests
 			using var db = TestUtils.CreateInMemoryDbContext();
 			var product = TestUtils.CreateProduct("Umbrella", 15m);
 			db.Products.Add(product);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var service = TestUtils.CreateOrderService(db);
 
 			var quote = await service.QuoteAsync(new QuoteRequest
 			{
 				Lines = new List<CartLineRequest> { Line(product) },
 				DeliveryMethod = DeliveryMethod.EventPickup
-			});
+			}, TestContext.Current.CancellationToken);
 
 			Assert.Equal(0m, quote.ShippingCost);
 			Assert.Equal(15m, quote.Total);
@@ -80,10 +80,10 @@ namespace BellumGens.Api.Core.Tests
 			using var db = TestUtils.CreateInMemoryDbContext();
 			var product = TestUtils.CreateProduct("Pin", 19.99m, type: ProductType.Pin, discountPercentage: 15m);
 			db.Products.Add(product);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var service = TestUtils.CreateOrderService(db);
 
-			var quote = await service.QuoteAsync(new QuoteRequest { Lines = new List<CartLineRequest> { Line(product, 3) } });
+			var quote = await service.QuoteAsync(new QuoteRequest { Lines = new List<CartLineRequest> { Line(product, 3) } }, TestContext.Current.CancellationToken);
 
 			Assert.Equal(16.99m, quote.Lines[0].UnitPrice);
 			Assert.Equal(50.97m, quote.Lines[0].LineTotal);
@@ -107,10 +107,10 @@ namespace BellumGens.Api.Core.Tests
 				case "used-up": promo.UsageLimit = 1; promo.TimesUsed = 1; break;
 			}
 			db.PromoCodes.Add(promo);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var service = TestUtils.CreateOrderService(db);
 
-			var quote = await service.QuoteAsync(new QuoteRequest { Lines = new List<CartLineRequest> { Line(product) }, PromoCode = "PROMO" });
+			var quote = await service.QuoteAsync(new QuoteRequest { Lines = new List<CartLineRequest> { Line(product) }, PromoCode = "PROMO" }, TestContext.Current.CancellationToken);
 
 			Assert.True(quote.IsValid);
 			Assert.False(quote.PromoApplied);
@@ -124,10 +124,10 @@ namespace BellumGens.Api.Core.Tests
 			using var db = TestUtils.CreateInMemoryDbContext();
 			var product = TestUtils.CreateProduct();
 			db.Products.Add(product);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var service = TestUtils.CreateOrderService(db);
 
-			var quote = await service.QuoteAsync(new QuoteRequest { Lines = new List<CartLineRequest> { Line(product) }, PromoCode = "NOPE" });
+			var quote = await service.QuoteAsync(new QuoteRequest { Lines = new List<CartLineRequest> { Line(product) }, PromoCode = "NOPE" }, TestContext.Current.CancellationToken);
 
 			Assert.Equal("Promo code is invalid.", quote.PromoProblem);
 		}
@@ -139,10 +139,10 @@ namespace BellumGens.Api.Core.Tests
 			var product = TestUtils.CreateProduct("Umbrella", 20m);
 			db.Products.Add(product);
 			db.PromoCodes.Add(new Promo { Code = "BIG", Discount = 0.2m, MinimumOrderTotal = 100m });
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var service = TestUtils.CreateOrderService(db);
 
-			var quote = await service.QuoteAsync(new QuoteRequest { Lines = new List<CartLineRequest> { Line(product) }, PromoCode = "BIG" });
+			var quote = await service.QuoteAsync(new QuoteRequest { Lines = new List<CartLineRequest> { Line(product) }, PromoCode = "BIG" }, TestContext.Current.CancellationToken);
 
 			Assert.False(quote.PromoApplied);
 			Assert.Contains("minimum order", quote.PromoProblem);
@@ -156,7 +156,7 @@ namespace BellumGens.Api.Core.Tests
 			var bgUmbrella = TestUtils.CreateProduct("Umbrella", 20m, brand: Brand.BellumGens);
 			db.Products.AddRange(eblJersey, bgUmbrella);
 			db.PromoCodes.Add(new Promo { Code = "EBL", Discount = 0.5m, Brand = Brand.EBLeague });
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var service = TestUtils.CreateOrderService(db);
 			var maleL = eblJersey.Variants.First(v => v.Cut == JerseyCut.Male);
 
@@ -164,7 +164,7 @@ namespace BellumGens.Api.Core.Tests
 			{
 				Lines = new List<CartLineRequest> { Line(eblJersey, 1, maleL), Line(bgUmbrella) },
 				PromoCode = "EBL"
-			});
+			}, TestContext.Current.CancellationToken);
 
 			Assert.True(quote.PromoApplied);
 			Assert.Equal(15m, quote.DiscountTotal);
@@ -178,10 +178,10 @@ namespace BellumGens.Api.Core.Tests
 			using var db = TestUtils.CreateInMemoryDbContext();
 			var jersey = TestUtils.CreateJersey();
 			db.Products.Add(jersey);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var service = TestUtils.CreateOrderService(db);
 
-			var quote = await service.QuoteAsync(new QuoteRequest { Lines = new List<CartLineRequest> { Line(jersey) } });
+			var quote = await service.QuoteAsync(new QuoteRequest { Lines = new List<CartLineRequest> { Line(jersey) } }, TestContext.Current.CancellationToken);
 
 			Assert.False(quote.IsValid);
 			Assert.Equal("Please choose an option for this product.", quote.Lines[0].Problem);
@@ -193,14 +193,14 @@ namespace BellumGens.Api.Core.Tests
 			using var db = TestUtils.CreateInMemoryDbContext();
 			var jersey = TestUtils.CreateJersey();
 			db.Products.Add(jersey);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var service = TestUtils.CreateOrderService(db);
 			var maleL = jersey.Variants.First(v => v.Cut == JerseyCut.Male);
 
 			var quote = await service.QuoteAsync(new QuoteRequest
 			{
 				Lines = new List<CartLineRequest> { Line(jersey, 3, maleL), Line(jersey, 3, maleL) }
-			});
+			}, TestContext.Current.CancellationToken);
 
 			Assert.False(quote.IsValid);
 			Assert.All(quote.Lines, l => Assert.Equal("Only 5 left in stock.", l.Problem));
@@ -212,10 +212,10 @@ namespace BellumGens.Api.Core.Tests
 			using var db = TestUtils.CreateInMemoryDbContext();
 			var product = TestUtils.CreateProduct(active: false);
 			db.Products.Add(product);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var service = TestUtils.CreateOrderService(db);
 
-			var quote = await service.QuoteAsync(new QuoteRequest { Lines = new List<CartLineRequest> { Line(product) } });
+			var quote = await service.QuoteAsync(new QuoteRequest { Lines = new List<CartLineRequest> { Line(product) } }, TestContext.Current.CancellationToken);
 
 			Assert.False(quote.IsValid);
 			Assert.Equal("This product is no longer available.", quote.Lines[0].Problem);
@@ -227,10 +227,10 @@ namespace BellumGens.Api.Core.Tests
 			using var db = TestUtils.CreateInMemoryDbContext();
 			var product = TestUtils.CreateProduct();
 			db.Products.Add(product);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var service = TestUtils.CreateOrderService(db, configure: o => o.MaxQuantityPerLine = 2);
 
-			var quote = await service.QuoteAsync(new QuoteRequest { Lines = new List<CartLineRequest> { Line(product, 3) } });
+			var quote = await service.QuoteAsync(new QuoteRequest { Lines = new List<CartLineRequest> { Line(product, 3) } }, TestContext.Current.CancellationToken);
 
 			Assert.Equal("Quantity must be between 1 and 2.", quote.Lines[0].Problem);
 		}
@@ -242,11 +242,11 @@ namespace BellumGens.Api.Core.Tests
 			var jersey = TestUtils.CreateJersey("EBL Jersey", 30m);
 			var umbrella = TestUtils.CreateProduct("Umbrella", 15m, stock: 3);
 			db.Products.AddRange(jersey, umbrella);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var service = TestUtils.CreateOrderService(db);
 			var femaleM = jersey.Variants.First(v => v.Cut == JerseyCut.Female);
 
-			var order = await service.CreateOrderAsync(TestUtils.CreateOrderRequest(Line(jersey, 1, femaleM), Line(umbrella, 2)), "user1");
+			var order = await service.CreateOrderAsync(TestUtils.CreateOrderRequest(Line(jersey, 1, femaleM), Line(umbrella, 2)), "user1", TestContext.Current.CancellationToken);
 
 			Assert.Equal(OrderStatus.AwaitingPayment, order.Status);
 			Assert.Equal("user1", order.UserId);
@@ -272,12 +272,12 @@ namespace BellumGens.Api.Core.Tests
 			using var db = TestUtils.CreateInMemoryDbContext();
 			var product = TestUtils.CreateProduct();
 			db.Products.Add(product);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var service = TestUtils.CreateOrderService(db);
 			var request = TestUtils.CreateOrderRequest(Line(product));
 			request.PromoCode = "MISSING";
 
-			var exception = await Assert.ThrowsAsync<ShopValidationException>(() => service.CreateOrderAsync(request, null));
+			var exception = await Assert.ThrowsAsync<ShopValidationException>(() => service.CreateOrderAsync(request, null, TestContext.Current.CancellationToken));
 
 			Assert.Contains("Promo code is invalid.", exception.Problems);
 			Assert.Empty(db.ShopOrders);
@@ -289,10 +289,10 @@ namespace BellumGens.Api.Core.Tests
 			using var db = TestUtils.CreateInMemoryDbContext();
 			var product = TestUtils.CreateProduct(stock: 0);
 			db.Products.Add(product);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var service = TestUtils.CreateOrderService(db);
 
-			var exception = await Assert.ThrowsAsync<ShopValidationException>(() => service.CreateOrderAsync(TestUtils.CreateOrderRequest(Line(product)), null));
+			var exception = await Assert.ThrowsAsync<ShopValidationException>(() => service.CreateOrderAsync(TestUtils.CreateOrderRequest(Line(product)), null, TestContext.Current.CancellationToken));
 
 			Assert.NotNull(exception.Quote);
 			Assert.Equal("Sold out.", exception.Quote!.Lines[0].Problem);
@@ -311,12 +311,12 @@ namespace BellumGens.Api.Core.Tests
 			var payment = new Payment { OrderId = order.Id, ProviderOrderId = "rev_1", Amount = 36m };
 			order.Payments.Add(payment);
 			db.ShopOrders.Add(order);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var email = TestUtils.CreateMockEmailSender();
 			var service = TestUtils.CreateOrderService(db, email);
 
-			bool first = await service.ApplyPaymentStatusAsync(payment, PaymentStatus.Completed, "ORDER_COMPLETED", "{}");
-			bool second = await service.ApplyPaymentStatusAsync(payment, PaymentStatus.Completed, "ORDER_COMPLETED", "{}");
+			bool first = await service.ApplyPaymentStatusAsync(payment, PaymentStatus.Completed, "ORDER_COMPLETED", "{}", TestContext.Current.CancellationToken);
+			bool second = await service.ApplyPaymentStatusAsync(payment, PaymentStatus.Completed, "ORDER_COMPLETED", "{}", TestContext.Current.CancellationToken);
 
 			Assert.True(first);
 			Assert.False(second);
@@ -336,11 +336,11 @@ namespace BellumGens.Api.Core.Tests
 			var payment = new Payment { OrderId = order.Id, ProviderOrderId = "rev_1", Amount = 36m };
 			order.Payments.Add(payment);
 			db.ShopOrders.Add(order);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var email = TestUtils.CreateMockEmailSender();
 			var service = TestUtils.CreateOrderService(db, email);
 
-			await service.ApplyPaymentStatusAsync(payment, PaymentStatus.Failed, "ORDER_PAYMENT_DECLINED", null);
+			await service.ApplyPaymentStatusAsync(payment, PaymentStatus.Failed, "ORDER_PAYMENT_DECLINED", null, TestContext.Current.CancellationToken);
 
 			Assert.Equal(PaymentStatus.Failed, payment.Status);
 			Assert.Equal(OrderStatus.AwaitingPayment, order.Status);
@@ -355,10 +355,10 @@ namespace BellumGens.Api.Core.Tests
 			var payment = new Payment { OrderId = order.Id, ProviderOrderId = "rev_1", Amount = 36m, Status = PaymentStatus.Completed };
 			order.Payments.Add(payment);
 			db.ShopOrders.Add(order);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var service = TestUtils.CreateOrderService(db);
 
-			bool changed = await service.ApplyPaymentStatusAsync(payment, PaymentStatus.Failed, "ORDER_PAYMENT_FAILED", null);
+			bool changed = await service.ApplyPaymentStatusAsync(payment, PaymentStatus.Failed, "ORDER_PAYMENT_FAILED", null, TestContext.Current.CancellationToken);
 
 			Assert.False(changed);
 			Assert.Equal(PaymentStatus.Completed, payment.Status);
@@ -372,14 +372,14 @@ namespace BellumGens.Api.Core.Tests
 			var jersey = TestUtils.CreateJersey();
 			var umbrella = TestUtils.CreateProduct("Umbrella", 15m, stock: 2);
 			db.Products.AddRange(jersey, umbrella);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var service = TestUtils.CreateOrderService(db);
 			var maleL = jersey.Variants.First(v => v.Cut == JerseyCut.Male);
-			var order = await service.CreateOrderAsync(TestUtils.CreateOrderRequest(Line(jersey, 2, maleL), Line(umbrella, 2)), null);
+			var order = await service.CreateOrderAsync(TestUtils.CreateOrderRequest(Line(jersey, 2, maleL), Line(umbrella, 2)), null, TestContext.Current.CancellationToken);
 			Assert.Equal(3, maleL.StockQuantity);
 			Assert.Equal(0, umbrella.StockQuantity);
 
-			await service.CancelAsync(order, "Test");
+			await service.CancelAsync(order, "Test", TestContext.Current.CancellationToken);
 
 			Assert.Equal(OrderStatus.Cancelled, order.Status);
 			Assert.Equal(5, maleL.StockQuantity);
@@ -394,15 +394,15 @@ namespace BellumGens.Api.Core.Tests
 			var promo = new Promo { Code = "SAVE10", Discount = 0.1m, UsageLimit = 5, TimesUsed = 2 };
 			db.Products.Add(product);
 			db.PromoCodes.Add(promo);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var service = TestUtils.CreateOrderService(db);
 			var request = TestUtils.CreateOrderRequest(Line(product));
 			request.PromoCode = "save10";
 
-			var order = await service.CreateOrderAsync(request, null);
+			var order = await service.CreateOrderAsync(request, null, TestContext.Current.CancellationToken);
 			Assert.Equal(3, promo.TimesUsed);
 
-			await service.CancelAsync(order, "Test");
+			await service.CancelAsync(order, "Test", TestContext.Current.CancellationToken);
 			Assert.Equal(2, promo.TimesUsed);
 		}
 
@@ -413,13 +413,13 @@ namespace BellumGens.Api.Core.Tests
 			var product = TestUtils.CreateProduct();
 			db.Products.Add(product);
 			db.PromoCodes.Add(new Promo { Code = "ONCE", Discount = 0.1m, UsageLimit = 1 });
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var service = TestUtils.CreateOrderService(db);
 			var request = TestUtils.CreateOrderRequest(Line(product));
 			request.PromoCode = "ONCE";
-			await service.CreateOrderAsync(request, null);
+			await service.CreateOrderAsync(request, null, TestContext.Current.CancellationToken);
 
-			var exception = await Assert.ThrowsAsync<ShopValidationException>(() => service.CreateOrderAsync(request, null));
+			var exception = await Assert.ThrowsAsync<ShopValidationException>(() => service.CreateOrderAsync(request, null, TestContext.Current.CancellationToken));
 
 			Assert.Contains("Promo code has expired.", exception.Problems);
 			Assert.Single(db.ShopOrders);
@@ -433,19 +433,19 @@ namespace BellumGens.Api.Core.Tests
 			var promo = new Promo { Code = "SAVE10", Discount = 0.1m };
 			db.Products.Add(umbrella);
 			db.PromoCodes.Add(promo);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var email = TestUtils.CreateMockEmailSender();
 			var service = TestUtils.CreateOrderService(db, email);
 			var request = TestUtils.CreateOrderRequest(Line(umbrella, 2));
 			request.PromoCode = "SAVE10";
-			var order = await service.CreateOrderAsync(request, null);
+			var order = await service.CreateOrderAsync(request, null, TestContext.Current.CancellationToken);
 			var payment = new Payment { OrderId = order.Id, ProviderOrderId = "rev_1", Amount = order.Total };
 			order.Payments.Add(payment);
-			await service.CancelAsync(order, "Payment window expired.");
+			await service.CancelAsync(order, "Payment window expired.", TestContext.Current.CancellationToken);
 			Assert.Equal(2, umbrella.StockQuantity);
 			Assert.Equal(0, promo.TimesUsed);
 
-			bool changed = await service.ApplyPaymentStatusAsync(payment, PaymentStatus.Completed, "ORDER_COMPLETED", "{}");
+			bool changed = await service.ApplyPaymentStatusAsync(payment, PaymentStatus.Completed, "ORDER_COMPLETED", "{}", TestContext.Current.CancellationToken);
 
 			Assert.True(changed);
 			Assert.Equal(OrderStatus.Paid, order.Status);
@@ -461,17 +461,17 @@ namespace BellumGens.Api.Core.Tests
 			using var db = TestUtils.CreateInMemoryDbContext();
 			var umbrella = TestUtils.CreateProduct("Umbrella", 15m, stock: 1);
 			db.Products.Add(umbrella);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var email = TestUtils.CreateMockEmailSender();
 			var service = TestUtils.CreateOrderService(db, email);
-			var order = await service.CreateOrderAsync(TestUtils.CreateOrderRequest(Line(umbrella)), null);
+			var order = await service.CreateOrderAsync(TestUtils.CreateOrderRequest(Line(umbrella)), null, TestContext.Current.CancellationToken);
 			var payment = new Payment { OrderId = order.Id, ProviderOrderId = "rev_1", Amount = order.Total };
 			order.Payments.Add(payment);
-			await service.CancelAsync(order, "Payment window expired.");
+			await service.CancelAsync(order, "Payment window expired.", TestContext.Current.CancellationToken);
 			umbrella.StockQuantity = 0;
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-			bool changed = await service.ApplyPaymentStatusAsync(payment, PaymentStatus.Completed, "ORDER_COMPLETED", "{}");
+			bool changed = await service.ApplyPaymentStatusAsync(payment, PaymentStatus.Completed, "ORDER_COMPLETED", "{}", TestContext.Current.CancellationToken);
 
 			Assert.True(changed);
 			Assert.Equal(OrderStatus.Cancelled, order.Status);
@@ -486,10 +486,10 @@ namespace BellumGens.Api.Core.Tests
 			using var db = TestUtils.CreateInMemoryDbContext();
 			var order = TestUtils.CreateShopOrder(OrderStatus.Paid);
 			db.ShopOrders.Add(order);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var service = TestUtils.CreateOrderService(db);
 
-			await service.CancelAsync(order, "Test");
+			await service.CancelAsync(order, "Test", TestContext.Current.CancellationToken);
 
 			Assert.Equal(OrderStatus.Paid, order.Status);
 		}
@@ -501,11 +501,11 @@ namespace BellumGens.Api.Core.Tests
 			var order = TestUtils.CreateShopOrder(OrderStatus.Paid);
 			order.Language = "en";
 			db.ShopOrders.Add(order);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var email = TestUtils.CreateMockEmailSender();
 			var service = TestUtils.CreateOrderService(db, email);
 
-			await service.UpdateStatusAsync(order, new OrderStatusUpdate { Status = OrderStatus.Shipped, TrackingNumber = "SPD123" });
+			await service.UpdateStatusAsync(order, new OrderStatusUpdate { Status = OrderStatus.Shipped, TrackingNumber = "SPD123" }, TestContext.Current.CancellationToken);
 
 			Assert.Equal(OrderStatus.Shipped, order.Status);
 			Assert.NotNull(order.ShippedOn);
@@ -523,10 +523,10 @@ namespace BellumGens.Api.Core.Tests
 			using var db = TestUtils.CreateInMemoryDbContext();
 			var order = TestUtils.CreateShopOrder(from);
 			db.ShopOrders.Add(order);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var service = TestUtils.CreateOrderService(db);
 
-			await Assert.ThrowsAsync<ShopValidationException>(() => service.UpdateStatusAsync(order, new OrderStatusUpdate { Status = to }));
+			await Assert.ThrowsAsync<ShopValidationException>(() => service.UpdateStatusAsync(order, new OrderStatusUpdate { Status = to }, TestContext.Current.CancellationToken));
 
 			Assert.Equal(from, order.Status);
 		}
@@ -537,12 +537,12 @@ namespace BellumGens.Api.Core.Tests
 			using var db = TestUtils.CreateInMemoryDbContext();
 			var umbrella = TestUtils.CreateProduct("Umbrella", 15m, stock: 1);
 			db.Products.Add(umbrella);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var service = TestUtils.CreateOrderService(db);
-			var order = await service.CreateOrderAsync(TestUtils.CreateOrderRequest(Line(umbrella)), null);
+			var order = await service.CreateOrderAsync(TestUtils.CreateOrderRequest(Line(umbrella)), null, TestContext.Current.CancellationToken);
 			Assert.Equal(0, umbrella.StockQuantity);
 
-			await service.UpdateStatusAsync(order, new OrderStatusUpdate { Status = OrderStatus.Cancelled, Note = "Customer asked" });
+			await service.UpdateStatusAsync(order, new OrderStatusUpdate { Status = OrderStatus.Cancelled, Note = "Customer asked" }, TestContext.Current.CancellationToken);
 
 			Assert.Equal(OrderStatus.Cancelled, order.Status);
 			Assert.Equal("Customer asked", order.AdminNote);

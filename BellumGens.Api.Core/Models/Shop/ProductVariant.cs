@@ -23,6 +23,7 @@ namespace BellumGens.Api.Core.Models
 		public string Sku { get; set; }
 
 		/// <summary>Overrides the product price for this variant when set.</summary>
+		[Range(0, 100000)]
 		public decimal? PriceOverride { get; set; }
 
 		/// <summary>Null means stock is not tracked for this variant.</summary>
