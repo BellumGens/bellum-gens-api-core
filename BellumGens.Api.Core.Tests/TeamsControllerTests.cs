@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+
 using BellumGens.Api.Controllers;
 using BellumGens.Api.Core.Models;
 using BellumGens.Api.Core.Providers;
@@ -11,7 +8,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
 using SteamModels;
-using Xunit;
 
 namespace BellumGens.Api.Core.Tests
 {
@@ -550,7 +546,7 @@ namespace BellumGens.Api.Core.Tests
 			var result = await controller.RemoveTeamMember(teamId, memberId);
 
 			Assert.IsType<OkResult>(result);
-			Assert.Null(await dbContext.TeamMembers.FindAsync(teamId, memberId));
+			Assert.Null(await dbContext.TeamMembers.FindAsync([teamId, memberId], TestContext.Current.CancellationToken));
 		}
 
 		[Fact]
@@ -607,7 +603,7 @@ namespace BellumGens.Api.Core.Tests
 			var result = await controller.AbandonTeam(teamId);
 
 			var okResult = Assert.IsType<OkObjectResult>(result);
-			Assert.Null(await dbContext.CSGOTeams.FindAsync(teamId));
+			Assert.Null(await dbContext.CSGOTeams.FindAsync([teamId], TestContext.Current.CancellationToken));
 		}
 
 		[Fact]
@@ -642,9 +638,9 @@ namespace BellumGens.Api.Core.Tests
 			var result = await controller.AbandonTeam(teamId);
 
 			var okResult = Assert.IsType<OkObjectResult>(result);
-			Assert.NotNull(await dbContext.CSGOTeams.FindAsync(teamId));
-			Assert.Null(await dbContext.TeamMembers.FindAsync(teamId, userId));
-			var remaining = await dbContext.TeamMembers.FindAsync(teamId, otherId);
+			Assert.NotNull(await dbContext.CSGOTeams.FindAsync([teamId], TestContext.Current.CancellationToken));
+			Assert.Null(await dbContext.TeamMembers.FindAsync([teamId, userId], TestContext.Current.CancellationToken));
+			var remaining = await dbContext.TeamMembers.FindAsync([teamId, otherId], TestContext.Current.CancellationToken);
 			Assert.NotNull(remaining);
 			Assert.True(remaining.IsAdmin);
 		}
@@ -753,7 +749,7 @@ namespace BellumGens.Api.Core.Tests
 			var result = await controller.SetTeamMapPool(maps);
 
 			var okResult = Assert.IsType<OkObjectResult>(result);
-			var pool = await dbContext.TeamMapPools.Where(m => m.TeamId == teamId).ToListAsync();
+			var pool = await dbContext.TeamMapPools.Where(m => m.TeamId == teamId).ToListAsync(TestContext.Current.CancellationToken);
 			Assert.Equal(2, pool.Count);
 		}
 
