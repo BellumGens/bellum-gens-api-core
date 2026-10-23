@@ -37,7 +37,13 @@ namespace BellumGens.Api.Core.Providers
 		/// and WebP are accepted; other types throw <see cref="NotSupportedException"/>.</item>
 		/// </list>
 		/// </summary>
-		public async Task<string> SaveImage(string blob, string name)
+		public Task<string> SaveImage(string blob, string name)
+		{
+			return SaveImage(blob, name, null);
+		}
+
+		/// <summary>Same as <see cref="SaveImage(string, string)"/>, uploading into the named container. Null container uses the default one.</summary>
+		public async Task<string> SaveImage(string blob, string name, string container)
 		{
 			if (string.IsNullOrEmpty(blob))
 			{
@@ -49,7 +55,7 @@ namespace BellumGens.Api.Core.Providers
 				return blob;
 			}
 
-			return await UploadToStorage(blob, name);
+			return await UploadToStorage(blob, name, container);
 		}
 
 		private static bool IsHttpUrl(string value)
@@ -59,7 +65,7 @@ namespace BellumGens.Api.Core.Providers
 				&& (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 		}
 
-		private async Task<string> UploadToStorage(string blob, string name)
+		private async Task<string> UploadToStorage(string blob, string name, string container)
 		{
 			// Raw base64 contains no comma and is treated as PNG.
 			int comma = blob.IndexOf(',');
@@ -70,7 +76,9 @@ namespace BellumGens.Api.Core.Providers
 			}
 			byte[] bytes = Convert.FromBase64String(blob[(comma + 1)..]);
 
-			BlobContainerClient containerClient = _containerProvider.GetContainerClient();
+			BlobContainerClient containerClient = container == null
+				? _containerProvider.GetContainerClient()
+				: _containerProvider.GetContainerClient(container);
 			BlobClient blobClient = containerClient.GetBlobClient(name + extension);
 
 			using MemoryStream ms = new(bytes);
@@ -94,6 +102,9 @@ namespace BellumGens.Api.Core.Providers
 	public interface IBlobContainerProvider
 	{
 		BlobContainerClient GetContainerClient();
+
+		/// <summary>Returns the named container in the same storage account.</summary>
+		BlobContainerClient GetContainerClient(string container);
 	}
 
 	/// <summary>
@@ -103,16 +114,22 @@ namespace BellumGens.Api.Core.Providers
 	/// </summary>
 	public sealed class ConfigurationBlobContainerProvider : IBlobContainerProvider
 	{
+		private readonly Lazy<BlobServiceClient> _service;
 		private readonly Lazy<BlobContainerClient> _container;
 
 		public ConfigurationBlobContainerProvider(IConfiguration config)
 		{
 			// PublicationOnly: a failure (missing configuration) isn't cached, so it is retried on the next upload.
+			_service = new Lazy<BlobServiceClient>(
+				() => new BlobServiceClient(config["BlobService:ConnectionString"]),
+				LazyThreadSafetyMode.PublicationOnly);
 			_container = new Lazy<BlobContainerClient>(
-				() => new BlobServiceClient(config["BlobService:ConnectionString"]).GetBlobContainerClient(config["BlobService:Container"]),
+				() => _service.Value.GetBlobContainerClient(config["BlobService:Container"]),
 				LazyThreadSafetyMode.PublicationOnly);
 		}
 
 		public BlobContainerClient GetContainerClient() => _container.Value;
+
+		public BlobContainerClient GetContainerClient(string container) => _service.Value.GetBlobContainerClient(container);
 	}
 }

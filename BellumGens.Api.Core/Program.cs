@@ -1,4 +1,5 @@
 using System;
+using System.Threading.RateLimiting;
 #if SQLITE_PROVIDER
 using System.Linq;
 using System.Security.Cryptography;
@@ -10,6 +11,7 @@ using BellumGens.Api.Core.Providers;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -119,6 +121,27 @@ builder.Services.AddScoped<IEmailService, EmailServiceProvider>();
 builder.Services.AddSingleton<IBlobContainerProvider, ConfigurationBlobContainerProvider>();
 builder.Services.AddScoped<IStorageService, StorageService>();
 
+// Shop
+builder.Services.Configure<ShopOptions>(builder.Configuration.GetSection(ShopOptions.Section));
+builder.Services.Configure<RevolutOptions>(builder.Configuration.GetSection(RevolutOptions.Section));
+builder.Services.AddHttpClient<IPaymentProvider, RevolutPaymentProvider>();
+builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddHostedService<PaymentExpirySweeper>();
+
+builder.Services.AddRateLimiter(options =>
+{
+	options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+	options.AddPolicy(ShopOptions.OrdersRateLimitPolicy, context =>
+		RateLimitPartition.GetFixedWindowLimiter(
+			context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+			_ => new FixedWindowRateLimiterOptions
+			{
+				PermitLimit = 10,
+				Window = TimeSpan.FromMinutes(1),
+				QueueLimit = 0
+			}));
+});
+
 builder.Services.AddResponseCompression(options =>
 {
 	options.Providers.Add<BrotliCompressionProvider>();
@@ -193,6 +216,7 @@ else
 }
 
 app.UseRouting();
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

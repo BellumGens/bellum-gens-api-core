@@ -366,7 +366,7 @@ namespace BellumGens.Api.Core.Migrations
                     b.ToTable("EarlyBirds");
                 });
 
-            modelBuilder.Entity("BellumGens.Api.Core.Models.JerseyDetails", b =>
+            modelBuilder.Entity("BellumGens.Api.Core.Models.OrderItem", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -374,69 +374,206 @@ namespace BellumGens.Api.Core.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("Cut")
-                        .HasColumnType("int");
+                    b.Property<decimal>("LineTotal")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
 
                     b.Property<Guid>("OrderId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<int>("Size")
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Quantity")
                         .HasColumnType("int");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<Guid?>("VariantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("VariantName")
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("OrderId");
 
-                    b.ToTable("JerseyDetails");
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("VariantId");
+
+                    b.ToTable("OrderItems");
                 });
 
-            modelBuilder.Entity("BellumGens.Api.Core.Models.JerseyOrder", b =>
+            modelBuilder.Entity("BellumGens.Api.Core.Models.Payment", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("City")
-                        .IsRequired()
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<string>("CheckoutUrl")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<bool>("Confirmed")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("FirstName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("LastName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTimeOffset>("OrderDate")
+                    b.Property<DateTimeOffset>("CreatedOn")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<string>("PhoneNumber")
-                        .IsRequired()
+                    b.Property<string>("Currency")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("PromoCode")
+                    b.Property<string>("LastEventType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("LastPayload")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Provider")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProviderOrderId")
                         .HasColumnType("nvarchar(450)");
 
-                    b.Property<bool>("Shipped")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("StreetAddress")
-                        .IsRequired()
+                    b.Property<string>("ProviderToken")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("UpdatedOn")
+                        .HasColumnType("datetimeoffset");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PromoCode");
+                    b.HasIndex("OrderId");
 
-                    b.ToTable("JerseyOrders");
+                    b.HasIndex("ProviderOrderId");
+
+                    b.ToTable("Payments");
+                });
+
+            modelBuilder.Entity("BellumGens.Api.Core.Models.Product", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Brand")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal?>("DiscountPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<string>("GalleryUrls")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("Price")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("StockQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("UpdatedOn")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
+
+                    b.ToTable("Products");
+                });
+
+            modelBuilder.Entity("BellumGens.Api.Core.Models.ProductVariant", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("Cut")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal?>("PriceOverride")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int?>("Size")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Sku")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("StockQuantity")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("ProductVariants");
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.Promo", b =>
@@ -444,12 +581,29 @@ namespace BellumGens.Api.Core.Migrations
                     b.Property<string>("Code")
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<bool>("Active")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("Brand")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("Discount")
                         .HasPrecision(3, 2)
                         .HasColumnType("decimal(3,2)");
 
                     b.Property<DateTimeOffset?>("Expiration")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal?>("MinimumOrderTotal")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<int>("TimesUsed")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UsageLimit")
+                        .HasColumnType("int");
 
                     b.HasKey("Code");
 
@@ -489,6 +643,123 @@ namespace BellumGens.Api.Core.Migrations
                     b.HasIndex("Sc2MatchId");
 
                     b.ToTable("SC2MatchMaps");
+                });
+
+            modelBuilder.Entity("BellumGens.Api.Core.Models.ShopOrder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AdminNote")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Country")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Currency")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CustomerNote")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("DeliveryMethod")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("DiscountTotal")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset>("ExpiresOn")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Language")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset>("OrderDate")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("OrderSequence")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("OrderSequence"));
+
+                    b.Property<DateTimeOffset?>("PaidOn")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("PaymentMethod")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PostalCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PromoCode")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset?>("ShippedOn")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("ShippingCost")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("StreetAddress")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("Subtotal")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<decimal>("Total")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<string>("TrackingNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderSequence")
+                        .IsUnique();
+
+                    b.HasIndex("PromoCode");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("ShopOrders");
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.StarCraft2Details", b =>
@@ -1268,10 +1539,36 @@ namespace BellumGens.Api.Core.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("BellumGens.Api.Core.Models.JerseyDetails", b =>
+            modelBuilder.Entity("BellumGens.Api.Core.Models.OrderItem", b =>
                 {
-                    b.HasOne("BellumGens.Api.Core.Models.JerseyOrder", "Order")
-                        .WithMany("Jerseys")
+                    b.HasOne("BellumGens.Api.Core.Models.ShopOrder", "Order")
+                        .WithMany("Items")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BellumGens.Api.Core.Models.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("BellumGens.Api.Core.Models.ProductVariant", "Variant")
+                        .WithMany()
+                        .HasForeignKey("VariantId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Order");
+
+                    b.Navigation("Product");
+
+                    b.Navigation("Variant");
+                });
+
+            modelBuilder.Entity("BellumGens.Api.Core.Models.Payment", b =>
+                {
+                    b.HasOne("BellumGens.Api.Core.Models.ShopOrder", "Order")
+                        .WithMany("Payments")
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1279,13 +1576,15 @@ namespace BellumGens.Api.Core.Migrations
                     b.Navigation("Order");
                 });
 
-            modelBuilder.Entity("BellumGens.Api.Core.Models.JerseyOrder", b =>
+            modelBuilder.Entity("BellumGens.Api.Core.Models.ProductVariant", b =>
                 {
-                    b.HasOne("BellumGens.Api.Core.Models.Promo", "Promo")
-                        .WithMany()
-                        .HasForeignKey("PromoCode");
+                    b.HasOne("BellumGens.Api.Core.Models.Product", "Product")
+                        .WithMany("Variants")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.Navigation("Promo");
+                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.SC2MatchMap", b =>
@@ -1309,6 +1608,21 @@ namespace BellumGens.Api.Core.Migrations
                     b.Navigation("Match");
 
                     b.Navigation("PickingPlayer");
+                });
+
+            modelBuilder.Entity("BellumGens.Api.Core.Models.ShopOrder", b =>
+                {
+                    b.HasOne("BellumGens.Api.Core.Models.Promo", "Promo")
+                        .WithMany()
+                        .HasForeignKey("PromoCode")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("BellumGens.Api.Core.Models.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Promo");
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.StrategyComment", b =>
@@ -1683,9 +1997,16 @@ namespace BellumGens.Api.Core.Migrations
                     b.Navigation("Strategies");
                 });
 
-            modelBuilder.Entity("BellumGens.Api.Core.Models.JerseyOrder", b =>
+            modelBuilder.Entity("BellumGens.Api.Core.Models.Product", b =>
                 {
-                    b.Navigation("Jerseys");
+                    b.Navigation("Variants");
+                });
+
+            modelBuilder.Entity("BellumGens.Api.Core.Models.ShopOrder", b =>
+                {
+                    b.Navigation("Items");
+
+                    b.Navigation("Payments");
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.Tournament", b =>
