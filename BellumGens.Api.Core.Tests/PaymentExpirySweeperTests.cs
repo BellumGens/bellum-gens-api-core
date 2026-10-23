@@ -67,6 +67,23 @@ namespace BellumGens.Api.Core.Tests
 		}
 
 		[Fact]
+		public async Task Sweep_PendingPaymentWithoutConfiguredProvider_KeepsOrder()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var order = TestUtils.CreateShopOrder(expiresOn: DateTimeOffset.Now.AddMinutes(-5));
+			order.Payments.Add(new Payment { OrderId = order.Id, ProviderOrderId = "rev_1", Amount = 36m, Status = PaymentStatus.Pending });
+			db.ShopOrders.Add(order);
+			await db.SaveChangesAsync();
+			var provider = TestUtils.CreateMockPaymentProvider(configured: false);
+
+			int cancelled = await PaymentExpirySweeper.SweepAsync(db, TestUtils.CreateOrderService(db), provider.Object, DateTimeOffset.Now, Logger, CancellationToken.None);
+
+			Assert.Equal(0, cancelled);
+			Assert.Equal(OrderStatus.AwaitingPayment, order.Status);
+			provider.Verify(p => p.GetOrderAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+		}
+
+		[Fact]
 		public async Task Sweep_PendingPaymentStillPendingAtProvider_Cancels()
 		{
 			using var db = TestUtils.CreateInMemoryDbContext();

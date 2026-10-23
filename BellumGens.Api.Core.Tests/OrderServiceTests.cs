@@ -300,7 +300,7 @@ namespace BellumGens.Api.Core.Tests
 		}
 
 		[Fact]
-		public async Task ApplyPaymentStatus_Completed_MarksPaidOnce_SendsOneEmail_CountsPromo()
+		public async Task ApplyPaymentStatus_Completed_MarksPaidOnce_SendsOneEmail_DoesNotRecountPromo()
 		{
 			using var db = TestUtils.CreateInMemoryDbContext();
 			var promo = new Promo { Code = "SAVE10", Discount = 0.1m };
@@ -324,7 +324,7 @@ namespace BellumGens.Api.Core.Tests
 			Assert.NotNull(order.PaidOn);
 			Assert.Equal(PaymentStatus.Completed, payment.Status);
 			Assert.Equal("ORDER_COMPLETED", payment.LastEventType);
-			Assert.Equal(1, promo.TimesUsed);
+			Assert.Equal(0, promo.TimesUsed);
 			email.Verify(m => m.SendEmailAsync("customer@example.com", It.Is<string>(s => s.Contains(order.OrderNumber)), It.Is<string>(b => b.Contains("Umbrella"))), Times.Once);
 		}
 
@@ -384,6 +384,100 @@ namespace BellumGens.Api.Core.Tests
 			Assert.Equal(OrderStatus.Cancelled, order.Status);
 			Assert.Equal(5, maleL.StockQuantity);
 			Assert.Equal(2, umbrella.StockQuantity);
+		}
+
+		[Fact]
+		public async Task CreateOrder_WithPromo_ReservesUse_AndCancelReleasesIt()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var product = TestUtils.CreateProduct();
+			var promo = new Promo { Code = "SAVE10", Discount = 0.1m, UsageLimit = 5, TimesUsed = 2 };
+			db.Products.Add(product);
+			db.PromoCodes.Add(promo);
+			await db.SaveChangesAsync();
+			var service = TestUtils.CreateOrderService(db);
+			var request = TestUtils.CreateOrderRequest(Line(product));
+			request.PromoCode = "save10";
+
+			var order = await service.CreateOrderAsync(request, null);
+			Assert.Equal(3, promo.TimesUsed);
+
+			await service.CancelAsync(order, "Test");
+			Assert.Equal(2, promo.TimesUsed);
+		}
+
+		[Fact]
+		public async Task CreateOrder_PromoLimitTakenByUnpaidOrder_Throws()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var product = TestUtils.CreateProduct();
+			db.Products.Add(product);
+			db.PromoCodes.Add(new Promo { Code = "ONCE", Discount = 0.1m, UsageLimit = 1 });
+			await db.SaveChangesAsync();
+			var service = TestUtils.CreateOrderService(db);
+			var request = TestUtils.CreateOrderRequest(Line(product));
+			request.PromoCode = "ONCE";
+			await service.CreateOrderAsync(request, null);
+
+			var exception = await Assert.ThrowsAsync<ShopValidationException>(() => service.CreateOrderAsync(request, null));
+
+			Assert.Contains("Promo code has expired.", exception.Problems);
+			Assert.Single(db.ShopOrders);
+		}
+
+		[Fact]
+		public async Task ApplyPaymentStatus_CompletedAfterCancel_ReinstatesWhenStockIsAvailable()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var umbrella = TestUtils.CreateProduct("Umbrella", 15m, stock: 2);
+			var promo = new Promo { Code = "SAVE10", Discount = 0.1m };
+			db.Products.Add(umbrella);
+			db.PromoCodes.Add(promo);
+			await db.SaveChangesAsync();
+			var email = TestUtils.CreateMockEmailSender();
+			var service = TestUtils.CreateOrderService(db, email);
+			var request = TestUtils.CreateOrderRequest(Line(umbrella, 2));
+			request.PromoCode = "SAVE10";
+			var order = await service.CreateOrderAsync(request, null);
+			var payment = new Payment { OrderId = order.Id, ProviderOrderId = "rev_1", Amount = order.Total };
+			order.Payments.Add(payment);
+			await service.CancelAsync(order, "Payment window expired.");
+			Assert.Equal(2, umbrella.StockQuantity);
+			Assert.Equal(0, promo.TimesUsed);
+
+			bool changed = await service.ApplyPaymentStatusAsync(payment, PaymentStatus.Completed, "ORDER_COMPLETED", "{}");
+
+			Assert.True(changed);
+			Assert.Equal(OrderStatus.Paid, order.Status);
+			Assert.NotNull(order.PaidOn);
+			Assert.Equal(0, umbrella.StockQuantity);
+			Assert.Equal(1, promo.TimesUsed);
+			email.Verify(m => m.SendEmailAsync(order.Email, It.IsAny<string>(), It.IsAny<string>()), Times.Once);
+		}
+
+		[Fact]
+		public async Task ApplyPaymentStatus_CompletedAfterCancel_StaysCancelledWhenStockIsGone()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var umbrella = TestUtils.CreateProduct("Umbrella", 15m, stock: 1);
+			db.Products.Add(umbrella);
+			await db.SaveChangesAsync();
+			var email = TestUtils.CreateMockEmailSender();
+			var service = TestUtils.CreateOrderService(db, email);
+			var order = await service.CreateOrderAsync(TestUtils.CreateOrderRequest(Line(umbrella)), null);
+			var payment = new Payment { OrderId = order.Id, ProviderOrderId = "rev_1", Amount = order.Total };
+			order.Payments.Add(payment);
+			await service.CancelAsync(order, "Payment window expired.");
+			umbrella.StockQuantity = 0;
+			await db.SaveChangesAsync();
+
+			bool changed = await service.ApplyPaymentStatusAsync(payment, PaymentStatus.Completed, "ORDER_COMPLETED", "{}");
+
+			Assert.True(changed);
+			Assert.Equal(OrderStatus.Cancelled, order.Status);
+			Assert.Equal(PaymentStatus.Completed, payment.Status);
+			Assert.Equal(0, umbrella.StockQuantity);
+			email.Verify(m => m.SendEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
 		}
 
 		[Fact]

@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 #if SQLITE_PROVIDER
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Microsoft.EntityFrameworkCore.ValueGeneration;
 #endif
 
 namespace BellumGens.Api.Core.Models
@@ -254,6 +255,11 @@ namespace BellumGens.Api.Core.Models
 				{
 					property.SetValueConverter(converter);
 				}
+
+				// SQLite only generates INTEGER PRIMARY KEY values, so the development database numbers orders client-side.
+				modelBuilder.Entity<ShopOrder>()
+							.Property(o => o.OrderSequence)
+							.HasValueGenerator<SqliteOrderSequenceGenerator>();
 			}
 #endif
 
@@ -387,4 +393,20 @@ namespace BellumGens.Api.Core.Models
 						.OnDelete(DeleteBehavior.Cascade);
 		}
 	}
+
+#if SQLITE_PROVIDER
+	/// <summary>Numbers development orders as one past the highest stored or tracked sequence.</summary>
+	internal sealed class SqliteOrderSequenceGenerator : ValueGenerator<int>
+	{
+		public override bool GeneratesTemporaryValues => false;
+
+		public override int Next(EntityEntry entry)
+		{
+			DbSet<ShopOrder> orders = entry.Context.Set<ShopOrder>();
+			int stored = orders.Max(o => (int?)o.OrderSequence) ?? 0;
+			int tracked = orders.Local.Max(o => (int?)o.OrderSequence) ?? 0;
+			return Math.Max(stored, tracked) + 1;
+		}
+	}
+#endif
 }

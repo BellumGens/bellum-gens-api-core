@@ -95,6 +95,41 @@ public class SqliteDevelopmentDatabaseTests
 	}
 
 	[Fact]
+	public async Task NumbersShopOrdersSequentially()
+	{
+		var databasePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.dev.db");
+		var options = new DbContextOptionsBuilder<BellumGensDbContext>()
+			.UseSqlite($"Data Source={databasePath}")
+			.Options;
+
+		try
+		{
+			using (var context = new BellumGensDbContext(options))
+			{
+				SqliteDevelopmentDatabase.EnsureCurrentModel(context);
+				context.ShopOrders.AddRange(TestUtils.CreateShopOrder(), TestUtils.CreateShopOrder());
+				await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+			}
+
+			using (var context = new BellumGensDbContext(options))
+			{
+				context.ShopOrders.Add(TestUtils.CreateShopOrder());
+				await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+				Assert.Equal([1, 2, 3], await context.ShopOrders
+					.OrderBy(order => order.OrderSequence)
+					.Select(order => order.OrderSequence)
+					.ToListAsync(TestContext.Current.CancellationToken));
+			}
+		}
+		finally
+		{
+			using var context = new BellumGensDbContext(options);
+			context.Database.EnsureDeleted();
+		}
+	}
+
+	[Fact]
 	public async Task StoresUserTournamentFields()
 	{
 		var databasePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.dev.db");

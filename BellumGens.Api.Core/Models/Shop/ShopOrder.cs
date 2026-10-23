@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace BellumGens.Api.Core.Models
 {
@@ -78,6 +79,11 @@ namespace BellumGens.Api.Core.Models
 
 		/// <summary>Unpaid orders past this point are cancelled and their stock released.</summary>
 		public DateTimeOffset ExpiresOn { get; set; }
+
+		/// <summary>Lets a payment webhook and a cancellation racing on the same order detect each other.</summary>
+		[Timestamp]
+		[JsonIgnore]
+		public byte[] RowVersion { get; set; }
 
 		public virtual Promo Promo { get; set; }
 

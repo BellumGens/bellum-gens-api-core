@@ -81,27 +81,43 @@ namespace BellumGens.Api.Core.Providers
 			{
 				Payment latest = order.Payments.OrderByDescending(p => p.CreatedOn).FirstOrDefault();
 				bool pending = latest != null && (latest.Status == PaymentStatus.Pending || latest.Status == PaymentStatus.Authorised);
-				if (pending && provider.IsConfigured && !string.IsNullOrEmpty(latest.ProviderOrderId))
+				try
 				{
-					try
+					if (pending && !string.IsNullOrEmpty(latest.ProviderOrderId))
 					{
-						PaymentOrderResult remote = await provider.GetOrderAsync(latest.ProviderOrderId, cancellationToken);
+						if (!provider.IsConfigured)
+						{
+							// Without the provider the payment cannot be verified, and cancelling a paid order would release its stock.
+							logger?.LogWarning("Kept expired order {OrderNumber}: its payment is pending and the payment provider is not configured.", order.OrderNumber);
+							continue;
+						}
+						PaymentOrderResult remote;
+						try
+						{
+							remote = await provider.GetOrderAsync(latest.ProviderOrderId, cancellationToken);
+						}
+						catch (Exception e) when (e is not OperationCanceledException)
+						{
+							// Leave the order for the next sweep rather than cancel something the customer may have paid.
+							logger?.LogWarning(e, "Could not check payment {PaymentId} before expiring order {OrderNumber}.", latest.Id, order.OrderNumber);
+							continue;
+						}
 						if (remote.Status == PaymentStatus.Completed)
 						{
 							await orders.ApplyPaymentStatusAsync(latest, PaymentStatus.Completed, "SWEEP:" + remote.RawState, null, cancellationToken);
 							continue;
 						}
 					}
-					catch (Exception e) when (e is not OperationCanceledException)
-					{
-						// Leave the order for the next sweep rather than cancel something the customer may have paid.
-						logger?.LogWarning(e, "Could not check payment {PaymentId} before expiring order {OrderNumber}.", latest.Id, order.OrderNumber);
-						continue;
-					}
-				}
 
-				await orders.CancelAsync(order, "Payment window expired.", cancellationToken);
-				cancelled++;
+					await orders.CancelAsync(order, "Payment window expired.", cancellationToken);
+					cancelled++;
+				}
+				catch (DbUpdateConcurrencyException e)
+				{
+					// A webhook changed the order mid-sweep. The context now holds stale changes, so stop and let the next sweep start fresh.
+					logger?.LogInformation(e, "Order {OrderNumber} changed during the payment sweep; stopping until the next sweep.", order.OrderNumber);
+					break;
+				}
 			}
 			return cancelled;
 		}

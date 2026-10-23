@@ -67,6 +67,18 @@ namespace BellumGens.Api.Core.Tests
 			Assert.False(RevolutPaymentProvider.VerifySignature(body, signature, timestamp, now, Secret, TimeSpan.FromMinutes(5)));
 		}
 
+		[Theory]
+		[InlineData(long.MinValue)]
+		[InlineData(long.MaxValue)]
+		public void VerifySignature_OutOfRangeTimestamp_ReturnsFalse(long unixMs)
+		{
+			string body = "{}";
+			string timestamp = unixMs.ToString();
+			string signature = RevolutPaymentProvider.ComputeSignature(body, timestamp, Secret);
+
+			Assert.False(RevolutPaymentProvider.VerifySignature(body, signature, timestamp, DateTimeOffset.UtcNow, Secret, TimeSpan.FromMinutes(5)));
+		}
+
 		[Fact]
 		public void VerifySignature_RotatedSecrets_AcceptsAnyMatchingValue()
 		{

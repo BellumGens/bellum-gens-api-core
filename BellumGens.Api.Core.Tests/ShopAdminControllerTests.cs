@@ -61,6 +61,18 @@ namespace BellumGens.Api.Core.Tests
 		}
 
 		[Fact]
+		public async Task CreateProduct_NullVariants_CreatesProductWithoutVariants()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var controller = CreateController(db);
+
+			var result = await controller.CreateProduct(new Product { Name = "Umbrella", Price = 10m, Variants = null! });
+
+			var saved = Assert.IsType<Product>(Assert.IsType<OkObjectResult>(result).Value);
+			Assert.Empty(saved.Variants);
+		}
+
+		[Fact]
 		public async Task CreateProduct_DuplicateSlug_GetsNumericSuffix()
 		{
 			using var db = TestUtils.CreateInMemoryDbContext();
@@ -254,6 +266,23 @@ namespace BellumGens.Api.Core.Tests
 			Assert.IsType<OkObjectResult>(result);
 			Assert.Equal(OrderStatus.Refunded, order.Status);
 			payments.Verify(p => p.RefundAsync("rev_ok", 3600, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+		}
+
+		[Fact]
+		public async Task RefundOrder_CancelledOrderPaidLate_Refunds()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var order = TestUtils.CreateShopOrder(OrderStatus.Cancelled);
+			order.Payments.Add(new Payment { OrderId = order.Id, ProviderOrderId = "rev_late", Amount = 36m, Status = PaymentStatus.Completed });
+			db.ShopOrders.Add(order);
+			await db.SaveChangesAsync();
+			var payments = TestUtils.CreateMockPaymentProvider();
+			payments.Setup(p => p.RefundAsync("rev_late", 3600, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+				.ReturnsAsync(new PaymentOrderResult { ProviderOrderId = "refund_1", Status = PaymentStatus.Completed });
+			var controller = CreateController(db, payments);
+
+			Assert.IsType<OkObjectResult>(await controller.RefundOrder(order.Id));
+			Assert.Equal(OrderStatus.Refunded, order.Status);
 		}
 
 		[Fact]

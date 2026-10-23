@@ -87,7 +87,19 @@ namespace BellumGens.Api.Controllers
 				return Ok();
 			}
 
-			bool changed = await _orders.ApplyPaymentStatusAsync(payment, webhook.MappedStatus.Value, webhook.EventType, rawBody, cancellationToken);
+			bool changed;
+			try
+			{
+				changed = await _orders.ApplyPaymentStatusAsync(payment, webhook.MappedStatus.Value, webhook.EventType, rawBody, cancellationToken);
+			}
+			catch (DbUpdateConcurrencyException)
+			{
+				// Another delivery or the expiry sweep updated the order first. A non-2xx response makes the provider redeliver,
+				// and the redelivery is applied against the committed state.
+				_logger.LogInformation("{Provider} webhook {Event} for order {ProviderOrderId} lost a race; asking for redelivery.",
+					_provider.Provider, webhook.EventType, webhook.ProviderOrderId);
+				return StatusCode(409);
+			}
 			_logger.LogInformation("{Provider} webhook {Event} for order {OrderNumber}: {Result}.",
 				_provider.Provider, webhook.EventType, payment.Order?.OrderNumber, changed ? "applied" : "already applied");
 			return Ok();

@@ -599,6 +599,7 @@ namespace BellumGens.Api.Core.Migrations
                         .HasColumnType("decimal(10,2)");
 
                     b.Property<int>("TimesUsed")
+                        .IsConcurrencyToken()
                         .HasColumnType("int");
 
                     b.Property<int?>("UsageLimit")
@@ -715,6 +716,11 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.Property<string>("PromoCode")
                         .HasColumnType("nvarchar(450)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
 
                     b.Property<DateTimeOffset?>("ShippedOn")
                         .HasColumnType("datetimeoffset");

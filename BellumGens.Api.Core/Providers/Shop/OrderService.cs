@@ -63,6 +63,12 @@ namespace BellumGens.Api.Core.Providers
 			{
 				throw new ShopValidationException("Not enough stock to fulfil the order.");
 			}
+			if (quote.PromoApplied)
+			{
+				// Reserved like stock and released on cancellation, so unpaid orders cannot push a code past its usage limit.
+				Promo promo = await _db.PromoCodes.FindAsync(new object[] { quote.PromoCode }, cancellationToken);
+				promo.TimesUsed++;
+			}
 
 			ShopOrder order = new()
 			{
@@ -110,7 +116,7 @@ namespace BellumGens.Api.Core.Providers
 			}
 			catch (DbUpdateConcurrencyException)
 			{
-				throw new ShopValidationException("Stock changed while placing the order. Please try again.");
+				throw new ShopValidationException("Stock or the promo code changed while placing the order. Please try again.");
 			}
 			return order;
 		}
@@ -133,7 +139,14 @@ namespace BellumGens.Api.Core.Providers
 						payment.Status = PaymentStatus.Completed;
 						changed = true;
 					}
-					if (order.Status == OrderStatus.AwaitingPayment)
+					bool reinstated = false;
+					if (changed && order.Status == OrderStatus.Cancelled && await TryReserveAsync(order, cancellationToken))
+					{
+						// The payment landed after the order expired or was cancelled; the stock is still there, so honour it.
+						order.AdminNote = "Payment completed after the order was cancelled; order reinstated.";
+						reinstated = true;
+					}
+					if (order.Status == OrderStatus.AwaitingPayment || reinstated)
 					{
 						order.Status = OrderStatus.Paid;
 						order.PaidOn = now;
@@ -142,7 +155,7 @@ namespace BellumGens.Api.Core.Providers
 					}
 					else if (changed)
 					{
-						_logger.LogWarning("Payment {PaymentId} completed for order {OrderNumber} which is already {Status}. Check for a double charge.",
+						_logger.LogWarning("Payment {PaymentId} completed for order {OrderNumber} which is already {Status}. Check for a double charge or refund it.",
 							payment.Id, order.OrderNumber, order.Status);
 					}
 					break;
@@ -179,15 +192,7 @@ namespace BellumGens.Api.Core.Providers
 			}
 			payment.UpdatedOn = now;
 
-			if (justPaid && !string.IsNullOrEmpty(order.PromoCode))
-			{
-				Promo promo = await _db.PromoCodes.FindAsync(new object[] { order.PromoCode }, cancellationToken);
-				if (promo != null)
-				{
-					promo.TimesUsed++;
-				}
-			}
-
+			// A concurrent webhook, reconcile or cancellation bumps the order's row version, so only one of them commits.
 			await _db.SaveChangesAsync(cancellationToken);
 
 			if (justPaid)
@@ -203,7 +208,7 @@ namespace BellumGens.Api.Core.Providers
 			{
 				return;
 			}
-			await ReleaseStockAsync(order, cancellationToken);
+			await ReleaseReservationsAsync(order, cancellationToken);
 			order.Status = OrderStatus.Cancelled;
 			order.AdminNote = reason;
 			await _db.SaveChangesAsync(cancellationToken);
@@ -236,7 +241,7 @@ namespace BellumGens.Api.Core.Providers
 						order.Status = OrderStatus.Delivered;
 						break;
 					case (OrderStatus.AwaitingPayment, OrderStatus.Cancelled):
-						await ReleaseStockAsync(order, cancellationToken);
+						await ReleaseReservationsAsync(order, cancellationToken);
 						order.Status = OrderStatus.Cancelled;
 						break;
 					case (_, OrderStatus.Refunded):
@@ -407,12 +412,9 @@ namespace BellumGens.Api.Core.Providers
 			return result;
 		}
 
-		private async Task ReleaseStockAsync(ShopOrder order, CancellationToken cancellationToken)
+		private async Task ReleaseReservationsAsync(ShopOrder order, CancellationToken cancellationToken)
 		{
-			if (!_db.Entry(order).Collection(o => o.Items).IsLoaded)
-			{
-				await _db.Entry(order).Collection(o => o.Items).LoadAsync(cancellationToken);
-			}
+			await EnsureItemsLoadedAsync(order, cancellationToken);
 			foreach (OrderItem item in order.Items)
 			{
 				if (item.VariantId != null)
@@ -432,6 +434,73 @@ namespace BellumGens.Api.Core.Providers
 					}
 				}
 			}
+			Promo promo = await FindOrderPromoAsync(order, cancellationToken);
+			if (promo != null && promo.TimesUsed > 0)
+			{
+				promo.TimesUsed--;
+			}
+		}
+
+		/// <summary>Takes the stock and promo use of a cancelled order again. Changes nothing and returns false when the stock is gone.</summary>
+		private async Task<bool> TryReserveAsync(ShopOrder order, CancellationToken cancellationToken)
+		{
+			await EnsureItemsLoadedAsync(order, cancellationToken);
+			Dictionary<ProductVariant, int> variants = new();
+			Dictionary<Product, int> products = new();
+			foreach (OrderItem item in order.Items)
+			{
+				if (item.VariantId != null)
+				{
+					ProductVariant variant = await _db.ProductVariants.FindAsync(new object[] { item.VariantId.Value }, cancellationToken);
+					if (variant != null)
+					{
+						variants[variant] = variants.GetValueOrDefault(variant) + item.Quantity;
+					}
+				}
+				else
+				{
+					Product product = await _db.Products.FindAsync(new object[] { item.ProductId }, cancellationToken);
+					if (product != null)
+					{
+						products[product] = products.GetValueOrDefault(product) + item.Quantity;
+					}
+				}
+			}
+			if (variants.Any(v => v.Key.StockQuantity < v.Value) || products.Any(p => p.Key.StockQuantity < p.Value))
+			{
+				return false;
+			}
+
+			foreach ((ProductVariant variant, int quantity) in variants)
+			{
+				variant.StockQuantity -= quantity;
+			}
+			foreach ((Product product, int quantity) in products)
+			{
+				product.StockQuantity -= quantity;
+			}
+			// The customer already paid with the discount, so the use counts even past the limit.
+			Promo promo = await FindOrderPromoAsync(order, cancellationToken);
+			if (promo != null)
+			{
+				promo.TimesUsed++;
+			}
+			return true;
+		}
+
+		private async Task EnsureItemsLoadedAsync(ShopOrder order, CancellationToken cancellationToken)
+		{
+			if (!_db.Entry(order).Collection(o => o.Items).IsLoaded)
+			{
+				await _db.Entry(order).Collection(o => o.Items).LoadAsync(cancellationToken);
+			}
+		}
+
+		private async Task<Promo> FindOrderPromoAsync(ShopOrder order, CancellationToken cancellationToken)
+		{
+			return string.IsNullOrEmpty(order.PromoCode)
+				? null
+				: await _db.PromoCodes.FindAsync(new object[] { order.PromoCode }, cancellationToken);
 		}
 
 		private async Task TrySendAsync(ShopOrder order, (string Subject, string Body) email)

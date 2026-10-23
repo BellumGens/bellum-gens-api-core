@@ -154,7 +154,15 @@ namespace BellumGens.Api.Core.Providers
 			{
 				return false;
 			}
-			DateTimeOffset sent = DateTimeOffset.FromUnixTimeMilliseconds(unixMs);
+			DateTimeOffset sent;
+			try
+			{
+				sent = DateTimeOffset.FromUnixTimeMilliseconds(unixMs);
+			}
+			catch (ArgumentOutOfRangeException)
+			{
+				return false;
+			}
 			if ((now - sent).Duration() > tolerance)
 			{
 				return false;

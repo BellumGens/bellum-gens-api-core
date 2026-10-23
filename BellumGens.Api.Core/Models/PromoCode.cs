@@ -17,9 +17,11 @@ namespace BellumGens.Api.Core.Models
 
 		public bool Active { get; set; } = true;
 
-		/// <summary>Maximum number of paid orders that may use the code. Null means unlimited.</summary>
+		/// <summary>Maximum number of orders that may use the code. Null means unlimited.</summary>
 		public int? UsageLimit { get; set; }
 
+		/// <summary>Orders using the code: paid ones plus those still awaiting payment.</summary>
+		[ConcurrencyCheck]
 		public int TimesUsed { get; set; }
 
 		/// <summary>Subtotal (before discount) required for the code to apply. Null means no minimum.</summary>

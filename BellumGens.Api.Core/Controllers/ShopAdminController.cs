@@ -74,6 +74,7 @@ namespace BellumGens.Api.Controllers
 			product.RowVersion = null;
 			product.Slug = await EnsureUniqueSlugAsync(string.IsNullOrWhiteSpace(product.Slug) ? product.Name : product.Slug, null);
 			product.GalleryUrls ??= new List<string>();
+			product.Variants ??= new HashSet<ProductVariant>();
 			product.CreatedOn = now;
 			product.UpdatedOn = now;
 			foreach (ProductVariant variant in product.Variants)
@@ -297,6 +298,10 @@ namespace BellumGens.Api.Controllers
 			{
 				return BadRequest(e.Message);
 			}
+			catch (DbUpdateConcurrencyException)
+			{
+				return Conflict("The order changed while it was being updated. Reload it and try again.");
+			}
 			return Ok(order);
 		}
 
@@ -308,7 +313,8 @@ namespace BellumGens.Api.Controllers
 			{
 				return NotFound();
 			}
-			if (order.Status is not (OrderStatus.Paid or OrderStatus.Shipped or OrderStatus.Delivered))
+			// A cancelled order can still hold a completed payment when it was paid after its stock was released.
+			if (order.Status is not (OrderStatus.Paid or OrderStatus.Shipped or OrderStatus.Delivered or OrderStatus.Cancelled))
 			{
 				return BadRequest("Only paid orders can be refunded.");
 			}

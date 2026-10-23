@@ -148,7 +148,7 @@ namespace BellumGens.Api.Controllers
 			{
 				return NotFound();
 			}
-			await ReconcileAsync(order);
+			order = await ReconcileAsync(order);
 			return Ok(OrderStatusView.FromOrder(order, DateTimeOffset.Now));
 		}
 
@@ -162,7 +162,7 @@ namespace BellumGens.Api.Controllers
 			{
 				return NotFound();
 			}
-			await ReconcileAsync(order);
+			order = await ReconcileAsync(order);
 
 			if (order.Status != OrderStatus.AwaitingPayment || order.ExpiresOn <= DateTimeOffset.Now)
 			{
@@ -244,32 +244,51 @@ namespace BellumGens.Api.Controllers
 
 		/// <summary>
 		/// Refreshes a pending payment from the provider when the webhook is late, and expires orders past their window.
+		/// An expired order with a pending payment is only cancelled once the provider confirms it was not paid.
+		/// Returns the order as currently stored, which is a fresh copy when a webhook updated it concurrently.
 		/// </summary>
-		private async Task ReconcileAsync(ShopOrder order)
+		private async Task<ShopOrder> ReconcileAsync(ShopOrder order)
 		{
 			if (order.Status != OrderStatus.AwaitingPayment)
 			{
-				return;
+				return order;
 			}
 			DateTimeOffset now = DateTimeOffset.Now;
+			bool expired = order.ExpiresOn <= now;
 			Payment latest = order.Payments.OrderByDescending(p => p.CreatedOn).FirstOrDefault();
 			bool pending = latest != null && (latest.Status == PaymentStatus.Pending || latest.Status == PaymentStatus.Authorised);
-			if (pending && _payments.IsConfigured && !string.IsNullOrEmpty(latest.ProviderOrderId)
-				&& (now - latest.UpdatedOn).TotalSeconds >= _options.ReconcileAfterSeconds)
+			try
 			{
-				try
+				if (pending && !string.IsNullOrEmpty(latest.ProviderOrderId)
+					&& (expired || (now - latest.UpdatedOn).TotalSeconds >= _options.ReconcileAfterSeconds))
 				{
-					PaymentOrderResult remote = await _payments.GetOrderAsync(latest.ProviderOrderId);
+					if (!_payments.IsConfigured)
+					{
+						return order;
+					}
+					PaymentOrderResult remote;
+					try
+					{
+						remote = await _payments.GetOrderAsync(latest.ProviderOrderId);
+					}
+					catch (Exception e)
+					{
+						_logger.LogWarning(e, "Could not reconcile payment {PaymentId} with the provider.", latest.Id);
+						return order;
+					}
 					await _orders.ApplyPaymentStatusAsync(latest, remote.Status, "RECONCILE:" + remote.RawState, null);
 				}
-				catch (Exception e)
+				if (order.Status == OrderStatus.AwaitingPayment && expired)
 				{
-					_logger.LogWarning(e, "Could not reconcile payment {PaymentId} with the provider.", latest.Id);
+					await _orders.CancelAsync(order, "Payment window expired.");
 				}
+				return order;
 			}
-			if (order.Status == OrderStatus.AwaitingPayment && order.ExpiresOn <= now)
+			catch (DbUpdateConcurrencyException e)
 			{
-				await _orders.CancelAsync(order, "Payment window expired.");
+				_logger.LogInformation(e, "Order {OrderNumber} changed while reconciling it; reloading.", order.OrderNumber);
+				_dbContext.ChangeTracker.Clear();
+				return await LoadOrderAsync(order.Id);
 			}
 		}
 
