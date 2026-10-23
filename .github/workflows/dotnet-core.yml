@@ -18,9 +18,9 @@ jobs:
       with:
         dotnet-version: 10.0.x
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore -p:IncludeSqliteProvider=true
     - name: Build
-      run: dotnet build --configuration Release --no-restore
+      run: dotnet build --configuration Release --no-restore -p:IncludeSqliteProvider=true
     - name: Test with coverage
       run: dotnet test --configuration Release --no-build --verbosity normal -- --coverage --coverage-output-format cobertura --coverage-output ./coverage/coverage.cobertura.xml
     - name: Install ReportGenerator

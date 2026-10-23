@@ -6,26 +6,26 @@ using System.Text.Json.Serialization;
 
 namespace BellumGens.Api.Core.Models
 {
-    public class TournamentGroup
-    {
-        public TournamentGroup()
-        {
-            Participants = new HashSet<TournamentGroupParticipant>();
-        }
+	public class TournamentGroup
+	{
+		public TournamentGroup()
+		{
+			Participants = new HashSet<TournamentGroupParticipant>();
+		}
 
-        [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public Guid Id { get; set; }
+		[Key]
+		[DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+		public Guid Id { get; set; }
 
-        public string Name { get; set; }
+		public string Name { get; set; }
 
-        public Guid TournamentId { get; set; }
+		public Guid TournamentId { get; set; }
 
-        [ForeignKey("TournamentId")]
-        [JsonIgnore]
-        public virtual Tournament Tournament { get; set; }
+		[ForeignKey("TournamentId")]
+		[JsonIgnore]
+		public virtual Tournament Tournament { get; set; }
 
-        [JsonIgnore]
-        public virtual ICollection<TournamentGroupParticipant> Participants { get; set; }
-    }
+		[JsonIgnore]
+		public virtual ICollection<TournamentGroupParticipant> Participants { get; set; }
+	}
 }

@@ -10,25 +10,25 @@ namespace BellumGens.Api.Core.Models
 
 		public Guid TeamId { get; set; }
 
-        [NotMapped]
-        public string UserName
-        {
-            get
-            {
-                return User?.UserName;
-            }
-        }
+		[NotMapped]
+		public string UserName
+		{
+			get
+			{
+				return User?.UserName;
+			}
+		}
 
-        [NotMapped]
-        public string AvatarIcon
-        {
-            get
-            {
-                return User?.CSGODetails?.AvatarIcon;
-            }
-        }
+		[NotMapped]
+		public string AvatarIcon
+		{
+			get
+			{
+				return User?.CSGODetails?.AvatarIcon;
+			}
+		}
 
-        [ForeignKey("ApplicantId")]
+		[ForeignKey("ApplicantId")]
 		[JsonIgnore]
 		public virtual ApplicationUser User { get; set; }
 

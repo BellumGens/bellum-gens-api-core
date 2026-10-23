@@ -16,7 +16,7 @@ namespace BellumGens.Api.Controllers
 	{
 		private readonly ISteamService _steamService;
 
-		public SearchController(ISteamService steamService, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, EmailServiceProvider sender, BellumGensDbContext context, ILogger<SearchController> logger)
+		public SearchController(ISteamService steamService, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, IEmailService sender, BellumGensDbContext context, ILogger<SearchController> logger)
 			: base(userManager, roleManager, signInManager, sender, context, logger)
 		{
 			_steamService = steamService;
@@ -29,7 +29,7 @@ namespace BellumGens.Api.Controllers
 			if (!string.IsNullOrEmpty(name))
 			{
 				results.Teams = await _dbContext.CSGOTeams.Where(t => t.Visible && t.TeamName.Contains(name)).ToListAsync();
-				results.Strategies = await _dbContext.CSGOStrategies.Where(s => s.Visible && s.Title.Contains(name) || s.Description.Contains(name)).ToListAsync();
+				results.Strategies = await _dbContext.CSGOStrategies.Include(s => s.User).Where(s => s.Visible && (s.Title.Contains(name) || s.Description.Contains(name))).ToListAsync();
 				List<ApplicationUser> activeUsers = await _dbContext.Users.Include(u => u.CSGODetails).Where(u => u.SearchVisible && u.UserName.Contains(name)).ToListAsync();
 
 				foreach (ApplicationUser user in activeUsers)
@@ -48,21 +48,28 @@ namespace BellumGens.Api.Controllers
 
 		[Route("Teams")]
 		[HttpGet]
-		public async Task<IActionResult> SearchTeams(PlaystyleRole? role, double overlap)
+		public async Task<IActionResult> SearchTeams(PlaystyleRole? role, double overlap, string name = null)
 		{
+			IQueryable<CSGOTeam> visibleTeams = _dbContext.CSGOTeams.Where(t => t.Visible);
+			if (!string.IsNullOrWhiteSpace(name))
+			{
+				string term = name.Trim();
+				visibleTeams = visibleTeams.Where(t => t.TeamName.Contains(term));
+			}
+
 			if (overlap <= 0 && role == null)
 			{
-				return Ok(await _dbContext.CSGOTeams.Where(t => t.Visible).ToListAsync());
+				return Ok(await visibleTeams.ToListAsync());
 			}
 
 			List<CSGOTeam> teams;
 			if (role != null)
 			{
-				teams = await _dbContext.CSGOTeams.Include(t => t.PracticeSchedule).Where(t => t.Visible && !t.Members.Any(m => m.Role == role) && t.PracticeSchedule.Any(d => d.Available)).ToListAsync();
+				teams = await visibleTeams.Include(t => t.PracticeSchedule).Where(t => !t.Members.Any(m => m.Role == role) && t.PracticeSchedule.Any(d => d.Available)).ToListAsync();
 			}
 			else
 			{
-				teams = await _dbContext.CSGOTeams.Include(t => t.PracticeSchedule).Where(t => t.Visible && t.PracticeSchedule.Any(d => d.Available)).ToListAsync();
+				teams = await visibleTeams.Include(t => t.PracticeSchedule).Where(t => t.PracticeSchedule.Any(d => d.Available)).ToListAsync();
 			}
 			if (overlap > 0)
 			{
@@ -70,7 +77,7 @@ namespace BellumGens.Api.Controllers
 				{
 					return BadRequest("You must sign in to perform search by availability...");
 				}
-                ApplicationUser user = await GetAuthUser();
+				ApplicationUser user = await GetAuthUser();
 				List<UserAvailability> availabilities = await _dbContext.UserAvailabilities.Where(a => a.UserId == user.Id).ToListAsync();
 				if (!availabilities.Any(a => a.Available))
 				{
@@ -82,13 +89,43 @@ namespace BellumGens.Api.Controllers
 			return Ok(teams);
 		}
 
+		/// <summary>
+		/// Visible strategies filtered by any combination of a name (matched against the title and description),
+		/// map and side, ordered like the strategies list: the most recent first, then by rating.
+		/// </summary>
+		[Route("Strategies")]
+		[HttpGet]
+		public async Task<IActionResult> SearchStrategies(string name = null, CSGOMap? map = null, Side? side = null)
+		{
+			IQueryable<CSGOStrategy> query = _dbContext.CSGOStrategies
+				.Include(s => s.Comments)
+				.Include(s => s.Votes)
+				.Include(s => s.User)
+				.Where(s => s.Visible);
+			if (!string.IsNullOrWhiteSpace(name))
+			{
+				string term = name.Trim();
+				query = query.Where(s => s.Title.Contains(term) || s.Description.Contains(term));
+			}
+			if (map != null)
+			{
+				query = query.Where(s => s.Map == map);
+			}
+			if (side != null)
+			{
+				query = query.Where(s => s.Side == side);
+			}
+			List<CSGOStrategy> strategies = await query.OrderByDescending(s => s.LastUpdated).ToListAsync();
+			return Ok(strategies.OrderByDescending(s => s.Rating).ToList());
+		}
+
 		[Route("Players")]
 		[HttpGet]
 		public async Task<IActionResult> SearchPlayers(PlaystyleRole? role, double overlap, Guid? teamid)
-        {
-            List<ApplicationUser> users = new();
-            List<UserStatsViewModel> players = new();
-            if (overlap <= 0 && role == null)
+		{
+			List<ApplicationUser> users = new();
+			List<UserStatsViewModel> players = new();
+			if (overlap <= 0 && role == null)
 			{
 				users = await _dbContext.Users.Where(u => u.SearchVisible).ToListAsync();
 
@@ -124,6 +161,11 @@ namespace BellumGens.Api.Controllers
 				if (teamid != null)
 				{
 					List<TeamAvailability> availabilities = await _dbContext.TeamAvailabilities.Where(t => t.TeamId == teamid).ToListAsync();
+					if (!availabilities.Any(a => a.Available))
+					{
+						// Without this the cap below would drop to 0 and every candidate would match
+						return BadRequest("The team must provide its practice schedule in the team profile...");
+					}
 					overlap = Math.Min(overlap, availabilities.GetTotalAvailability());
 					users = users.Where(u => u.GetTotalAvailability() >= overlap && availabilities.GetTotalOverlap(u) >= overlap).ToList();
 				}
@@ -131,11 +173,11 @@ namespace BellumGens.Api.Controllers
 				{
 					ApplicationUser user = await GetAuthUser();
 					List<UserAvailability> availability = await _dbContext.UserAvailabilities.Where(a => a.UserId == user.Id).ToListAsync();
-					overlap = Math.Min(overlap, availability.GetTotalAvailability());
 					if (!availability.Any(a => a.Available))
 					{
 						return BadRequest("You must provide your availability in your user profile...");
 					}
+					overlap = Math.Min(overlap, availability.GetTotalAvailability());
 					users = users.Where(u => u.GetTotalAvailability() >= overlap && u.GetTotalOverlap(user) >= overlap).ToList();
 				}
 
@@ -152,5 +194,5 @@ namespace BellumGens.Api.Controllers
 			}
 			return Ok(players);
 		}
-    }
+	}
 }

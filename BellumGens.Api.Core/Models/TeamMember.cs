@@ -18,84 +18,84 @@ namespace BellumGens.Api.Core.Models
 
 		public PlaystyleRole Role { get; set; }
 
-        [NotMapped]
-        public string Username
-        { 
-            get
-            {
-                return Member?.UserName;
-            }
-        }
+		[NotMapped]
+		public string Username
+		{ 
+			get
+			{
+				return Member?.UserName;
+			}
+		}
 
-        [NotMapped]
-        public string AvatarIcon
-        {
-            get
-            {
-                return Member?.CSGODetails?.AvatarIcon;
-            }
-        }
+		[NotMapped]
+		public string AvatarIcon
+		{
+			get
+			{
+				return Member?.CSGODetails?.AvatarIcon;
+			}
+		}
 
-        [NotMapped]
-        public string AvatarMedium
-        {
-            get
-            {
-                return Member?.CSGODetails?.AvatarMedium;
-            }
-        }
+		[NotMapped]
+		public string AvatarMedium
+		{
+			get
+			{
+				return Member?.CSGODetails?.AvatarMedium;
+			}
+		}
 
-        [NotMapped]
-        public string CustomUrl
-        {
-            get
-            {
-                return Member?.CSGODetails?.CustomUrl;
-            }
-        }
+		[NotMapped]
+		public string CustomUrl
+		{
+			get
+			{
+				return Member?.CSGODetails?.CustomUrl;
+			}
+		}
 
-        [NotMapped]
-        public string AvatarFull
-        {
-            get
-            {
-                return Member?.CSGODetails?.AvatarFull;
-            }
-        }
+		[NotMapped]
+		public string AvatarFull
+		{
+			get
+			{
+				return Member?.CSGODetails?.AvatarFull;
+			}
+		}
 
-        [NotMapped]
-        public string Country
-        {
-            get
-            {
-                return Member?.CSGODetails?.Country;
-            }
-        }
+		[NotMapped]
+		public string Country
+		{
+			get
+			{
+				return Member?.CSGODetails?.Country;
+			}
+		}
 
-        [NotMapped]
-        public string RealName
-        {
-            get
-            {
-                return Member?.CSGODetails?.RealName;
-            }
-        }
+		[NotMapped]
+		public string RealName
+		{
+			get
+			{
+				return Member?.CSGODetails?.RealName;
+			}
+		}
 
-        [NotMapped]
-        public string SteamId
-        {
-            get
-            {
-                return Member?.SteamID;
-            }
-        }
+		[NotMapped]
+		public string SteamId
+		{
+			get
+			{
+				return Member?.SteamID;
+			}
+		}
 
-        [ForeignKey("TeamId")]
-        [JsonIgnore]
+		[ForeignKey("TeamId")]
+		[JsonIgnore]
 		public CSGOTeam Team { get; set; } 
 
 		[ForeignKey("UserId")]
-        [JsonIgnore]
+		[JsonIgnore]
 		public virtual ApplicationUser Member { get; set; }
 	}
 }

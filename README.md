@@ -32,7 +32,7 @@ ASP.NET Core Web API powering the [Bellum Gens](https://bellumgens.com) esports 
 ### Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
-- SQL Server (LocalDB works for development)
+- SQL Server (LocalDB works for development) — not needed on macOS/Linux, see [Local database provider](#local-database-provider)
 
 ### Run locally
 
@@ -78,6 +78,44 @@ Secrets must never be committed to `appsettings.json`. Locally use `dotnet user-
 
 Register the webhook once per environment (after configuring `revolut:secretKey`) by calling `POST api/shopadmin/payments/webhook` with `{ "url": "https://api.bellumgens.com/api/shop/webhooks/revolut" }` as an admin, then store the returned `signingSecret` as `revolut:webhookSigningSecret`.
 
+### Local database provider
+
+The API runs on SQL Server by default. Because LocalDB is Windows-only, the `Database:Provider` setting can switch the
+app to a local SQLite file for development on machines without SQL Server:
+
+| `Database:Provider` | Behaviour |
+|---|---|
+| `SqlServer` (default when unset) | Uses `ConnectionStrings:DefaultConnection` with EF Core migrations (`Database.Migrate()`) |
+| `Sqlite` | Uses `ConnectionStrings:DefaultConnection` as a local SQLite file, rebuilt from the current model when its schema changes |
+
+Keep this setting out of the committed `appsettings*.json` files so each machine can differ. Configure it per machine
+with [user secrets](https://learn.microsoft.com/aspnet/core/security/app-secrets), which are loaded automatically in the
+Development environment and override `appsettings.Development.json`:
+
+```bash
+# macOS / Linux — use a local SQLite file
+cd BellumGens.Api.Core
+dotnet user-secrets set "Database:Provider" "Sqlite"
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Data Source=bellumgens.dev.db"
+```
+
+On Windows, set no secrets and the app falls back to the SQL Server settings in `appsettings.json` — run `dotnet ef database update` as usual. The SQLite path needs no manual migration step: the schema is created on first start and the local database is **deleted and recreated (including its data)** when the model changes or when an existing database has no schema record. Back up any local data you need before starting with a changed model. Because of that rebuild, the app refuses to start on SQLite outside the `Development` environment. The `*.dev.db` file is gitignored.
+
+To check or undo the local override:
+
+```bash
+dotnet user-secrets list             # show the active overrides
+dotnet user-secrets remove "Database:Provider"   # fall back to SQL Server
+```
+
+The SQLite provider ships native binaries for every platform it supports (~33 MB), so its package reference and the
+`SQLITE_PROVIDER` compile constant are limited to `Debug` builds and excluded from Release publishes. To build Release
+against SQLite anyway:
+
+```bash
+dotnet build -c Release -p:IncludeSqliteProvider=true
+```
+
 ## Project structure
 
 ```
@@ -87,7 +125,7 @@ BellumGens.Api.Core/           # Main Web API project
 ├── Providers/                 # External service integrations (Providers/Payments, Providers/Shop)
 ├── Migrations/                # EF Core database migrations
 ├── Configs/                   # CORS and app configuration
-└── Startup.cs                 # Service and middleware registration
+└── Program.cs                 # Host, service and middleware registration
 
 BellumGens.Api.Core.Tests/     # xUnit test project
 ├── TestUtils.cs               # Shared test helpers and mocks

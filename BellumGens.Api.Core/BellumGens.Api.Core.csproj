@@ -7,23 +7,38 @@
     <EnableNETAnalyzers>True</EnableNETAnalyzers>
   </PropertyGroup>
 
+  <!-- SQLite is a development-only provider. It ships native binaries for every supported
+       platform (~33 MB), so it is excluded from Release publishes. Override with
+       -p:IncludeSqliteProvider=true to build Release against SQLite locally. -->
+  <PropertyGroup>
+    <IncludeSqliteProvider Condition="'$(IncludeSqliteProvider)' == '' And '$(Configuration)' == 'Debug'">true</IncludeSqliteProvider>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(IncludeSqliteProvider)' == 'true'">
+    <DefineConstants>$(DefineConstants);SQLITE_PROVIDER</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IncludeSqliteProvider)' == 'true'">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.13" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="AspNet.Security.OAuth.BattleNet" Version="10.0.0" />
     <PackageReference Include="AspNet.Security.OAuth.Twitch" Version="10.0.0" />
     <PackageReference Include="AspNet.Security.OpenId.Steam" Version="10.0.0" />
-    <PackageReference Include="AngleSharp" Version="1.7.3" />
-    <PackageReference Include="Azure.Storage.Blobs" Version="12.29.2" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.11" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="10.0.11" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.11" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.11" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.11">
+    <PackageReference Include="AngleSharp" Version="1.8.5" />
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.30.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.13" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="10.0.13" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.13" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.13" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.13">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="StarCraft2Models" Version="9.0.0" />
-    <PackageReference Include="SteamModels" Version="9.0.1" />
+    <PackageReference Include="SteamModels" Version="10.0.1" />
     <PackageReference Include="WebPush" Version="1.0.13" />
   </ItemGroup>
 
@@ -34,6 +49,7 @@
 
   <ItemGroup>
     <None Include="..\.editorconfig" Link=".editorconfig" />
+    <InternalsVisibleTo Include="BellumGens.Api.Core.Tests" />
   </ItemGroup>
 
 </Project>
