@@ -235,7 +235,7 @@ namespace BellumGens.Api.Core.Tests
 			var order = Assert.Single(db.ShopOrders);
 			Assert.Equal(OrderStatus.Cancelled, order.Status);
 			Assert.Equal(2, product.StockQuantity);
-			Assert.Empty(db.Payments);
+			Assert.Equal(PaymentStatus.Failed, Assert.Single(db.Payments).Status);
 		}
 
 		[Fact]
@@ -372,6 +372,21 @@ namespace BellumGens.Api.Core.Tests
 			var response = Assert.IsType<OrderCreatedResponse>(Assert.IsType<OkObjectResult>(await controller.RetryPayment(order.Id)).Value);
 
 			Assert.Equal("https://checkout.revolut.com/existing", response.CheckoutUrl);
+			payments.Verify(p => p.CreateOrderAsync(It.IsAny<PaymentOrderRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+		}
+
+		[Fact]
+		public async Task RetryPayment_WhileAnotherAttemptIsStarting_ReturnsConflict()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var order = TestUtils.CreateShopOrder();
+			order.Payments.Add(new Payment { OrderId = order.Id, Amount = 36m, Status = PaymentStatus.Pending, UpdatedOn = DateTimeOffset.Now });
+			db.ShopOrders.Add(order);
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+			var payments = TestUtils.CreateMockPaymentProvider();
+			var controller = CreateController(db, payments);
+
+			Assert.IsType<ConflictObjectResult>(await controller.RetryPayment(order.Id));
 			payments.Verify(p => p.CreateOrderAsync(It.IsAny<PaymentOrderRequest>(), It.IsAny<CancellationToken>()), Times.Never);
 		}
 

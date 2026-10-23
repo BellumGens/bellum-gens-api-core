@@ -20,6 +20,7 @@ namespace BellumGens.Api.Controllers
 	public class ShopController : BaseController
 	{
 		public const string ProductsCacheKey = "shop:products";
+		private const string PaymentStartingMessage = "The payment is already being started. Please try again in a moment.";
 		private static readonly TimeSpan _productsCacheDuration = TimeSpan.FromMinutes(5);
 
 		private readonly IOrderService _orders;
@@ -171,14 +172,25 @@ namespace BellumGens.Api.Controllers
 			Payment latest = order.Payments.OrderByDescending(p => p.CreatedOn).FirstOrDefault();
 			if (latest != null && (latest.Status == PaymentStatus.Pending || latest.Status == PaymentStatus.Authorised))
 			{
-				return Ok(ToResponse(order, latest));
+				// Without a provider order id the attempt is still being opened by a concurrent request.
+				return string.IsNullOrEmpty(latest.ProviderOrderId)
+					? Conflict(PaymentStartingMessage)
+					: Ok(ToResponse(order, latest));
 			}
 			if (!_payments.IsConfigured)
 			{
 				return StatusCode(503, "Payments are temporarily unavailable.");
 			}
 
-			OrderCreatedResponse response = await StartPaymentAsync(order);
+			OrderCreatedResponse response;
+			try
+			{
+				response = await StartPaymentAsync(order);
+			}
+			catch (DbUpdateConcurrencyException)
+			{
+				return Conflict(PaymentStartingMessage);
+			}
 			return response == null
 				? StatusCode(502, "The payment could not be started. Please try again.")
 				: Ok(response);
@@ -292,8 +304,25 @@ namespace BellumGens.Api.Controllers
 			}
 		}
 
+		/// <summary>
+		/// Opens a provider checkout for the order. The attempt is recorded, and the order's row version bumped, before the
+		/// provider is called: a concurrent retry either fails that claim with <see cref="DbUpdateConcurrencyException"/>
+		/// or finds this attempt as the active payment, so one order never gets two open checkouts.
+		/// </summary>
 		private async Task<OrderCreatedResponse> StartPaymentAsync(ShopOrder order)
 		{
+			Payment payment = new()
+			{
+				OrderId = order.Id,
+				Provider = _payments.Provider,
+				Amount = order.Total,
+				Currency = order.Currency,
+				Status = PaymentStatus.Pending
+			};
+			order.Payments.Add(payment);
+			_dbContext.Entry(order).Property(o => o.ExpiresOn).IsModified = true;
+			await _dbContext.SaveChangesAsync();
+
 			PaymentOrderResult result;
 			try
 			{
@@ -302,21 +331,17 @@ namespace BellumGens.Api.Controllers
 			catch (Exception e)
 			{
 				_logger.LogError(e, "The payment provider rejected order {OrderNumber}.", order.OrderNumber);
+				payment.Status = PaymentStatus.Failed;
+				payment.UpdatedOn = DateTimeOffset.Now;
+				await _dbContext.SaveChangesAsync();
 				return null;
 			}
 
-			Payment payment = new()
-			{
-				OrderId = order.Id,
-				Provider = _payments.Provider,
-				ProviderOrderId = result.ProviderOrderId,
-				ProviderToken = result.Token,
-				CheckoutUrl = result.CheckoutUrl,
-				Amount = order.Total,
-				Currency = order.Currency,
-				Status = result.Status
-			};
-			order.Payments.Add(payment);
+			payment.ProviderOrderId = result.ProviderOrderId;
+			payment.ProviderToken = result.Token;
+			payment.CheckoutUrl = result.CheckoutUrl;
+			payment.Status = result.Status;
+			payment.UpdatedOn = DateTimeOffset.Now;
 			await _dbContext.SaveChangesAsync();
 			return ToResponse(order, payment);
 		}
