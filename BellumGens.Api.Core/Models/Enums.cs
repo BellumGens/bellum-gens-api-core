@@ -1,4 +1,6 @@
-﻿namespace BellumGens.Api.Core.Models
+﻿using System.Text.Json.Serialization;
+
+namespace BellumGens.Api.Core.Models
 {
 	public enum Game
 	{
@@ -120,5 +122,33 @@
 		Protoss,
 		Terran,
 		Zerg
+	}
+
+	/// <summary>Serialized as the kebab-case strings the client uses ("draft", "in-progress", ...); stored as int.</summary>
+	[JsonConverter(typeof(JsonStringEnumConverter<TournamentStatus>))]
+	public enum TournamentStatus
+	{
+		[JsonStringEnumMemberName("draft")]
+		Draft,
+		[JsonStringEnumMemberName("open")]
+		Open,
+		[JsonStringEnumMemberName("in-progress")]
+		InProgress,
+		[JsonStringEnumMemberName("completed")]
+		Completed,
+		[JsonStringEnumMemberName("cancelled")]
+		Cancelled
+	}
+
+	/// <summary>Serialized as the kebab-case strings the client uses ("public", "private", "invite-only"); stored as int.</summary>
+	[JsonConverter(typeof(JsonStringEnumConverter<TournamentVisibility>))]
+	public enum TournamentVisibility
+	{
+		[JsonStringEnumMemberName("public")]
+		Public,
+		[JsonStringEnumMemberName("private")]
+		Private,
+		[JsonStringEnumMemberName("invite-only")]
+		InviteOnly
 	}
 }

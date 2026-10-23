@@ -17,7 +17,7 @@ namespace BellumGens.Api.Core.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.10")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -718,22 +718,51 @@ namespace BellumGens.Api.Core.Migrations
                     b.Property<bool>("Active")
                         .HasColumnType("bit");
 
+                    b.Property<string>("CreatorId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTimeOffset>("EndDate")
+                    b.Property<DateTimeOffset?>("EndDate")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<int?>("Game")
+                        .HasColumnType("int");
+
+                    b.Property<string>("InviteCode")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
 
                     b.Property<string>("Logo")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("MaxParticipants")
+                        .HasColumnType("int");
+
                     b.Property<string>("Name")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTimeOffset>("StartDate")
+                    b.Property<string>("PrizePool")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset?>("StartDate")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Visibility")
+                        .HasColumnType("int");
+
                     b.HasKey("ID");
+
+                    b.HasIndex("CreatorId");
+
+                    b.HasIndex("InviteCode")
+                        .IsUnique()
+                        .HasFilter("[InviteCode] IS NOT NULL");
 
                     b.ToTable("Tournaments");
                 });
@@ -869,7 +898,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.ToTable("TournamentGroup");
 
-                    b.HasDiscriminator().HasValue("TournamentGroup");
+                    b.HasDiscriminator<string>("Discriminator").HasValue("TournamentGroup");
 
                     b.UseTphMappingStrategy();
                 });
@@ -978,7 +1007,7 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.Property<int>("Map")
                         .HasColumnType("int")
-                        .HasAnnotation("Relational:JsonPropertyName", "mapId");
+                        .HasJsonPropertyName("mapId");
 
                     b.Property<bool>("IsPlayed")
                         .HasColumnType("bit");

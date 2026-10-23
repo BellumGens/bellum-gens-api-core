@@ -93,5 +93,55 @@ public class SqliteDevelopmentDatabaseTests
 			context.Database.EnsureDeleted();
 		}
 	}
+
+	[Fact]
+	public async Task StoresUserTournamentFields()
+	{
+		var databasePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.dev.db");
+		var options = new DbContextOptionsBuilder<BellumGensDbContext>()
+			.UseSqlite($"Data Source={databasePath}")
+			.Options;
+		var start = new DateTimeOffset(2026, 7, 1, 10, 0, 0, TimeSpan.FromHours(3));
+
+		try
+		{
+			using (var context = new BellumGensDbContext(options))
+			{
+				SqliteDevelopmentDatabase.EnsureCurrentModel(context);
+				context.Tournaments.AddRange(
+					new Tournament
+					{
+						Name = "Private", CreatorId = "owner", InviteCode = "ABCD2345", Game = Game.StarCraft2, StartDate = start,
+						Visibility = TournamentVisibility.Private, Status = TournamentStatus.Open, MaxParticipants = 8, PrizePool = "$100"
+					},
+					// Public tournaments have no invite code, so the unique index must allow several nulls
+					new Tournament { Name = "Public 1" },
+					new Tournament { Name = "Public 2" });
+				await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+			}
+
+			using (var context = new BellumGensDbContext(options))
+			{
+				var stored = await context.Tournaments.SingleAsync(t => t.InviteCode == "ABCD2345", TestContext.Current.CancellationToken);
+				Assert.Equal("owner", stored.CreatorId);
+				Assert.Equal(Game.StarCraft2, stored.Game);
+				Assert.Equal(start, stored.StartDate);
+				Assert.Null(stored.EndDate);
+				Assert.Equal(TournamentVisibility.Private, stored.Visibility);
+				Assert.Equal(TournamentStatus.Open, stored.Status);
+				Assert.Equal(8, stored.MaxParticipants);
+				Assert.Equal("$100", stored.PrizePool);
+				Assert.Equal(2, await context.Tournaments.CountAsync(t => t.InviteCode == null, TestContext.Current.CancellationToken));
+
+				context.Tournaments.Add(new Tournament { Name = "Duplicate", InviteCode = "ABCD2345" });
+				await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync(TestContext.Current.CancellationToken));
+			}
+		}
+		finally
+		{
+			using var context = new BellumGensDbContext(options);
+			context.Database.EnsureDeleted();
+		}
+	}
 }
 #endif

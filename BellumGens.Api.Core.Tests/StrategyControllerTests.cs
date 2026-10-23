@@ -1199,5 +1199,89 @@ namespace BellumGens.Api.Core.Tests
 			Assert.NotNull(stored);
 			Assert.Equal("Renamed", stored.Title);
 		}
+
+		#region Owner serialization
+
+		private static ApplicationUser SeedAuthoredStrategy(BellumGensDbContext dbContext, Guid? teamId = null, bool visible = true)
+		{
+			var author = new ApplicationUser { Id = "author", UserName = "AuthorName" };
+			dbContext.Users.Add(author);
+			dbContext.CSGOStrategies.Add(new CSGOStrategy
+			{
+				Title = "Authored", UserId = author.Id, TeamId = teamId, Visible = visible, Url = "http://example.com/authored",
+				CustomUrl = "authored", Side = Side.TSide, Map = CSGOMap.Dust2
+			});
+			dbContext.SaveChanges();
+			// Query without the tracked user, so the owner only comes from an Include
+			dbContext.ChangeTracker.Clear();
+			return author;
+		}
+
+		[Fact]
+		public async Task GetStrat_IncludesOwner()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			SeedAuthoredStrategy(dbContext);
+
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			var result = await controller.GetStrat("authored");
+
+			var strategy = Assert.IsType<CSGOStrategy>(Assert.IsType<OkObjectResult>(result).Value);
+			Assert.Equal("AuthorName", strategy.Owner);
+		}
+
+		[Fact]
+		public async Task GetStrategies_IncludesOwner()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			SeedAuthoredStrategy(dbContext);
+
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			var result = await controller.GetStrategies(0);
+
+			var strategies = Assert.IsAssignableFrom<IEnumerable<CSGOStrategy>>(Assert.IsType<OkObjectResult>(result).Value);
+			Assert.Equal("AuthorName", Assert.Single(strategies).Owner);
+		}
+
+		[Fact]
+		public async Task GetTeamStrats_IncludesOwner()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var teamId = Guid.NewGuid();
+			dbContext.CSGOTeams.Add(new CSGOTeam { TeamId = teamId, TeamName = "Team1", CustomUrl = "team-owner", SteamGroupId = "sg-owner" });
+			dbContext.TeamMembers.Add(new TeamMember { TeamId = teamId, UserId = "author", IsActive = true });
+			var author = SeedAuthoredStrategy(dbContext, teamId, visible: false);
+			_mockUserManager.Setup(m => m.FindByIdAsync(author.Id)).ReturnsAsync(author);
+
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(author.Id));
+
+			var result = await controller.GetTeamStrats(teamId);
+
+			var strategies = Assert.IsAssignableFrom<IEnumerable<CSGOStrategy>>(Assert.IsType<OkObjectResult>(result).Value);
+			Assert.Equal("AuthorName", Assert.Single(strategies).Owner);
+		}
+
+		[Fact]
+		public async Task GetUserStrats_IncludesOwner()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var author = SeedAuthoredStrategy(dbContext, visible: false);
+			_mockUserManager.Setup(m => m.FindByIdAsync(author.Id)).ReturnsAsync(author);
+
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(author.Id));
+
+			var result = await controller.GetUserStrats(author.Id);
+
+			var strategies = Assert.IsAssignableFrom<IEnumerable<CSGOStrategy>>(Assert.IsType<OkObjectResult>(result).Value);
+			Assert.Equal("AuthorName", Assert.Single(strategies).Owner);
+		}
+
+		#endregion
 	}
 }

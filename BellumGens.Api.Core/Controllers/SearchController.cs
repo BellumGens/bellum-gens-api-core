@@ -29,7 +29,7 @@ namespace BellumGens.Api.Controllers
 			if (!string.IsNullOrEmpty(name))
 			{
 				results.Teams = await _dbContext.CSGOTeams.Where(t => t.Visible && t.TeamName.Contains(name)).ToListAsync();
-				results.Strategies = await _dbContext.CSGOStrategies.Where(s => s.Visible && (s.Title.Contains(name) || s.Description.Contains(name))).ToListAsync();
+				results.Strategies = await _dbContext.CSGOStrategies.Include(s => s.User).Where(s => s.Visible && (s.Title.Contains(name) || s.Description.Contains(name))).ToListAsync();
 				List<ApplicationUser> activeUsers = await _dbContext.Users.Include(u => u.CSGODetails).Where(u => u.SearchVisible && u.UserName.Contains(name)).ToListAsync();
 
 				foreach (ApplicationUser user in activeUsers)
@@ -48,21 +48,28 @@ namespace BellumGens.Api.Controllers
 
 		[Route("Teams")]
 		[HttpGet]
-		public async Task<IActionResult> SearchTeams(PlaystyleRole? role, double overlap)
+		public async Task<IActionResult> SearchTeams(PlaystyleRole? role, double overlap, string name = null)
 		{
+			IQueryable<CSGOTeam> visibleTeams = _dbContext.CSGOTeams.Where(t => t.Visible);
+			if (!string.IsNullOrWhiteSpace(name))
+			{
+				string term = name.Trim();
+				visibleTeams = visibleTeams.Where(t => t.TeamName.Contains(term));
+			}
+
 			if (overlap <= 0 && role == null)
 			{
-				return Ok(await _dbContext.CSGOTeams.Where(t => t.Visible).ToListAsync());
+				return Ok(await visibleTeams.ToListAsync());
 			}
 
 			List<CSGOTeam> teams;
 			if (role != null)
 			{
-				teams = await _dbContext.CSGOTeams.Include(t => t.PracticeSchedule).Where(t => t.Visible && !t.Members.Any(m => m.Role == role) && t.PracticeSchedule.Any(d => d.Available)).ToListAsync();
+				teams = await visibleTeams.Include(t => t.PracticeSchedule).Where(t => !t.Members.Any(m => m.Role == role) && t.PracticeSchedule.Any(d => d.Available)).ToListAsync();
 			}
 			else
 			{
-				teams = await _dbContext.CSGOTeams.Include(t => t.PracticeSchedule).Where(t => t.Visible && t.PracticeSchedule.Any(d => d.Available)).ToListAsync();
+				teams = await visibleTeams.Include(t => t.PracticeSchedule).Where(t => t.PracticeSchedule.Any(d => d.Available)).ToListAsync();
 			}
 			if (overlap > 0)
 			{
@@ -80,6 +87,36 @@ namespace BellumGens.Api.Controllers
 				return Ok(teams.Where(t => t.GetTotalAvailability() >= overlap && t.GetTotalOverlap(user) >= overlap));
 			}
 			return Ok(teams);
+		}
+
+		/// <summary>
+		/// Visible strategies filtered by any combination of a name (matched against the title and description),
+		/// map and side, ordered like the strategies list: the most recent first, then by rating.
+		/// </summary>
+		[Route("Strategies")]
+		[HttpGet]
+		public async Task<IActionResult> SearchStrategies(string name = null, CSGOMap? map = null, Side? side = null)
+		{
+			IQueryable<CSGOStrategy> query = _dbContext.CSGOStrategies
+				.Include(s => s.Comments)
+				.Include(s => s.Votes)
+				.Include(s => s.User)
+				.Where(s => s.Visible);
+			if (!string.IsNullOrWhiteSpace(name))
+			{
+				string term = name.Trim();
+				query = query.Where(s => s.Title.Contains(term) || s.Description.Contains(term));
+			}
+			if (map != null)
+			{
+				query = query.Where(s => s.Map == map);
+			}
+			if (side != null)
+			{
+				query = query.Where(s => s.Side == side);
+			}
+			List<CSGOStrategy> strategies = await query.OrderByDescending(s => s.LastUpdated).ToListAsync();
+			return Ok(strategies.OrderByDescending(s => s.Rating).ToList());
 		}
 
 		[Route("Players")]

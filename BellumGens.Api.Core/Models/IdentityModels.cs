@@ -174,6 +174,21 @@ namespace BellumGens.Api.Core.Models
 						.HasIndex(c => c.Code)
 						.IsUnique();
 
+			modelBuilder.Entity<Tournament>()
+						.Property(t => t.InviteCode)
+						.HasMaxLength(16);
+
+			modelBuilder.Entity<Tournament>()
+						.Property(t => t.CreatorId)
+						.HasMaxLength(450);
+
+			modelBuilder.Entity<Tournament>()
+						.HasIndex(t => t.InviteCode)
+						.IsUnique();
+
+			modelBuilder.Entity<Tournament>()
+						.HasIndex(t => t.CreatorId);
+
 			modelBuilder.Entity<BellumGensPushSubscription>()
 						.HasKey(c => new { c.P256dh, c.Auth });
 

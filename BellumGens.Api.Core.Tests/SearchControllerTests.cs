@@ -634,5 +634,150 @@ namespace BellumGens.Api.Core.Tests
 			var strategy = Assert.Single(searchResult.Strategies);
 			Assert.Equal("Public", strategy.Title);
 		}
+
+		[Fact]
+		public async Task SearchTeams_WithName_ReturnsOnlyMatchingVisibleTeams()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			dbContext.CSGOTeams.AddRange(
+				CreateTeam("AlphaSquad", true),
+				CreateTeam("BetaSquad", true),
+				CreateTeam("AlphaHidden", false));
+			dbContext.SaveChanges();
+
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			var result = await controller.SearchTeams(null, 0, " Alpha ");
+
+			var teams = Assert.IsAssignableFrom<IEnumerable<CSGOTeam>>(Assert.IsType<OkObjectResult>(result).Value);
+			Assert.Equal(new[] { "AlphaSquad" }, teams.Select(t => t.TeamName));
+		}
+
+		[Fact]
+		public async Task SearchTeams_WithNameAndRole_AppliesBothFilters()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			dbContext.CSGOTeams.AddRange(
+				CreateTeam("AlphaSquad", true, TeamSlot(DayOfWeek.Monday, 18, 22)),
+				CreateTeam("BetaSquad", true, TeamSlot(DayOfWeek.Monday, 18, 22)));
+			dbContext.SaveChanges();
+
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			var result = await controller.SearchTeams(PlaystyleRole.Awper, 0, "Beta");
+
+			var teams = Assert.IsAssignableFrom<IEnumerable<CSGOTeam>>(Assert.IsType<OkObjectResult>(result).Value);
+			Assert.Equal(new[] { "BetaSquad" }, teams.Select(t => t.TeamName));
+		}
+
+		[Fact]
+		public async Task SearchTeams_WithBlankName_ReturnsAllVisibleTeams()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			dbContext.CSGOTeams.AddRange(CreateTeam("AlphaSquad", true), CreateTeam("BetaSquad", true), CreateTeam("Hidden", false));
+			dbContext.SaveChanges();
+
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			var result = await controller.SearchTeams(null, 0, "  ");
+
+			var teams = Assert.IsAssignableFrom<IEnumerable<CSGOTeam>>(Assert.IsType<OkObjectResult>(result).Value);
+			Assert.Equal(2, teams.Count());
+		}
+
+		private static CSGOStrategy CreateStrategy(string title, bool visible = true, CSGOMap map = CSGOMap.Dust2, Side side = Side.TSide,
+			string description = "", ApplicationUser? user = null)
+		{
+			return new CSGOStrategy
+			{
+				Id = Guid.NewGuid(), Title = title, Description = description, Visible = visible, Map = map, Side = side,
+				CustomUrl = title.ToLowerInvariant().Replace(' ', '-'), User = user, UserId = user?.Id
+			};
+		}
+
+		[Fact]
+		public async Task SearchStrategies_WithName_MatchesVisibleTitlesAndDescriptions()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			dbContext.CSGOStrategies.AddRange(
+				CreateStrategy("Alpha rush"),
+				CreateStrategy("Default", description: "Alpha style"),
+				CreateStrategy("Alpha hidden", visible: false),
+				CreateStrategy("Beta"));
+			dbContext.SaveChanges();
+
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			var result = await controller.SearchStrategies("Alpha");
+
+			var strategies = Assert.IsAssignableFrom<IEnumerable<CSGOStrategy>>(Assert.IsType<OkObjectResult>(result).Value);
+			Assert.Equal(new[] { "Alpha rush", "Default" }, strategies.Select(s => s.Title).OrderBy(t => t));
+		}
+
+		[Fact]
+		public async Task SearchStrategies_WithMapAndSide_AppliesBothFilters()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			dbContext.CSGOStrategies.AddRange(
+				CreateStrategy("Mirage T", map: CSGOMap.Mirage, side: Side.TSide),
+				CreateStrategy("Mirage CT", map: CSGOMap.Mirage, side: Side.CTSide),
+				CreateStrategy("Inferno T", map: CSGOMap.Inferno, side: Side.TSide));
+			dbContext.SaveChanges();
+
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			var byMap = Assert.IsAssignableFrom<IEnumerable<CSGOStrategy>>(Assert.IsType<OkObjectResult>(await controller.SearchStrategies(map: CSGOMap.Mirage)).Value);
+			var byBoth = Assert.IsAssignableFrom<IEnumerable<CSGOStrategy>>(Assert.IsType<OkObjectResult>(await controller.SearchStrategies(map: CSGOMap.Mirage, side: Side.CTSide)).Value);
+
+			Assert.Equal(2, byMap.Count());
+			Assert.Equal("Mirage CT", Assert.Single(byBoth).Title);
+		}
+
+		[Fact]
+		public async Task SearchStrategies_NoFilters_ReturnsVisibleStrategiesOrderedByRatingWithOwner()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var author = new ApplicationUser { Id = "author", UserName = "AuthorName" };
+			var popular = CreateStrategy("Popular", user: author);
+			popular.Votes = new List<StrategyVote> { new StrategyVote { UserId = "u1", Vote = VoteDirection.Up } };
+			dbContext.CSGOStrategies.AddRange(CreateStrategy("Plain"), popular, CreateStrategy("Hidden", visible: false));
+			dbContext.SaveChanges();
+			// Query without the tracked entities, so the owner only comes from the Include
+			dbContext.ChangeTracker.Clear();
+
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			var result = await controller.SearchStrategies();
+
+			var strategies = Assert.IsAssignableFrom<IEnumerable<CSGOStrategy>>(Assert.IsType<OkObjectResult>(result).Value).ToList();
+			Assert.Equal(new[] { "Popular", "Plain" }, strategies.Select(s => s.Title));
+			Assert.Equal("AuthorName", strategies[0].Owner);
+			Assert.Equal(1, strategies[0].Rating);
+		}
+
+		[Fact]
+		public async Task Get_WithName_ReturnsStrategiesWithOwner()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var author = new ApplicationUser { Id = "author", UserName = "AuthorName" };
+			dbContext.CSGOStrategies.Add(CreateStrategy("Alpha rush", user: author));
+			dbContext.SaveChanges();
+			dbContext.ChangeTracker.Clear();
+			_mockSteamService.Setup(s => s.GetSteamUserDetails(It.IsAny<string>())).ReturnsAsync(new UserStatsViewModel());
+
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			var result = await controller.Get("Alpha");
+
+			var searchResult = Assert.IsType<SearchResultViewModel>(Assert.IsType<OkObjectResult>(result).Value);
+			Assert.Equal("AuthorName", Assert.Single(searchResult.Strategies).Owner);
+		}
 	}
 }

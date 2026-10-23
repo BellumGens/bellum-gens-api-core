@@ -37,6 +37,7 @@ namespace BellumGens.Api.Controllers
 			List<CSGOStrategy> strategies = await _dbContext.CSGOStrategies
 															.Include(s => s.Comments)
 															.Include(s => s.Votes)
+															.Include(s => s.User)
 															.Where(s => s.Visible == true && (!string.IsNullOrEmpty(s.Url) || !string.IsNullOrEmpty(s.StratImage)))
 															.OrderByDescending(s => s.LastUpdated).Skip(page * 25).Take(25).ToListAsync();
 			return Ok(strategies.OrderByDescending(s => s.Rating));
@@ -49,7 +50,7 @@ namespace BellumGens.Api.Controllers
 			{
 				return BadRequest("You're not a member of this team.");
 			}
-			return Ok(await _dbContext.CSGOStrategies.Include(s => s.Comments).Include(s => s.Votes).Where(s => s.TeamId == teamId).ToListAsync());
+			return Ok(await _dbContext.CSGOStrategies.Include(s => s.Comments).Include(s => s.Votes).Include(s => s.User).Where(s => s.TeamId == teamId).ToListAsync());
 		}
 
 		[Route("userstrats")]
@@ -58,7 +59,7 @@ namespace BellumGens.Api.Controllers
 			ApplicationUser user = await GetAuthUser();
 			if (user.Id == userId)
 			{
-				var strategies = await _dbContext.CSGOStrategies.Where(s => s.UserId == userId).OrderByDescending(s => s.LastUpdated).ToListAsync();
+				var strategies = await _dbContext.CSGOStrategies.Include(s => s.User).Where(s => s.UserId == userId).OrderByDescending(s => s.LastUpdated).ToListAsync();
 				return Ok(strategies);
 			}
 			return BadRequest("You need to authenticate first.");
@@ -343,7 +344,8 @@ namespace BellumGens.Api.Controllers
 #pragma warning disable CA1806 // Do not ignore method results
 			Guid.TryParse(stratId, out Guid id);
 #pragma warning restore CA1806 // Do not ignore method results
-			return await _dbContext.CSGOStrategies.Include(s => s.Comments).Include(s => s.Votes).FirstOrDefaultAsync(s => s.CustomUrl == stratId || s.Id == id);
+			// The user is included so the strategy serializes its owner (author)
+			return await _dbContext.CSGOStrategies.Include(s => s.Comments).Include(s => s.Votes).Include(s => s.User).FirstOrDefaultAsync(s => s.CustomUrl == stratId || s.Id == id);
 		}
 	}
 }

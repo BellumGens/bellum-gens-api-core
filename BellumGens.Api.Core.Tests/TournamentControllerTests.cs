@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using BellumGens.Api.Controllers;
 using BellumGens.Api.Core;
@@ -11,6 +12,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
@@ -368,16 +370,20 @@ namespace BellumGens.Api.Core.Tests
 		public async Task CreateTournament_CreatesNew_ReturnsOk()
 		{
 			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			SetupAuthUser("admin1", "admin");
 
 			var controller = CreateController(dbContext);
 			TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser("admin1"));
 
-			var tournament = new Tournament { Name = "NewTournament", Active = true };
+			var tournament = new TournamentViewModel { Name = "NewTournament", Active = true };
 			var result = await controller.CreateTournament(tournament);
 
 			var okResult = Assert.IsType<OkObjectResult>(result);
 			var saved = Assert.IsType<Tournament>(okResult.Value);
 			Assert.Equal("NewTournament", saved.Name);
+			Assert.Equal("admin1", saved.CreatorId);
+			Assert.True(saved.Active);
+			Assert.Equal(TournamentStatus.InProgress, saved.Status);
 			Assert.Single(dbContext.Tournaments);
 		}
 
@@ -388,11 +394,12 @@ namespace BellumGens.Api.Core.Tests
 			var tournamentId = Guid.NewGuid();
 			dbContext.Tournaments.Add(new Tournament { ID = tournamentId, Name = "OldName", Active = false });
 			dbContext.SaveChanges();
+			SetupAuthUser("admin1", "admin");
 
 			var controller = CreateController(dbContext);
 			TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser("admin1"));
 
-			var tournament = new Tournament { ID = tournamentId, Name = "NewName", Active = true };
+			var tournament = new TournamentViewModel { ID = tournamentId, Name = "NewName", Active = true };
 			var result = await controller.CreateTournament(tournament);
 
 			var okResult = Assert.IsType<OkObjectResult>(result);
@@ -411,7 +418,7 @@ namespace BellumGens.Api.Core.Tests
 			TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser("admin1"));
 			controller.ModelState.AddModelError("Name", "Required");
 
-			var tournament = new Tournament();
+			var tournament = new TournamentViewModel();
 			var result = await controller.CreateTournament(tournament);
 
 			var badResult = Assert.IsType<BadRequestObjectResult>(result);
@@ -2356,6 +2363,585 @@ namespace BellumGens.Api.Core.Tests
 
 			Assert.IsType<OkObjectResult>(result);
 			_mockEmailService.Verify(e => e.SendEmailAsync("player1@example.com", It.IsAny<string>(), It.Is<string>(b => b.Contains("BGE Weekly"))), Times.Once);
+		}
+
+		#endregion
+
+		#region User tournaments
+
+		private static TournamentViewModel NewTournament(string name = "My Cup", TournamentVisibility visibility = TournamentVisibility.Public)
+		{
+			return new TournamentViewModel
+			{
+				Name = name,
+				Visibility = visibility,
+				Status = TournamentStatus.Draft,
+				Game = Game.StarCraft2,
+				StartDate = new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero),
+				EndDate = new DateTimeOffset(2026, 7, 2, 0, 0, 0, TimeSpan.Zero),
+				MaxParticipants = 8,
+				PrizePool = "$100"
+			};
+		}
+
+		private static Tournament SeedTournament(BellumGensDbContext dbContext, string creatorId, string? inviteCode = null,
+			TournamentStatus status = TournamentStatus.Draft, TournamentVisibility visibility = TournamentVisibility.Private, int? maxParticipants = null)
+		{
+			var tournament = new Tournament
+			{
+				ID = Guid.NewGuid(), Name = "Seeded", CreatorId = creatorId, InviteCode = inviteCode,
+				Status = status, Visibility = visibility, MaxParticipants = maxParticipants, Game = Game.StarCraft2
+			};
+			dbContext.Tournaments.Add(tournament);
+			dbContext.SaveChanges();
+			return tournament;
+		}
+
+		[Fact]
+		public async Task CreateTournament_ByUser_CreatesOwnedDraftWithoutInviteCode()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			SetupAuthUser("user1");
+			var controller = CreateAuthenticatedController(dbContext, "user1");
+			var model = NewTournament("  My Cup  ");
+			model.Active = true;
+
+			var result = await controller.CreateTournament(model);
+
+			var saved = Assert.IsType<Tournament>(Assert.IsType<OkObjectResult>(result).Value);
+			Assert.NotEqual(Guid.Empty, saved.ID);
+			Assert.Equal("My Cup", saved.Name);
+			Assert.Equal("user1", saved.CreatorId);
+			Assert.False(saved.Active);
+			Assert.Equal(TournamentStatus.Draft, saved.Status);
+			Assert.Equal(TournamentVisibility.Public, saved.Visibility);
+			Assert.Equal(Game.StarCraft2, saved.Game);
+			Assert.Equal(8, saved.MaxParticipants);
+			Assert.Equal("$100", saved.PrizePool);
+			Assert.Null(saved.InviteCode);
+			Assert.Single(dbContext.Tournaments);
+		}
+
+		[Theory]
+		[InlineData(TournamentVisibility.Private)]
+		[InlineData(TournamentVisibility.InviteOnly)]
+		public async Task CreateTournament_NonPublic_GeneratesInviteCode(TournamentVisibility visibility)
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			SetupAuthUser("user1");
+			var controller = CreateAuthenticatedController(dbContext, "user1");
+
+			var result = await controller.CreateTournament(NewTournament(visibility: visibility));
+
+			var saved = Assert.IsType<Tournament>(Assert.IsType<OkObjectResult>(result).Value);
+			Assert.NotNull(saved.InviteCode);
+			Assert.Equal(Tournament.InviteCodeLength, saved.InviteCode!.Length);
+			Assert.Equal(saved.InviteCode, saved.InviteCode.ToUpperInvariant());
+		}
+
+		[Fact]
+		public async Task CreateTournament_WithoutAccount_ReturnsUnauthorized()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var controller = CreateAuthenticatedController(dbContext, "ghost");
+
+			var result = await controller.CreateTournament(NewTournament());
+
+			Assert.IsType<UnauthorizedResult>(result);
+			Assert.Empty(dbContext.Tournaments);
+		}
+
+		[Theory]
+		[InlineData("   ", 8, 1, "name")]
+		[InlineData("Cup", 1, 1, "at least 2")]
+		[InlineData("Cup", 8, -1, "end before")]
+		public async Task CreateTournament_InvalidValues_ReturnsBadRequest(string name, int maxParticipants, int durationDays, string message)
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			SetupAuthUser("user1");
+			var controller = CreateAuthenticatedController(dbContext, "user1");
+			var model = NewTournament(name);
+			model.MaxParticipants = maxParticipants;
+			model.EndDate = model.StartDate!.Value.AddDays(durationDays);
+
+			var result = await controller.CreateTournament(model);
+
+			var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+			Assert.Contains(message, badRequest.Value?.ToString(), StringComparison.OrdinalIgnoreCase);
+			Assert.Empty(dbContext.Tournaments);
+		}
+
+		[Fact]
+		public async Task CreateTournament_UpdateByOwner_KeepsServerManagedFields()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var existing = SeedTournament(dbContext, "owner", "CODE1234", TournamentStatus.Open);
+			existing.Logo = "logo.png";
+			dbContext.SaveChanges();
+			SetupAuthUser("owner");
+			var controller = CreateAuthenticatedController(dbContext, "owner");
+			// The tournament form sends no logo, no active flag and always a draft status
+			var model = NewTournament("Renamed", TournamentVisibility.InviteOnly);
+			model.ID = existing.ID;
+
+			var result = await controller.CreateTournament(model);
+
+			var saved = Assert.IsType<Tournament>(Assert.IsType<OkObjectResult>(result).Value);
+			Assert.Equal("Renamed", saved.Name);
+			Assert.Equal("owner", saved.CreatorId);
+			Assert.Equal("CODE1234", saved.InviteCode);
+			Assert.Equal("logo.png", saved.Logo);
+			Assert.Equal(TournamentStatus.Open, saved.Status);
+			Assert.Equal(TournamentVisibility.InviteOnly, saved.Visibility);
+		}
+
+		[Fact]
+		public async Task CreateTournament_UpdateMovesStatusForward()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var existing = SeedTournament(dbContext, "owner", "CODE1234");
+			SetupAuthUser("owner");
+			var controller = CreateAuthenticatedController(dbContext, "owner");
+			var model = NewTournament();
+			model.ID = existing.ID;
+			model.Status = TournamentStatus.Open;
+
+			var result = await controller.CreateTournament(model);
+
+			Assert.IsType<OkObjectResult>(result);
+			Assert.Equal(TournamentStatus.Open, dbContext.Tournaments.Find(existing.ID)!.Status);
+		}
+
+		[Fact]
+		public async Task CreateTournament_UpdateByNonOwner_ReturnsForbidden()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var existing = SeedTournament(dbContext, "owner");
+			SetupAuthUser("intruder");
+			var controller = CreateAuthenticatedController(dbContext, "intruder");
+			var model = NewTournament("Hijacked");
+			model.ID = existing.ID;
+
+			var result = await controller.CreateTournament(model);
+
+			var forbidden = Assert.IsType<ObjectResult>(result);
+			Assert.Equal(403, forbidden.StatusCode);
+			Assert.Equal("Seeded", dbContext.Tournaments.Find(existing.ID)!.Name);
+		}
+
+		[Fact]
+		public async Task CreateTournament_UpdateByAdmin_UpdatesAnyTournament()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var existing = SeedTournament(dbContext, "owner");
+			SetupAuthUser("admin1", "admin");
+			var controller = CreateAuthenticatedController(dbContext, "admin1");
+			var model = NewTournament("Moderated");
+			model.ID = existing.ID;
+
+			var result = await controller.CreateTournament(model);
+
+			Assert.IsType<OkObjectResult>(result);
+			var stored = dbContext.Tournaments.Find(existing.ID)!;
+			Assert.Equal("Moderated", stored.Name);
+			Assert.Equal("owner", stored.CreatorId);
+		}
+
+		[Fact]
+		public async Task CreateTournament_UpdateUnknownId_ReturnsNotFound()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			SetupAuthUser("user1");
+			var controller = CreateAuthenticatedController(dbContext, "user1");
+			var model = NewTournament();
+			model.ID = Guid.NewGuid();
+
+			var result = await controller.CreateTournament(model);
+
+			Assert.IsType<NotFoundObjectResult>(result);
+			Assert.Empty(dbContext.Tournaments);
+		}
+
+		[Fact]
+		public async Task CreateTournament_UpdateBelowParticipantCount_ReturnsBadRequest()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var existing = SeedTournament(dbContext, "owner");
+			for (int i = 0; i < 3; i++)
+			{
+				dbContext.TournamentApplications.Add(new TournamentApplication { TournamentId = existing.ID, UserId = "p" + i, Email = NoSendEmail });
+			}
+			dbContext.SaveChanges();
+			SetupAuthUser("owner");
+			var controller = CreateAuthenticatedController(dbContext, "owner");
+			var model = NewTournament();
+			model.ID = existing.ID;
+			model.MaxParticipants = 2;
+
+			var result = await controller.CreateTournament(model);
+
+			var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+			Assert.Contains("3 participants", badRequest.Value?.ToString());
+		}
+
+		[Fact]
+		public async Task CreateTournament_AdminTogglesActive_StatusFollows()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var existing = SeedTournament(dbContext, null!, status: TournamentStatus.Open, visibility: TournamentVisibility.Public);
+			SetupAuthUser("admin1", "admin");
+			var controller = CreateAuthenticatedController(dbContext, "admin1");
+			var model = NewTournament();
+			model.ID = existing.ID;
+			model.Status = TournamentStatus.Open;
+			model.Active = true;
+
+			await controller.CreateTournament(model);
+			Assert.Equal(TournamentStatus.InProgress, dbContext.Tournaments.Find(existing.ID)!.Status);
+
+			model.Status = TournamentStatus.InProgress;
+			model.Active = false;
+			await controller.CreateTournament(model);
+			var stored = dbContext.Tournaments.Find(existing.ID)!;
+			Assert.False(stored.Active);
+			Assert.Equal(TournamentStatus.Completed, stored.Status);
+		}
+
+		[Fact]
+		public async Task JoinTournament_ValidCode_AddsConfirmedParticipantAndHidesCode()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var tournament = SeedTournament(dbContext, "owner", "ABCD2345", maxParticipants: 4);
+			var user = SetupAuthUser("player1");
+			user.Email = NoSendEmail;
+			user.BattleNetId = "player#1";
+			var controller = CreateAuthenticatedController(dbContext, "player1");
+
+			var result = await controller.JoinTournament(new TournamentJoinViewModel { InviteCode = "  abcd2345 " });
+
+			var joined = Assert.IsType<Tournament>(Assert.IsType<OkObjectResult>(result).Value);
+			Assert.Equal(tournament.ID, joined.ID);
+			Assert.Null(joined.InviteCode);
+			Assert.Equal("ABCD2345", dbContext.Tournaments.AsNoTracking().Single(t => t.ID == tournament.ID).InviteCode);
+			var application = Assert.Single(dbContext.TournamentApplications);
+			Assert.Equal("player1", application.UserId);
+			Assert.Equal(tournament.ID, application.TournamentId);
+			Assert.Equal(Game.StarCraft2, application.Game);
+			Assert.Equal("player#1", application.BattleNetId);
+			Assert.Equal(TournamentApplicationState.Confirmed, application.State);
+			Assert.False(string.IsNullOrEmpty(application.Hash));
+		}
+
+		[Fact]
+		public async Task JoinTournament_UnknownCode_ReturnsNotFound()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			SeedTournament(dbContext, "owner", "ABCD2345");
+			SetupAuthUser("player1");
+			var controller = CreateAuthenticatedController(dbContext, "player1");
+
+			var result = await controller.JoinTournament(new TournamentJoinViewModel { InviteCode = "WRONG123" });
+
+			Assert.IsType<NotFoundObjectResult>(result);
+			Assert.Empty(dbContext.TournamentApplications);
+		}
+
+		[Fact]
+		public async Task JoinTournament_BlankCode_ReturnsBadRequest()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			SetupAuthUser("player1");
+			var controller = CreateAuthenticatedController(dbContext, "player1");
+
+			var result = await controller.JoinTournament(new TournamentJoinViewModel { InviteCode = "   " });
+
+			Assert.IsType<BadRequestObjectResult>(result);
+		}
+
+		[Fact]
+		public async Task JoinTournament_WithoutAccount_ReturnsUnauthorized()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			SeedTournament(dbContext, "owner", "ABCD2345");
+			var controller = CreateAuthenticatedController(dbContext, "ghost");
+
+			var result = await controller.JoinTournament(new TournamentJoinViewModel { InviteCode = "ABCD2345" });
+
+			Assert.IsType<UnauthorizedResult>(result);
+		}
+
+		[Fact]
+		public async Task JoinTournament_Full_ReturnsBadRequest()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var tournament = SeedTournament(dbContext, "owner", "ABCD2345", maxParticipants: 2);
+			dbContext.TournamentApplications.AddRange(
+				new TournamentApplication { TournamentId = tournament.ID, UserId = "p1", Email = NoSendEmail },
+				new TournamentApplication { TournamentId = tournament.ID, UserId = "p2", Email = NoSendEmail });
+			dbContext.SaveChanges();
+			SetupAuthUser("player3");
+			var controller = CreateAuthenticatedController(dbContext, "player3");
+
+			var result = await controller.JoinTournament(new TournamentJoinViewModel { InviteCode = "ABCD2345" });
+
+			var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+			Assert.Contains("full", badRequest.Value?.ToString());
+			Assert.Equal(2, dbContext.TournamentApplications.Count());
+		}
+
+		[Fact]
+		public async Task JoinTournament_BannedParticipantsDontCountTowardsCapacity()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var tournament = SeedTournament(dbContext, "owner", "ABCD2345", maxParticipants: 2);
+			dbContext.TournamentApplications.AddRange(
+				new TournamentApplication { TournamentId = tournament.ID, UserId = "p1", Email = NoSendEmail },
+				new TournamentApplication { TournamentId = tournament.ID, UserId = "p2", Email = NoSendEmail, State = TournamentApplicationState.Banned });
+			dbContext.SaveChanges();
+			SetupAuthUser("player3");
+			var controller = CreateAuthenticatedController(dbContext, "player3");
+
+			var result = await controller.JoinTournament(new TournamentJoinViewModel { InviteCode = "ABCD2345" });
+
+			Assert.IsType<OkObjectResult>(result);
+		}
+
+		[Theory]
+		[InlineData(TournamentStatus.InProgress)]
+		[InlineData(TournamentStatus.Completed)]
+		[InlineData(TournamentStatus.Cancelled)]
+		public async Task JoinTournament_NotAcceptingParticipants_ReturnsBadRequest(TournamentStatus status)
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			SeedTournament(dbContext, "owner", "ABCD2345", status);
+			SetupAuthUser("player1");
+			var controller = CreateAuthenticatedController(dbContext, "player1");
+
+			var result = await controller.JoinTournament(new TournamentJoinViewModel { InviteCode = "ABCD2345" });
+
+			var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+			Assert.Contains("no longer accepting", badRequest.Value?.ToString());
+			Assert.Empty(dbContext.TournamentApplications);
+		}
+
+		[Fact]
+		public async Task JoinTournament_Twice_ReturnsBadRequest()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			SeedTournament(dbContext, "owner", "ABCD2345", TournamentStatus.Open);
+			SetupAuthUser("player1");
+			var controller = CreateAuthenticatedController(dbContext, "player1");
+
+			Assert.IsType<OkObjectResult>(await controller.JoinTournament(new TournamentJoinViewModel { InviteCode = "ABCD2345" }));
+			var result = await controller.JoinTournament(new TournamentJoinViewModel { InviteCode = "ABCD2345" });
+
+			var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+			Assert.Contains("already joined", badRequest.Value?.ToString());
+			Assert.Single(dbContext.TournamentApplications);
+		}
+
+		[Fact]
+		public async Task GetMyTournaments_ReturnsOnlyOwnedTournamentsWithInviteCodes()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var mine = SeedTournament(dbContext, "user1", "MINE2345");
+			var joined = SeedTournament(dbContext, "other", "THEM2345");
+			dbContext.TournamentApplications.Add(new TournamentApplication { TournamentId = joined.ID, UserId = "user1", Email = NoSendEmail });
+			dbContext.SaveChanges();
+			SetupAuthUser("user1");
+			var controller = CreateAuthenticatedController(dbContext, "user1");
+
+			var result = await controller.GetMyTournaments();
+
+			var tournaments = Assert.IsAssignableFrom<List<Tournament>>(Assert.IsType<OkObjectResult>(result).Value);
+			var tournament = Assert.Single(tournaments);
+			Assert.Equal(mine.ID, tournament.ID);
+			Assert.Equal("MINE2345", tournament.InviteCode);
+		}
+
+		[Fact]
+		public async Task GetMyTournaments_WithoutAccount_ReturnsUnauthorized()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var controller = CreateAuthenticatedController(dbContext, "ghost");
+
+			Assert.IsType<UnauthorizedResult>(await controller.GetMyTournaments());
+		}
+
+		[Fact]
+		public async Task DeleteTournament_ByOwner_RemovesTournamentRegistrationsAndMatches()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var tournament = SeedTournament(dbContext, "owner");
+			var other = SeedTournament(dbContext, "owner");
+			dbContext.TournamentApplications.Add(new TournamentApplication { TournamentId = tournament.ID, UserId = "p1", Email = NoSendEmail });
+			dbContext.TournamentSC2Matches.Add(new TournamentSC2Match { TournamentId = tournament.ID });
+			dbContext.TournamentSC2Matches.Add(new TournamentSC2Match { TournamentId = other.ID });
+			dbContext.SaveChanges();
+			SetupAuthUser("owner");
+			var controller = CreateAuthenticatedController(dbContext, "owner");
+
+			var result = await controller.DeleteTournament(tournament.ID);
+
+			Assert.Equal(tournament.ID, Assert.IsType<OkObjectResult>(result).Value);
+			Assert.Equal(other.ID, Assert.Single(dbContext.Tournaments).ID);
+			Assert.Empty(dbContext.TournamentApplications);
+			Assert.Equal(other.ID, Assert.Single(dbContext.TournamentSC2Matches).TournamentId);
+		}
+
+		[Fact]
+		public async Task DeleteTournament_ByNonOwner_ReturnsForbidden()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var tournament = SeedTournament(dbContext, "owner");
+			SetupAuthUser("intruder", "event-admin");
+			var controller = CreateAuthenticatedController(dbContext, "intruder");
+
+			var result = await controller.DeleteTournament(tournament.ID);
+
+			Assert.Equal(403, Assert.IsType<ObjectResult>(result).StatusCode);
+			Assert.Single(dbContext.Tournaments);
+		}
+
+		[Fact]
+		public async Task DeleteTournament_ByAdmin_DeletesAnyTournament()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var tournament = SeedTournament(dbContext, "owner");
+			SetupAuthUser("admin1", "admin");
+			var controller = CreateAuthenticatedController(dbContext, "admin1");
+
+			var result = await controller.DeleteTournament(tournament.ID);
+
+			Assert.IsType<OkObjectResult>(result);
+			Assert.Empty(dbContext.Tournaments);
+		}
+
+		[Fact]
+		public async Task DeleteTournament_NotFound_ReturnsNotFound()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			SetupAuthUser("admin1", "admin");
+			var controller = CreateAuthenticatedController(dbContext, "admin1");
+
+			Assert.IsType<NotFoundObjectResult>(await controller.DeleteTournament(Guid.NewGuid()));
+		}
+
+		[Fact]
+		public async Task GetTournaments_ExcludesPrivateTournamentsAndHidesInviteCodes()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			SeedTournament(dbContext, "owner", "PRIV2345", visibility: TournamentVisibility.Private);
+			var inviteOnly = SeedTournament(dbContext, "owner", "INVT2345", TournamentStatus.Open, TournamentVisibility.InviteOnly, 16);
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			var result = await controller.GetTournaments();
+
+			var tournament = Assert.Single(Assert.IsAssignableFrom<List<Tournament>>(Assert.IsType<OkObjectResult>(result).Value));
+			Assert.Equal(inviteOnly.ID, tournament.ID);
+			Assert.Null(tournament.InviteCode);
+			Assert.Equal(TournamentStatus.Open, tournament.Status);
+			Assert.Equal(TournamentVisibility.InviteOnly, tournament.Visibility);
+			Assert.Equal(16, tournament.MaxParticipants);
+			Assert.Equal("owner", tournament.CreatorId);
+			Assert.Equal("INVT2345", dbContext.Tournaments.AsNoTracking().Single(t => t.ID == inviteOnly.ID).InviteCode);
+		}
+
+		[Fact]
+		public async Task GetActiveTournament_HidesInviteCode()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var tournament = SeedTournament(dbContext, "owner", "ACTV2345", TournamentStatus.InProgress);
+			tournament.Active = true;
+			dbContext.SaveChanges();
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			var active = Assert.IsType<Tournament>(Assert.IsType<OkObjectResult>(await controller.GetActiveTournament()).Value);
+
+			Assert.Equal(TournamentStatus.InProgress, active.Status);
+			Assert.Null(active.InviteCode);
+		}
+
+		[Fact]
+		public async Task Get_ReturnsInviteCodeOnlyToOwnerOrAdmin()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var tournament = SeedTournament(dbContext, "owner", "PRIV2345");
+			SetupAuthUser("owner");
+			SetupAuthUser("other");
+			SetupAuthUser("admin1", "admin");
+
+			var anonymous = CreateController(dbContext);
+			TestUtils.SetupControllerContext(anonymous, TestUtils.CreateUnauthenticatedUser());
+			var anonymousView = Assert.IsType<Tournament>(Assert.IsType<OkObjectResult>(await anonymous.Get(tournament.ID)).Value);
+			var otherView = Assert.IsType<Tournament>(Assert.IsType<OkObjectResult>(await CreateAuthenticatedController(dbContext, "other").Get(tournament.ID)).Value);
+			var ownerView = Assert.IsType<Tournament>(Assert.IsType<OkObjectResult>(await CreateAuthenticatedController(dbContext, "owner").Get(tournament.ID)).Value);
+			var adminView = Assert.IsType<Tournament>(Assert.IsType<OkObjectResult>(await CreateAuthenticatedController(dbContext, "admin1").Get(tournament.ID)).Value);
+
+			Assert.Null(anonymousView.InviteCode);
+			Assert.Null(otherView.InviteCode);
+			Assert.Equal("PRIV2345", ownerView.InviteCode);
+			Assert.Equal("PRIV2345", adminView.InviteCode);
+		}
+
+		[Fact]
+		public void Tournament_SerializesTheClientContract()
+		{
+			var tournament = new Tournament
+			{
+				ID = Guid.NewGuid(), Name = "Cup", Game = Game.StarCraft2, Status = TournamentStatus.InProgress,
+				Visibility = TournamentVisibility.InviteOnly, CreatorId = "owner", InviteCode = "ABCD2345", MaxParticipants = 8, PrizePool = "$100"
+			};
+
+			using var json = JsonDocument.Parse(JsonSerializer.Serialize(tournament, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+			var root = json.RootElement;
+
+			Assert.Equal(tournament.ID.ToString(), root.GetProperty("id").GetString());
+			Assert.Equal(1, root.GetProperty("game").GetInt32());
+			Assert.Equal("in-progress", root.GetProperty("status").GetString());
+			Assert.Equal("invite-only", root.GetProperty("visibility").GetString());
+			Assert.Equal("owner", root.GetProperty("creatorId").GetString());
+			Assert.Equal("ABCD2345", root.GetProperty("inviteCode").GetString());
+			Assert.Equal(8, root.GetProperty("maxParticipants").GetInt32());
+			Assert.Equal("$100", root.GetProperty("prizePool").GetString());
+			Assert.False(root.TryGetProperty("acceptsParticipants", out _));
+		}
+
+		[Fact]
+		public void TournamentViewModel_DeserializesTheClientPayload()
+		{
+			// What the tournament form sends for a new tournament
+			const string payload = "{\"id\":\"\",\"name\":\"Cup\",\"game\":0,\"visibility\":\"invite-only\",\"startDate\":\"2026-07-01T00:00:00.000Z\",\"maxParticipants\":8,\"status\":\"draft\"}";
+
+			var model = JsonSerializer.Deserialize<TournamentViewModel>(payload, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+
+			Assert.Equal(Guid.Empty, model.ID);
+			Assert.Equal("Cup", model.Name);
+			Assert.Equal(Game.CSGO, model.Game);
+			Assert.Equal(TournamentVisibility.InviteOnly, model.Visibility);
+			Assert.Equal(TournamentStatus.Draft, model.Status);
+			Assert.Equal(new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero), model.StartDate);
+			Assert.Null(model.EndDate);
+			Assert.Null(model.Active);
+			Assert.Null(model.Logo);
+			Assert.Equal(8, model.MaxParticipants);
+		}
+
+		[Theory]
+		[InlineData(nameof(TournamentController.CreateTournament))]
+		[InlineData(nameof(TournamentController.JoinTournament))]
+		[InlineData(nameof(TournamentController.GetMyTournaments))]
+		[InlineData(nameof(TournamentController.DeleteTournament))]
+		public void UserTournamentEndpoints_RequireAuthenticatedUserButNoRole(string methodName)
+		{
+			var method = typeof(TournamentController).GetMethod(methodName);
+
+			Assert.NotNull(method);
+			Assert.NotEmpty(typeof(TournamentController).GetCustomAttributes(typeof(AuthorizeAttribute), false));
+			Assert.Empty(method!.GetCustomAttributes(typeof(AuthorizeAttribute), false));
+			Assert.Empty(method.GetCustomAttributes(typeof(AllowAnonymousAttribute), false));
 		}
 
 		#endregion

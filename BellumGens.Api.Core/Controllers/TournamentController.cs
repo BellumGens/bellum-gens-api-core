@@ -2,6 +2,7 @@
 using BellumGens.Api.Core.Models;
 using BellumGens.Api.Core.Providers;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -31,14 +32,25 @@ namespace BellumGens.Api.Controllers
 		[Route("ActiveTournament")]
 		public async Task<IActionResult> GetActiveTournament()
 		{
-			return Ok(await _dbContext.Tournaments.FirstOrDefaultAsync(t => t.Active));
+			Tournament tournament = await _dbContext.Tournaments.AsNoTracking().FirstOrDefaultAsync(t => t.Active);
+			if (tournament != null)
+			{
+				tournament.InviteCode = null;
+			}
+			return Ok(tournament);
 		}
 
 		[HttpGet]
 		[AllowAnonymous]
 		public async Task<IActionResult> Get(Guid id)
 		{
-			return Ok(await _dbContext.Tournaments.FindAsync(id));
+			// Private tournaments are unlisted, not hidden: anyone with the id can see them, but only the owner and admins get the invite code
+			Tournament tournament = await _dbContext.Tournaments.AsNoTracking().FirstOrDefaultAsync(t => t.ID == id);
+			if (tournament != null && !await CanManageTournament(tournament, await GetAuthUser()))
+			{
+				tournament.InviteCode = null;
+			}
+			return Ok(tournament);
 		}
 
 		[HttpPost]
@@ -512,39 +524,206 @@ namespace BellumGens.Api.Controllers
 		[Route("Tournaments")]
 		public async Task<IActionResult> GetTournaments()
 		{
-			return Ok(await _dbContext.Tournaments.ToListAsync());
+			List<Tournament> tournaments = await _dbContext.Tournaments.AsNoTracking()
+				.Where(t => t.Visibility != TournamentVisibility.Private)
+				.ToListAsync();
+			tournaments.ForEach(t => t.InviteCode = null);
+			return Ok(tournaments);
 		}
 
+		/// <summary>The tournaments the current user created, with their invite codes.</summary>
+		[HttpGet]
+		[Route("MyTournaments")]
+		public async Task<IActionResult> GetMyTournaments()
+		{
+			ApplicationUser user = await GetAuthUser();
+			if (user == null)
+			{
+				return Unauthorized();
+			}
+			return Ok(await _dbContext.Tournaments.AsNoTracking()
+				.Where(t => t.CreatorId == user.Id)
+				.OrderByDescending(t => t.StartDate)
+				.ToListAsync());
+		}
 
+		/// <summary>
+		/// Creates a tournament owned by the current user (when the id is empty) or updates an existing one,
+		/// which only its owner or an admin can do.
+		/// </summary>
 		[HttpPut]
 		[Route("Create")]
-		[Authorize(Roles = "admin")]
-		public async Task<IActionResult> CreateTournament(Tournament tournament)
+		public async Task<IActionResult> CreateTournament(TournamentViewModel tournament)
 		{
-			if (ModelState.IsValid)
+			if (!ModelState.IsValid || tournament == null)
 			{
-				var entity = await _dbContext.Tournaments.FindAsync(tournament.ID);
-				if (entity != null)
-				{
-					_dbContext.Entry(entity).CurrentValues.SetValues(tournament);
-				}
-				else
-				{
-					_dbContext.Tournaments.Add(tournament);
-				}
-
-				try
-				{
-					await _dbContext.SaveChangesAsync();
-				}
-				catch (DbUpdateException e)
-				{
-					System.Diagnostics.Trace.TraceError("Tournament update exception: " + e.Message);
-					return BadRequest("Something went wrong...");
-				}
-				return Ok(tournament);
+				return BadRequest("Invalid tournament");
 			}
-			return BadRequest("Invalid tournament");
+			ApplicationUser user = await GetAuthUser();
+			if (user == null)
+			{
+				return Unauthorized();
+			}
+			string error = ValidateTournament(tournament);
+			if (error != null)
+			{
+				return BadRequest(error);
+			}
+
+			bool isAdmin = await _userManager.IsInRoleAsync(user, "admin");
+			Tournament entity;
+			if (tournament.ID == Guid.Empty)
+			{
+				entity = new Tournament()
+				{
+					CreatorId = user.Id
+				};
+				ApplyTournamentChanges(entity, tournament, isAdmin, true);
+				_dbContext.Tournaments.Add(entity);
+			}
+			else
+			{
+				entity = await _dbContext.Tournaments.FindAsync(tournament.ID);
+				if (entity == null)
+				{
+					return NotFound("Tournament not found.");
+				}
+				if (entity.CreatorId != user.Id && !isAdmin)
+				{
+					return StatusCode(StatusCodes.Status403Forbidden, "You can only edit tournaments you created.");
+				}
+				if (tournament.MaxParticipants != null)
+				{
+					int participants = await CountParticipants(entity.ID);
+					if (participants > tournament.MaxParticipants)
+					{
+						return BadRequest($"The tournament already has {participants} participants, more than the new limit of {tournament.MaxParticipants}.");
+					}
+				}
+				ApplyTournamentChanges(entity, tournament, isAdmin, false);
+			}
+
+			if (entity.Visibility != TournamentVisibility.Public)
+			{
+				await entity.UniqueInviteCode(_dbContext);
+			}
+
+			try
+			{
+				await _dbContext.SaveChangesAsync();
+			}
+			catch (DbUpdateException e)
+			{
+				System.Diagnostics.Trace.TraceError("Tournament update exception: " + e.Message);
+				return BadRequest("Something went wrong...");
+			}
+			return Ok(entity);
+		}
+
+		[HttpPost]
+		[Route("Join")]
+		public async Task<IActionResult> JoinTournament(TournamentJoinViewModel model)
+		{
+			ApplicationUser user = await GetAuthUser();
+			if (user == null)
+			{
+				return Unauthorized();
+			}
+			string code = Tournament.NormalizeInviteCode(model?.InviteCode);
+			if (string.IsNullOrEmpty(code))
+			{
+				return BadRequest("Please enter an invite code.");
+			}
+			Tournament tournament = await _dbContext.Tournaments.FirstOrDefaultAsync(t => t.InviteCode == code);
+			if (tournament == null)
+			{
+				return NotFound("There is no tournament with this invite code.");
+			}
+			if (!tournament.AcceptsParticipants)
+			{
+				return BadRequest("This tournament is no longer accepting participants.");
+			}
+			if (await _dbContext.TournamentApplications.AnyAsync(a => a.TournamentId == tournament.ID && a.UserId == user.Id))
+			{
+				return BadRequest("You have already joined this tournament.");
+			}
+			if (tournament.MaxParticipants != null && await CountParticipants(tournament.ID) >= tournament.MaxParticipants)
+			{
+				return BadRequest("This tournament is full.");
+			}
+
+			// The invite code is the organizer's approval, so the participant is confirmed right away
+			TournamentApplication application = new()
+			{
+				TournamentId = tournament.ID,
+				UserId = user.Id,
+				Game = tournament.Game ?? Game.CSGO,
+				Email = user.Email,
+				BattleNetId = user.BattleNetId,
+				State = TournamentApplicationState.Confirmed
+			};
+			await application.UniqueHash(_dbContext);
+			_dbContext.TournamentApplications.Add(application);
+
+			try
+			{
+				await _dbContext.SaveChangesAsync();
+			}
+			catch (DbUpdateException e)
+			{
+				System.Diagnostics.Trace.TraceError("Tournament join exception: " + e.Message);
+				return BadRequest("Something went wrong...");
+			}
+
+			_dbContext.Entry(tournament).State = EntityState.Detached;
+			if (tournament.CreatorId != user.Id)
+			{
+				tournament.InviteCode = null;
+			}
+			return Ok(tournament);
+		}
+
+		[HttpDelete]
+		[Route("delete-tournament")]
+		public async Task<IActionResult> DeleteTournament(Guid id)
+		{
+			ApplicationUser user = await GetAuthUser();
+			if (user == null)
+			{
+				return Unauthorized();
+			}
+			Tournament tournament = await _dbContext.Tournaments.FindAsync(id);
+			if (tournament == null)
+			{
+				return NotFound("Tournament not found.");
+			}
+			if (tournament.CreatorId != user.Id && !await _userManager.IsInRoleAsync(user, "admin"))
+			{
+				return StatusCode(StatusCodes.Status403Forbidden, "You can only delete tournaments you created.");
+			}
+
+			// Matches reference the tournament and its groups without cascading deletes, so remove them first;
+			// registrations, groups and their participants are removed by the database cascades
+			List<Guid?> groupIds = (await _dbContext.TournamentCSGOGroups.Where(g => g.TournamentId == id).Select(g => g.Id).ToListAsync())
+				.Concat(await _dbContext.TournamentSC2Groups.Where(g => g.TournamentId == id).Select(g => g.Id).ToListAsync())
+				.Select(g => (Guid?)g)
+				.ToList();
+			_dbContext.TournamentCSGOMatches.RemoveRange(await _dbContext.TournamentCSGOMatches
+				.Where(m => m.TournamentId == id || groupIds.Contains(m.GroupId)).ToListAsync());
+			_dbContext.TournamentSC2Matches.RemoveRange(await _dbContext.TournamentSC2Matches
+				.Where(m => m.TournamentId == id || groupIds.Contains(m.GroupId)).ToListAsync());
+			_dbContext.Tournaments.Remove(tournament);
+
+			try
+			{
+				await _dbContext.SaveChangesAsync();
+			}
+			catch (DbUpdateException e)
+			{
+				System.Diagnostics.Trace.TraceError("Tournament delete exception: " + e.Message);
+				return BadRequest("Something went wrong...");
+			}
+			return Ok(id);
 		}
 		#endregion
 
@@ -1082,6 +1261,90 @@ namespace BellumGens.Api.Controllers
 		private async Task<bool> UserIsTournamentAdmin()
 		{
 			return await UserIsInRole("admin") || await UserIsInRole("event-admin");
+		}
+
+		/// <summary>Whether the user owns the tournament or is an admin, i.e. can edit or delete it and see its invite code.</summary>
+		private async Task<bool> CanManageTournament(Tournament tournament, ApplicationUser user)
+		{
+			if (user == null)
+			{
+				return false;
+			}
+			return (tournament.CreatorId != null && tournament.CreatorId == user.Id) || await _userManager.IsInRoleAsync(user, "admin");
+		}
+
+		private async Task<int> CountParticipants(Guid tournamentId)
+		{
+			return await _dbContext.TournamentApplications.CountAsync(a => a.TournamentId == tournamentId && a.State != TournamentApplicationState.Banned);
+		}
+
+		private static string ValidateTournament(TournamentViewModel tournament)
+		{
+			if (string.IsNullOrWhiteSpace(tournament.Name))
+			{
+				return "Tournament name is required.";
+			}
+			if (tournament.MaxParticipants != null && tournament.MaxParticipants < 2)
+			{
+				return "A tournament needs room for at least 2 participants.";
+			}
+			if (tournament.StartDate != null && tournament.EndDate != null && tournament.EndDate < tournament.StartDate)
+			{
+				return "The tournament can't end before it starts.";
+			}
+			if (tournament.Game != null && !Enum.IsDefined(tournament.Game.Value))
+			{
+				return "Unknown game.";
+			}
+			if (tournament.Visibility != null && !Enum.IsDefined(tournament.Visibility.Value))
+			{
+				return "Unknown tournament visibility.";
+			}
+			if (tournament.Status != null && !Enum.IsDefined(tournament.Status.Value))
+			{
+				return "Unknown tournament status.";
+			}
+			return null;
+		}
+
+		private static void ApplyTournamentChanges(Tournament entity, TournamentViewModel model, bool isAdmin, bool isNew)
+		{
+			entity.Name = model.Name.Trim();
+			entity.Description = model.Description;
+			entity.StartDate = model.StartDate;
+			entity.EndDate = model.EndDate;
+			entity.Game = model.Game;
+			entity.MaxParticipants = model.MaxParticipants;
+			entity.PrizePool = model.PrizePool;
+			// The tournament form has no logo field, so a missing logo keeps the current one
+			if (model.Logo != null)
+			{
+				entity.Logo = model.Logo;
+			}
+			if (model.Visibility != null)
+			{
+				entity.Visibility = model.Visibility.Value;
+			}
+			// Clients send Draft by default, so an update never moves a tournament back to Draft
+			if (model.Status != null && (isNew || model.Status != TournamentStatus.Draft))
+			{
+				entity.Status = model.Status.Value;
+			}
+
+			// Active marks the current league and only admins change it; the status follows it
+			bool wasActive = entity.Active;
+			if (isAdmin && model.Active != null)
+			{
+				entity.Active = model.Active.Value;
+			}
+			if (entity.Active && (isNew || !wasActive) && (entity.Status == TournamentStatus.Draft || entity.Status == TournamentStatus.Open))
+			{
+				entity.Status = TournamentStatus.InProgress;
+			}
+			else if (!entity.Active && wasActive && entity.Status == TournamentStatus.InProgress)
+			{
+				entity.Status = TournamentStatus.Completed;
+			}
 		}
 	}
 }
