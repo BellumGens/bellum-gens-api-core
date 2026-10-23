@@ -38,12 +38,12 @@ namespace BellumGens.Api.Core.Common
 		}
 
 		public static Dictionary<JerseyCut, string> JerseyCutNames
-        {
+		{
 			get
-            {
+			{
 				return _jerseyCutNames;
-            }
-        }
+			}
+		}
 
 		public static Dictionary<JerseySize, string> JerseySizeNames
 		{
