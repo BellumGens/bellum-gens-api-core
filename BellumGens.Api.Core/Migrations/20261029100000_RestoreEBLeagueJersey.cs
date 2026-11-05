@@ -12,7 +12,7 @@ namespace BellumGens.Api.Core.Migrations
         {
             // ShopCatalogAndOrders migrated the EB League jersey as an inactive product with only the variants that had
             // legacy orders (none on a fresh database). Put it back on sale at 30 EUR with every cut/size.
-            // The SQLite development database never runs migrations; SqliteDevelopmentDatabase.EnsureShopCatalog seeds it there.
+            // The SQLite development database never runs migrations; SqliteDevelopmentDatabase.EnsureShopCatalog (Program.cs) seeds it there.
             migrationBuilder.Sql(@"
 DECLARE @productId uniqueidentifier = (SELECT [Id] FROM [Products] WHERE [Slug] = N'esports-business-league-jersey');
 DECLARE @now datetimeoffset = SYSDATETIMEOFFSET();

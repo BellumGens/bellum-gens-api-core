@@ -51,6 +51,44 @@ public class SqliteDevelopmentDatabaseTests
 	}
 
 	[Fact]
+	public async Task SeedsEBLeagueJerseyOnce()
+	{
+		var databasePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.dev.db");
+		var options = new DbContextOptionsBuilder<BellumGensDbContext>()
+			.UseSqlite($"Data Source={databasePath}")
+			.Options;
+
+		try
+		{
+			using (var context = new BellumGensDbContext(options))
+			{
+				SqliteDevelopmentDatabase.EnsureCurrentModel(context);
+				SqliteDevelopmentDatabase.EnsureShopCatalog(context);
+			}
+
+			using (var context = new BellumGensDbContext(options))
+			{
+				// A second startup must not duplicate the product or its variants
+				SqliteDevelopmentDatabase.EnsureShopCatalog(context);
+
+				var jersey = await context.Products.Include(p => p.Variants)
+					.SingleAsync(TestContext.Current.CancellationToken);
+				Assert.Equal(SqliteDevelopmentDatabase.EBLeagueJerseySlug, jersey.Slug);
+				Assert.True(jersey.Active);
+				Assert.Equal(30.00m, jersey.Price);
+				Assert.Equal(Brand.EBLeague, jersey.Brand);
+				Assert.Equal(14, jersey.Variants.Count);
+				Assert.Contains(jersey.Variants, v => v.Cut == JerseyCut.Female && v.Size == JerseySize.XXXL && v.Name == "Female / XXXL");
+			}
+		}
+		finally
+		{
+			using var context = new BellumGensDbContext(options);
+			context.Database.EnsureDeleted();
+		}
+	}
+
+	[Fact]
 	public async Task OrdersDateTimeOffsetsByInstant()
 	{
 		var databasePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.dev.db");

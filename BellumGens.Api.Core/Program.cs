@@ -190,6 +190,7 @@ using (var serviceScope = app.Services.CreateScope())
 			throw new InvalidOperationException("The SQLite provider is only supported in the Development environment.");
 		}
 		SqliteDevelopmentDatabase.EnsureCurrentModel(context);
+		SqliteDevelopmentDatabase.EnsureShopCatalog(context);
 	}
 	else
 #endif
@@ -254,6 +255,49 @@ internal static class SqliteDevelopmentDatabase
 		context.Database.ExecuteSqlRaw("CREATE TABLE IF NOT EXISTS \"__DevSchema\" (\"Hash\" TEXT NOT NULL)");
 		context.Database.ExecuteSqlRaw("DELETE FROM \"__DevSchema\"");
 		context.Database.ExecuteSqlInterpolated($"INSERT INTO \"__DevSchema\" (\"Hash\") VALUES ({schemaHash})");
+	}
+
+	internal const string EBLeagueJerseySlug = "esports-business-league-jersey";
+
+	/// <summary>
+	/// Seeds the catalog that the SQL Server migrations create (see RestoreEBLeagueJersey), since the SQLite database
+	/// is built from the model and never runs migrations. Only runs when the product is missing, so local edits survive restarts.
+	/// </summary>
+	internal static void EnsureShopCatalog(BellumGensDbContext context)
+	{
+		if (context.Products.Any(p => p.Slug == EBLeagueJerseySlug))
+		{
+			return;
+		}
+
+		var jersey = new Product
+		{
+			Name = "Esports Business League Jersey",
+			Slug = EBLeagueJerseySlug,
+			Description = "Limited edition Esports Business League jersey made of 100% breathable sportswear polyester with a high quality print.",
+			Type = ProductType.Jersey,
+			Brand = Brand.EBLeague,
+			Price = 30.00m,
+			ImageUrl = "https://eb-league.com/assets/wallpapers/jersey-front-back.webp",
+			Active = true,
+			SortOrder = 0
+		};
+		foreach (var cut in Enum.GetValues<JerseyCut>())
+		{
+			foreach (var size in Enum.GetValues<JerseySize>())
+			{
+				jersey.Variants.Add(new ProductVariant
+				{
+					Name = $"{cut} / {size}",
+					Cut = cut,
+					Size = size,
+					Active = true,
+					SortOrder = (int)cut * 10 + (int)size
+				});
+			}
+		}
+		context.Products.Add(jersey);
+		context.SaveChanges();
 	}
 }
 #endif

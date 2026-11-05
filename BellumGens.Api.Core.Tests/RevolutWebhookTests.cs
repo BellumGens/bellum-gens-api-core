@@ -277,6 +277,14 @@ namespace BellumGens.Api.Core.Tests
 		}
 
 		[Fact]
+		public void Webhook_LimitsRequestBodySize()
+		{
+			var method = typeof(ShopWebhooksController).GetMethod(nameof(ShopWebhooksController.Revolut))!;
+			// The endpoint is anonymous, so the server must reject oversized bodies before the action buffers them
+			Assert.Single(method.GetCustomAttributes(typeof(RequestSizeLimitAttribute), false));
+		}
+
+		[Fact]
 		public void Provider_IsConfigured_OnlyWithSecretKey()
 		{
 			var configured = new RevolutPaymentProvider(new HttpClient(), TestUtils.CreateRevolutOptions("sk_live"), TestUtils.CreateMockLogger<RevolutPaymentProvider>().Object);

@@ -19,6 +19,12 @@ namespace BellumGens.Api.Controllers
 	[AllowAnonymous]
 	public class ShopWebhooksController : ControllerBase
 	{
+		/// <summary>
+		/// Upper bound for a webhook body. Revolut deliveries are a few hundred bytes; the server rejects anything larger
+		/// with 413 before the body is buffered, so anonymous callers cannot make the API allocate large strings.
+		/// </summary>
+		internal const long MaxWebhookBodyBytes = 64 * 1024;
+
 		private readonly BellumGensDbContext _dbContext;
 		private readonly IPaymentProvider _provider;
 		private readonly IOrderService _orders;
@@ -33,6 +39,7 @@ namespace BellumGens.Api.Controllers
 		}
 
 		[HttpPost("revolut")]
+		[RequestSizeLimit(MaxWebhookBodyBytes)]
 		public async Task<IActionResult> Revolut(CancellationToken cancellationToken)
 		{
 			string body;
