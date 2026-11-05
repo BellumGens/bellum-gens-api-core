@@ -17,7 +17,7 @@ namespace BellumGens.Api.Core.Models
 
 		public Guid TournamentId { get; set; }
 
-        public string UserId { get; set; }
+		public string UserId { get; set; }
 
 		public Guid? TeamId { get; set; }
 
@@ -27,60 +27,60 @@ namespace BellumGens.Api.Core.Models
 
 		public Game Game { get; set; }
 
-        [EmailAddress]
-        public string Email { get; set; }
+		[EmailAddress]
+		public string Email { get; set; }
 
-        public string Hash { get; set; }
+		public string Hash { get; set; }
 
-        public string BattleNetId { get; set; }
+		public string BattleNetId { get; set; }
 
-        public string FirstName { get; set; }
+		public string FirstName { get; set; }
 
-        public string LastName { get; set; }
+		public string LastName { get; set; }
 
-        public string Discord { get; set; }
+		public string Discord { get; set; }
 
-        public string Country { get; set; }
+		public string Country { get; set; }
 
-        public TournamentApplicationState State { get; set; } = TournamentApplicationState.Pending;
+		public TournamentApplicationState State { get; set; } = TournamentApplicationState.Pending;
 
-        [NotMapped]
-        public string TournamentName {
-            get
-            {
-                return Tournament?.Name;
-            }
-        }
+		[NotMapped]
+		public string TournamentName {
+			get
+			{
+				return Tournament?.Name;
+			}
+		}
 
-        [JsonIgnore]
-        public virtual ICollection<TournamentGroupParticipant> GroupsPoints { get; set; }
+		[JsonIgnore]
+		public virtual ICollection<TournamentGroupParticipant> GroupsPoints { get; set; }
 
-        [ForeignKey("UserId")]
-        [JsonIgnore]
-        public virtual ApplicationUser User { get; set; }
+		[ForeignKey("UserId")]
+		[JsonIgnore]
+		public virtual ApplicationUser User { get; set; }
 
-        [ForeignKey("CompanyId")]
-        [JsonIgnore]
-        public virtual Company Company { get; set; }
+		[ForeignKey("CompanyId")]
+		[JsonIgnore]
+		public virtual Company Company { get; set; }
 
 		[ForeignKey("TeamId")]
-        [JsonIgnore]
-        public virtual CSGOTeam Team { get; set; }
+		[JsonIgnore]
+		public virtual CSGOTeam Team { get; set; }
 
-        [ForeignKey("TournamentId")]
-        [JsonIgnore]
-        public virtual Tournament Tournament { get; set; }
+		[ForeignKey("TournamentId")]
+		[JsonIgnore]
+		public virtual Tournament Tournament { get; set; }
 
-        public async Task UniqueHash(BellumGensDbContext context)
-        {
-            if (string.IsNullOrEmpty(Hash))
-            {
-                Hash = Util.GenerateHashString(8);
-                while (await context.TournamentApplications.Where(t => t.Hash == Hash).SingleOrDefaultAsync() != null)
-                {
-                    Hash = Util.GenerateHashString(8);
-                }
-            }
-        }
-    }
+		public async Task UniqueHash(BellumGensDbContext context)
+		{
+			if (string.IsNullOrEmpty(Hash))
+			{
+				Hash = Util.GenerateHashString(8);
+				while (await context.TournamentApplications.Where(t => t.Hash == Hash).SingleOrDefaultAsync() != null)
+				{
+					Hash = Util.GenerateHashString(8);
+				}
+			}
+		}
+	}
 }

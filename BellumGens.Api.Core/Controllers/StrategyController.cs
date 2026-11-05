@@ -18,13 +18,13 @@ namespace BellumGens.Api.Controllers
 		private readonly IStorageService _fileService;
 		private readonly INotificationService _notificationService;
 		public StrategyController(IStorageService fileService,
-								  INotificationService notificationService,
-								  UserManager<ApplicationUser> userManager,
-								  RoleManager<IdentityRole> roleManager,
-								  SignInManager<ApplicationUser> signInManager,
-                                  EmailServiceProvider sender,
-								  BellumGensDbContext context,
-								  ILogger<StrategyController> logger) : base(userManager, roleManager, signInManager, sender, context, logger)
+									INotificationService notificationService,
+									UserManager<ApplicationUser> userManager,
+									RoleManager<IdentityRole> roleManager,
+									SignInManager<ApplicationUser> signInManager,
+									IEmailService sender,
+									BellumGensDbContext context,
+									ILogger<StrategyController> logger) : base(userManager, roleManager, signInManager, sender, context, logger)
 		{
 			_fileService = fileService;
 			_notificationService = notificationService;
@@ -37,6 +37,7 @@ namespace BellumGens.Api.Controllers
 			List<CSGOStrategy> strategies = await _dbContext.CSGOStrategies
 															.Include(s => s.Comments)
 															.Include(s => s.Votes)
+															.Include(s => s.User)
 															.Where(s => s.Visible == true && (!string.IsNullOrEmpty(s.Url) || !string.IsNullOrEmpty(s.StratImage)))
 															.OrderByDescending(s => s.LastUpdated).Skip(page * 25).Take(25).ToListAsync();
 			return Ok(strategies.OrderByDescending(s => s.Rating));
@@ -49,7 +50,7 @@ namespace BellumGens.Api.Controllers
 			{
 				return BadRequest("You're not a member of this team.");
 			}
-			return Ok(await _dbContext.CSGOStrategies.Include(s => s.Comments).Include(s => s.Votes).Where(s => s.TeamId == teamId).ToListAsync());
+			return Ok(await _dbContext.CSGOStrategies.Include(s => s.Comments).Include(s => s.Votes).Include(s => s.User).Where(s => s.TeamId == teamId).ToListAsync());
 		}
 
 		[Route("userstrats")]
@@ -58,7 +59,7 @@ namespace BellumGens.Api.Controllers
 			ApplicationUser user = await GetAuthUser();
 			if (user.Id == userId)
 			{
-				var strategies = await _dbContext.CSGOStrategies.Where(s => s.UserId == userId).OrderByDescending(s => s.LastUpdated).ToListAsync();
+				var strategies = await _dbContext.CSGOStrategies.Include(s => s.User).Where(s => s.UserId == userId).OrderByDescending(s => s.LastUpdated).ToListAsync();
 				return Ok(strategies);
 			}
 			return BadRequest("You need to authenticate first.");
@@ -99,35 +100,61 @@ namespace BellumGens.Api.Controllers
 			CSGOStrategy entity = null;
 
 			if (strategy.Id != Guid.Empty)
+			{
 				entity = await UserCanEdit(strategy.Id);
+				if (entity == null && await _dbContext.CSGOStrategies.AnyAsync(s => s.Id == strategy.Id))
+				{
+					return BadRequest("You cannot edit this strategy.");
+				}
+			}
 
 			if (entity == null)
 			{
-                ApplicationUser user = await GetAuthUser();
-                strategy.UserId = user.Id;
+				ApplicationUser user = await GetAuthUser();
+				strategy.UserId = user.Id;
 				strategy.UniqueCustomUrl(_dbContext);
-                _dbContext.Attach(strategy).State = EntityState.Added;
+				if (strategy.Id == Guid.Empty)
+				{
+					// Assign the key up front so the uploaded blob name matches the saved entity
+					strategy.Id = Guid.NewGuid();
+				}
+				if (ImageRequiresUpload(strategy.StratImage))
+				{
+					try
+					{
+						strategy.StratImage = await _fileService.SaveImage(strategy.StratImage, strategy.Id.ToString());
+					}
+					catch (Exception e)
+					{
+						return BadRequest(e.Message);
+					}
+				}
+				_dbContext.Attach(strategy).State = EntityState.Added;
 			}
 			else
 			{
-                if (string.IsNullOrEmpty(entity.UserId))
-                {
-                    ApplicationUser user = await GetAuthUser();
-                    strategy.UserId = user.Id;
-                }
+				if (string.IsNullOrEmpty(entity.UserId))
+				{
+					ApplicationUser user = await GetAuthUser();
+					strategy.UserId = user.Id;
+				}
+				else
+				{
+					strategy.UserId = entity.UserId;
+				}
 				strategy.LastUpdated = DateTimeOffset.Now;
-                if (!Uri.IsWellFormedUriString(strategy.StratImage, UriKind.Absolute))
-                {
-                    try
-                    {
-                        strategy.StratImage = await _fileService.SaveImage(strategy.StratImage, strategy.Id.ToString());
-                    }
-                    catch (Exception e)
-                    {
-                        return BadRequest(e.Message);
-                    }
-                }
-                _dbContext.Entry(entity).CurrentValues.SetValues(strategy);
+				if (ImageRequiresUpload(strategy.StratImage))
+				{
+					try
+					{
+						strategy.StratImage = await _fileService.SaveImage(strategy.StratImage, strategy.Id.ToString());
+					}
+					catch (Exception e)
+					{
+						return BadRequest(e.Message);
+					}
+				}
+				_dbContext.Entry(entity).CurrentValues.SetValues(strategy);
 			}
 
 			try
@@ -283,19 +310,33 @@ namespace BellumGens.Api.Controllers
 		private async Task<CSGOStrategy> UserCanEdit(Guid id)
 		{
 			ApplicationUser user = await GetAuthUser();
-            CSGOStrategy strat = await _dbContext.CSGOStrategies.Include(s => s.Team).ThenInclude(t => t.Members).FirstOrDefaultAsync(s => s.Id == id);
-            if (strat?.TeamId != null)
-            {
-                if (strat.Team.Members.Any(m => m.UserId == user.Id && m.IsEditor || m.IsAdmin))
-                {
-                    return strat;
-                }
-            }
-            else if (strat?.UserId == user.Id)
-            {
-                return strat;
-            }
-            return null;
+			CSGOStrategy strat = await _dbContext.CSGOStrategies.Include(s => s.Team).ThenInclude(t => t.Members).FirstOrDefaultAsync(s => s.Id == id);
+			if (strat?.TeamId != null)
+			{
+				if (strat.Team.Members.Any(m => m.UserId == user.Id && (m.IsEditor || m.IsAdmin)))
+				{
+					return strat;
+				}
+			}
+			else if (strat?.UserId == user.Id)
+			{
+				return strat;
+			}
+			return null;
+		}
+
+		/// <summary>
+		/// An http(s) URL means the image is already stored; anything else non-empty
+		/// (a data URI or raw base64 payload) still has to be uploaded.
+		/// </summary>
+		private static bool ImageRequiresUpload(string image)
+		{
+			if (string.IsNullOrEmpty(image))
+			{
+				return false;
+			}
+			return !(Uri.TryCreate(image, UriKind.Absolute, out Uri uri) &&
+						(uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps));
 		}
 
 		private async Task<CSGOStrategy> ResolveStrategy(string stratId)
@@ -303,7 +344,8 @@ namespace BellumGens.Api.Controllers
 #pragma warning disable CA1806 // Do not ignore method results
 			Guid.TryParse(stratId, out Guid id);
 #pragma warning restore CA1806 // Do not ignore method results
-			return await _dbContext.CSGOStrategies.Include(s => s.Comments).Include(s => s.Votes).FirstOrDefaultAsync(s => s.CustomUrl == stratId || s.Id == id);
+			// The user is included so the strategy serializes its owner (author)
+			return await _dbContext.CSGOStrategies.Include(s => s.Comments).Include(s => s.Votes).Include(s => s.User).FirstOrDefaultAsync(s => s.CustomUrl == stratId || s.Id == id);
 		}
 	}
 }

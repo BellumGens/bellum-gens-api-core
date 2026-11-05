@@ -9,8 +9,8 @@ using System.Threading.Tasks;
 namespace BellumGens.Api.Controllers
 {
 	public class PushController : BaseController
-    {
-		public PushController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, EmailServiceProvider sender, BellumGensDbContext context, ILogger<PushController> logger)
+	{
+		public PushController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, SignInManager<ApplicationUser> signInManager, IEmailService sender, BellumGensDbContext context, ILogger<PushController> logger)
 			: base(userManager, roleManager, signInManager, sender, context, logger)
 		{
 		}
@@ -18,9 +18,9 @@ namespace BellumGens.Api.Controllers
 		[HttpPost]
 		[Route("Subscribe")]
 		public async Task<IActionResult> Subscribe(BellumGensPushSubscriptionViewModel sub)
-        {
-            BellumGensPushSubscription push = new()
-            {
+		{
+			BellumGensPushSubscription push = new()
+			{
 				Endpoint = sub.Endpoint,
 				ExpirationTime = sub.ExpirationTime,
 				UserId = (await GetAuthUser())?.Id,
@@ -40,5 +40,5 @@ namespace BellumGens.Api.Controllers
 			}
 			return Ok(push);
 		}
-    }
+	}
 }

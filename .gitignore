@@ -349,3 +349,8 @@ MigrationBackup/
 
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
+
+# Local SQLite dev database (used for local dev/testing on platforms without SQL Server/LocalDB)
+*.dev.db
+*.dev.db-shm
+*.dev.db-wal

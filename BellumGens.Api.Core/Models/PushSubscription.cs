@@ -7,13 +7,13 @@ namespace BellumGens.Api.Core.Models
 {
 	public class BellumGensPushSubscription
 	{
-        public string UserId { get; set; }
+		public string UserId { get; set; }
 
 		public string Endpoint { get; set; }
 
 		public TimeSpan? ExpirationTime { get; set; }
 
-        public string P256dh { get; set; }
+		public string P256dh { get; set; }
 
 		public string Auth { get; set; }
 
@@ -43,8 +43,8 @@ namespace BellumGens.Api.Core.Models
 		{
 			Notification = new BellumGensNotification()
 			{
-				Title = $"You have been invited to join team {invite.TeamInfo.TeamName}",
-				Icon = invite.TeamInfo.TeamAvatar,
+				Title = $"You have been invited to join team {invite.TeamInfo?.TeamName}",
+				Icon = invite.TeamInfo?.TeamAvatar,
 				Data = invite.TeamId,
 				Renotify = true,
 				Actions = new List<BellumGensNotificationAction>()
@@ -64,8 +64,8 @@ namespace BellumGens.Api.Core.Models
 			{
 				Notification = new BellumGensNotification()
 				{
-					Title = $"{invite.InvitedUser.UserName} has accepted your invitation to join {invite.TeamInfo.TeamName}!",
-					Icon = invite.InvitedUser.CSGODetails.AvatarFull,
+					Title = $"{invite.InvitedUser?.UserName} has accepted your invitation to join {invite.TeamInfo?.TeamName}!",
+					Icon = invite.InvitedUser?.CSGODetails?.AvatarFull,
 					Data = invite.InvitedUserId,
 					Renotify = true,
 					Actions = new List<BellumGensNotificationAction>()
@@ -84,8 +84,8 @@ namespace BellumGens.Api.Core.Models
 		{
 			Notification = new BellumGensNotification()
 			{
-				Title = $"{application.User.UserName} has applied to join {application.Team.TeamName}",
-				Icon = application.User.CSGODetails.AvatarFull,
+				Title = $"{application.User?.UserName} has applied to join {application.Team?.TeamName}",
+				Icon = application.User?.CSGODetails?.AvatarFull,
 				Data = application.ApplicantId,
 				Renotify = true,
 				Actions = new List<BellumGensNotificationAction>()
@@ -105,8 +105,8 @@ namespace BellumGens.Api.Core.Models
 			{
 				Notification = new BellumGensNotification()
 				{
-					Title = $"You have been accepted to join team {application.Team.TeamName}",
-					Icon = application.Team.TeamAvatar,
+					Title = $"You have been accepted to join team {application.Team?.TeamName}",
+					Icon = application.Team?.TeamAvatar,
 					Data = application.TeamId,
 					Renotify = true,
 					Actions = new List<BellumGensNotificationAction>()
@@ -138,7 +138,7 @@ namespace BellumGens.Api.Core.Models
 					}
 				}
 			};
-        }
+		}
 
 		public BellumGensNotificationWrapper(TournamentApplication application, string callbackUrl)
 		{
@@ -146,7 +146,7 @@ namespace BellumGens.Api.Core.Models
 			{
 				Title = "Time to check-in",
 				Icon = "https://bellumgens.com/assets/login/bge-white-2024.svg",
-                Renotify = true,
+				Renotify = true,
 				Actions = new List<BellumGensNotificationAction>()
 				{
 					new BellumGensNotificationAction()
@@ -156,10 +156,10 @@ namespace BellumGens.Api.Core.Models
 					}
 				},
 				Data = new
-                {
-                    callbackUrl
-                }
-            };
+				{
+					callbackUrl
+				}
+			};
 		}
 
 		public BellumGensNotification Notification { get; set; }
