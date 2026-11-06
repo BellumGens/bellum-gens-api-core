@@ -13,7 +13,8 @@ namespace BellumGens.Api.Core.Providers
 {
 	/// <summary>
 	/// Periodically cancels orders whose payment window has passed and releases their stock. Before cancelling,
-	/// a pending payment is checked once with the provider in case the webhook never arrived.
+	/// a pending payment is checked with the provider in case the webhook never arrived, and an order whose payment
+	/// the provider still reports in progress is kept until the grace period runs out.
 	/// </summary>
 	public class PaymentExpirySweeper : BackgroundService
 	{
@@ -105,6 +106,12 @@ namespace BellumGens.Api.Core.Providers
 						if (remote.Status == PaymentStatus.Completed)
 						{
 							await orders.ApplyPaymentStatusAsync(latest, PaymentStatus.Completed, "SWEEP:" + remote.RawState, null, cancellationToken);
+							continue;
+						}
+						if (orders.IsPaymentInProgress(order, remote.Status, now))
+						{
+							// The customer may still be paying; cancelling now would release the stock under a payment about to complete.
+							logger?.LogInformation("Kept expired order {OrderNumber}: the provider still reports its payment as {Status}.", order.OrderNumber, remote.Status);
 							continue;
 						}
 					}

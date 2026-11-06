@@ -655,7 +655,6 @@ namespace BellumGens.Api.Core.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("City")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Country")
@@ -733,7 +732,6 @@ namespace BellumGens.Api.Core.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("StreetAddress")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Subtotal")

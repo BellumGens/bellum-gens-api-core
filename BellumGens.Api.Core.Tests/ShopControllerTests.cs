@@ -429,5 +429,83 @@ namespace BellumGens.Api.Core.Tests
 		{
 			Assert.Equal(expected, ShopController.ToMinorUnits(amount));
 		}
+
+		[Fact]
+		public async Task RetryPayment_LateInTheWindow_ExtendsTheOrderToCoverTheNewCheckout()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var order = TestUtils.CreateShopOrder(expiresOn: DateTimeOffset.Now.AddMinutes(5));
+			order.Payments.Add(new Payment { OrderId = order.Id, ProviderOrderId = "rev_1", Amount = 36m, Status = PaymentStatus.Failed, CreatedOn = DateTimeOffset.Now.AddMinutes(-50) });
+			db.ShopOrders.Add(order);
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+			var payments = TestUtils.CreateMockPaymentProvider();
+			PaymentOrderRequest? sent = null;
+			payments.Setup(p => p.CreateOrderAsync(It.IsAny<PaymentOrderRequest>(), It.IsAny<CancellationToken>()))
+				.Callback((PaymentOrderRequest r, CancellationToken _) => sent = r)
+				.ReturnsAsync(new PaymentOrderResult { ProviderOrderId = "rev_2", CheckoutUrl = "https://checkout.revolut.com/retry", Status = PaymentStatus.Pending });
+			var controller = CreateController(db, payments);
+			var before = DateTimeOffset.Now;
+
+			var response = Assert.IsType<OrderCreatedResponse>(Assert.IsType<OkObjectResult>(await controller.RetryPayment(order.Id)).Value);
+
+			// The new checkout is open for the full window, so the order must not expire before it closes.
+			Assert.Equal("PT60M", sent!.ExpirePendingAfter);
+			Assert.True(order.ExpiresOn >= before.AddMinutes(60));
+			Assert.Equal(order.ExpiresOn, response.ExpiresOn);
+		}
+
+		[Fact]
+		public async Task CreateOrder_ExpiresWhenTheCheckoutCloses()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var product = TestUtils.CreateProduct("Umbrella", 15m, stock: 5);
+			db.Products.Add(product);
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+			var controller = CreateController(db);
+			var before = DateTimeOffset.Now;
+
+			var response = Assert.IsType<OrderCreatedResponse>(Assert.IsType<OkObjectResult>(await controller.CreateOrder(TestUtils.CreateOrderRequest(Line(product)))).Value);
+
+			Assert.InRange(response.ExpiresOn, before.AddMinutes(60), DateTimeOffset.Now.AddMinutes(60));
+		}
+
+		[Fact]
+		public async Task GetOrder_ExpiredOrderWhosePaymentIsStillInProgress_IsKeptDuringTheGracePeriod()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var order = TestUtils.CreateShopOrder(expiresOn: DateTimeOffset.Now.AddMinutes(-1));
+			order.Payments.Add(new Payment { OrderId = order.Id, ProviderOrderId = "rev_1", Amount = 36m, Status = PaymentStatus.Pending, UpdatedOn = DateTimeOffset.Now });
+			db.ShopOrders.Add(order);
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+			var payments = TestUtils.CreateMockPaymentProvider();
+			payments.Setup(p => p.GetOrderAsync("rev_1", It.IsAny<CancellationToken>()))
+				.ReturnsAsync(new PaymentOrderResult { ProviderOrderId = "rev_1", Status = PaymentStatus.Authorised, RawState = "authorised" });
+			var controller = CreateController(db, payments);
+
+			var view = Assert.IsType<OrderStatusView>(Assert.IsType<OkObjectResult>(await controller.GetOrder(order.Id)).Value);
+
+			Assert.Equal(OrderStatus.AwaitingPayment, view.Status);
+			Assert.Equal(PaymentStatus.Authorised, view.PaymentStatus);
+			// The window is over, so the customer cannot start another payment while this one settles.
+			Assert.False(view.CanRetryPayment);
+		}
+
+		[Fact]
+		public async Task GetOrder_ExpiredOrderWhosePaymentIsStillPendingPastTheGracePeriod_IsCancelled()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var order = TestUtils.CreateShopOrder(expiresOn: DateTimeOffset.Now.AddMinutes(-20));
+			order.Payments.Add(new Payment { OrderId = order.Id, ProviderOrderId = "rev_1", Amount = 36m, Status = PaymentStatus.Pending, UpdatedOn = DateTimeOffset.Now });
+			db.ShopOrders.Add(order);
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+			var payments = TestUtils.CreateMockPaymentProvider();
+			payments.Setup(p => p.GetOrderAsync("rev_1", It.IsAny<CancellationToken>()))
+				.ReturnsAsync(new PaymentOrderResult { ProviderOrderId = "rev_1", Status = PaymentStatus.Pending, RawState = "pending" });
+			var controller = CreateController(db, payments, o => o.PendingPaymentGraceMinutes = 15);
+
+			var view = Assert.IsType<OrderStatusView>(Assert.IsType<OkObjectResult>(await controller.GetOrder(order.Id)).Value);
+
+			Assert.Equal(OrderStatus.Cancelled, view.Status);
+		}
 	}
 }

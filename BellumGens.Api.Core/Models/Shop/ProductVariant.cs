@@ -29,6 +29,14 @@ namespace BellumGens.Api.Core.Models
 		/// <summary>Null means stock is not tracked for this variant.</summary>
 		public int? StockQuantity { get; set; }
 
+		/// <summary>
+		/// Write-only: the stock the admin editor loaded. An update applies the change from this value instead of
+		/// overwriting the stock, so units that orders took or released while the editor was open are kept.
+		/// </summary>
+		[NotMapped]
+		[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+		public int? OriginalStockQuantity { get; set; }
+
 		public bool Active { get; set; } = true;
 
 		public int SortOrder { get; set; }

@@ -121,7 +121,7 @@ namespace BellumGens.Api.Controllers
 			entity.DiscountPercentage = product.DiscountPercentage;
 			entity.ImageUrl = product.ImageUrl;
 			entity.GalleryUrls = product.GalleryUrls ?? new List<string>();
-			entity.StockQuantity = product.StockQuantity;
+			entity.StockQuantity = MergeStock(entity.StockQuantity, product.OriginalStockQuantity, product.StockQuantity);
 			entity.Active = product.Active;
 			entity.SortOrder = product.SortOrder;
 			entity.UpdatedOn = DateTimeOffset.Now;
@@ -154,7 +154,7 @@ namespace BellumGens.Api.Controllers
 				existing.Size = match.Size;
 				existing.Sku = match.Sku;
 				existing.PriceOverride = match.PriceOverride;
-				existing.StockQuantity = match.StockQuantity;
+				existing.StockQuantity = MergeStock(existing.StockQuantity, match.OriginalStockQuantity, match.StockQuantity);
 				existing.Active = match.Active;
 				existing.SortOrder = match.SortOrder;
 			}
@@ -176,6 +176,11 @@ namespace BellumGens.Api.Controllers
 			try
 			{
 				await _dbContext.SaveChangesAsync();
+			}
+			catch (DbUpdateConcurrencyException)
+			{
+				// An order took or released stock between loading the product and saving it.
+				return Conflict("The product changed while it was being saved. Reload it and try again.");
 			}
 			catch (DbUpdateException e)
 			{
@@ -285,7 +290,8 @@ namespace BellumGens.Api.Controllers
 			{
 				return BadRequest(ModelState);
 			}
-			ShopOrder order = await _dbContext.ShopOrders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == id);
+			// The full order goes back to the admin grid, which replaces its row with it.
+			ShopOrder order = await _dbContext.ShopOrders.Include(o => o.Items).Include(o => o.Payments).FirstOrDefaultAsync(o => o.Id == id);
 			if (order == null)
 			{
 				return NotFound();
@@ -308,7 +314,8 @@ namespace BellumGens.Api.Controllers
 		[HttpPost("orders/{id:guid}/refund")]
 		public async Task<IActionResult> RefundOrder(Guid id)
 		{
-			ShopOrder order = await _dbContext.ShopOrders.Include(o => o.Payments).FirstOrDefaultAsync(o => o.Id == id);
+			// The full order goes back to the admin grid, which replaces its row with it.
+			ShopOrder order = await _dbContext.ShopOrders.Include(o => o.Items).Include(o => o.Payments).FirstOrDefaultAsync(o => o.Id == id);
 			if (order == null)
 			{
 				return NotFound();
@@ -494,6 +501,20 @@ namespace BellumGens.Api.Controllers
 				}
 			}
 			return slug.Length == 0 ? Guid.NewGuid().ToString("N")[..8] : slug.ToString();
+		}
+
+		/// <summary>
+		/// Applies an admin's stock edit as a change from the stock the editor loaded, so units that orders took or
+		/// released while the editor was open are kept. Starting or stopping tracking, or a client that does not send
+		/// the loaded stock, sets the value as given. Never goes below zero.
+		/// </summary>
+		public static int? MergeStock(int? current, int? loaded, int? desired)
+		{
+			if (desired == null || current == null || loaded == null)
+			{
+				return desired;
+			}
+			return Math.Max(0, current.Value + desired.Value - loaded.Value);
 		}
 
 		public static string VariantName(ProductVariant variant)

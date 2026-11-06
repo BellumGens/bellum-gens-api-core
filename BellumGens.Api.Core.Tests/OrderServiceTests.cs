@@ -112,7 +112,8 @@ namespace BellumGens.Api.Core.Tests
 
 			var quote = await service.QuoteAsync(new QuoteRequest { Lines = new List<CartLineRequest> { Line(product) }, PromoCode = "PROMO" }, TestContext.Current.CancellationToken);
 
-			Assert.True(quote.IsValid);
+			// A code the customer entered that does not apply blocks checkout until they remove it.
+			Assert.False(quote.IsValid);
 			Assert.False(quote.PromoApplied);
 			Assert.Equal("Promo code has expired.", quote.PromoProblem);
 			Assert.Equal(0m, quote.DiscountTotal);
@@ -567,6 +568,97 @@ namespace BellumGens.Api.Core.Tests
 			Assert.Contains("/en/shop/order/", en.Body);
 			Assert.Contains("2 × Umbrella", en.Body);
 			Assert.Contains("36.00 EUR", en.Body);
+		}
+
+		[Fact]
+		public async Task Quote_WithoutPromo_IsValid()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var product = TestUtils.CreateProduct("Umbrella", 20m);
+			db.Products.Add(product);
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+			var service = TestUtils.CreateOrderService(db);
+
+			var quote = await service.QuoteAsync(new QuoteRequest { Lines = new List<CartLineRequest> { Line(product) } }, TestContext.Current.CancellationToken);
+
+			Assert.True(quote.IsValid);
+		}
+
+		[Fact]
+		public async Task CreateOrder_EventPickup_StoresNoAddress()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var product = TestUtils.CreateProduct("Umbrella", 20m);
+			db.Products.Add(product);
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+			var service = TestUtils.CreateOrderService(db);
+			var request = TestUtils.CreateOrderRequest(Line(product));
+			request.DeliveryMethod = DeliveryMethod.EventPickup;
+			request.City = null;
+			request.StreetAddress = "  typed by mistake  ";
+
+			var order = await service.CreateOrderAsync(request, null, TestContext.Current.CancellationToken);
+
+			Assert.Equal(DeliveryMethod.EventPickup, order.DeliveryMethod);
+			Assert.Null(order.City);
+			Assert.Null(order.StreetAddress);
+			Assert.Null(order.PostalCode);
+		}
+
+		[Theory]
+		[InlineData(DeliveryMethod.Courier, null, "bul. Vitosha 1", false)]
+		[InlineData(DeliveryMethod.Courier, "Sofia", "  ", false)]
+		[InlineData(DeliveryMethod.Courier, "Sofia", "bul. Vitosha 1", true)]
+		[InlineData(DeliveryMethod.EventPickup, null, null, true)]
+		public void CreateOrderRequest_RequiresAnAddressOnlyForCourierDelivery(DeliveryMethod method, string? city, string? street, bool valid)
+		{
+			var request = TestUtils.CreateOrderRequest(new CartLineRequest { ProductId = Guid.NewGuid() });
+			request.DeliveryMethod = method;
+			request.City = city;
+			request.StreetAddress = street;
+			var results = new List<System.ComponentModel.DataAnnotations.ValidationResult>();
+
+			bool isValid = System.ComponentModel.DataAnnotations.Validator.TryValidateObject(
+				request, new System.ComponentModel.DataAnnotations.ValidationContext(request), results, validateAllProperties: true);
+
+			Assert.Equal(valid, isValid);
+		}
+
+		[Theory]
+		[InlineData(PaymentStatus.Pending, -5, true)]
+		[InlineData(PaymentStatus.Authorised, -14, true)]
+		[InlineData(PaymentStatus.Pending, -16, false)]
+		[InlineData(PaymentStatus.Failed, -5, false)]
+		[InlineData(PaymentStatus.Cancelled, -5, false)]
+		public void IsPaymentInProgress_HoldsAnExpiredOrderOnlyWhileTheProviderIsStillTakingThePayment(PaymentStatus status, int expiredMinutesAgo, bool expected)
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var service = TestUtils.CreateOrderService(db, configure: o => o.PendingPaymentGraceMinutes = 15);
+			var now = DateTimeOffset.Now;
+			var order = TestUtils.CreateShopOrder(expiresOn: now.AddMinutes(expiredMinutesAgo));
+
+			Assert.Equal(expected, service.IsPaymentInProgress(order, status, now));
+		}
+
+		[Fact]
+		public async Task ApplyPaymentStatus_CompletedOnACancelledOrderWhoseStockIsGone_LeavesANoteToRefundIt()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var product = TestUtils.CreateProduct("Umbrella", 15m, stock: 0);
+			db.Products.Add(product);
+			var order = TestUtils.CreateShopOrder(OrderStatus.Cancelled);
+			order.Items.Add(new OrderItem { ProductId = product.Id, ProductName = product.Name, UnitPrice = 15m, Quantity = 2, LineTotal = 30m });
+			var payment = new Payment { OrderId = order.Id, ProviderOrderId = "rev_late", Amount = 36m, Status = PaymentStatus.Pending };
+			order.Payments.Add(payment);
+			db.ShopOrders.Add(order);
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+			var service = TestUtils.CreateOrderService(db);
+
+			await service.ApplyPaymentStatusAsync(payment, PaymentStatus.Completed, "ORDER_COMPLETED", null, TestContext.Current.CancellationToken);
+
+			Assert.Equal(OrderStatus.Cancelled, order.Status);
+			Assert.Equal(PaymentStatus.Completed, payment.Status);
+			Assert.Contains("Refund it", order.AdminNote);
 		}
 	}
 }

@@ -27,6 +27,12 @@ namespace BellumGens.Api.Core.Providers
 		/// <summary>Admin transition (ship, deliver, cancel). Throws <see cref="ShopValidationException"/> on an illegal transition.</summary>
 		Task<ShopOrder> UpdateStatusAsync(ShopOrder order, OrderStatusUpdate update, CancellationToken cancellationToken = default);
 
+		/// <summary>
+		/// Whether an expired unpaid order must still wait for its payment: the provider reports it as pending or
+		/// authorised and the grace period after the payment window has not run out.
+		/// </summary>
+		bool IsPaymentInProgress(ShopOrder order, PaymentStatus status, DateTimeOffset now);
+
 		/// <summary>Marks a paid order refunded after the provider accepted the refund.</summary>
 		Task MarkRefundedAsync(ShopOrder order, CancellationToken cancellationToken = default);
 	}

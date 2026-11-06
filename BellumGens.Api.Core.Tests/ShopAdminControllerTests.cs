@@ -420,5 +420,121 @@ namespace BellumGens.Api.Core.Tests
 			Assert.Equal(8, slug.Length);
 			Assert.Matches("^[a-f0-9]+$", slug);
 		}
+
+		[Fact]
+		public void Product_WithoutSlug_PassesModelValidation()
+		{
+			// The editor leaves the slug blank for the server to generate; [ApiController] must not reject that with a 400.
+			var product = new Product { Name = "Umbrella", Price = 10m };
+			var results = new List<System.ComponentModel.DataAnnotations.ValidationResult>();
+
+			bool valid = System.ComponentModel.DataAnnotations.Validator.TryValidateObject(
+				product, new System.ComponentModel.DataAnnotations.ValidationContext(product), results, validateAllProperties: true);
+
+			Assert.True(valid, string.Join(" ", results.Select(r => r.ErrorMessage)));
+		}
+
+		[Fact]
+		public void Product_FromAnEditorBodyWithoutId_Deserializes()
+		{
+			const string json = """{"name":"Umbrella","slug":"","price":10,"variants":[{"id":"00000000-0000-0000-0000-000000000000","name":"Default","stockQuantity":3}]}""";
+
+			var product = System.Text.Json.JsonSerializer.Deserialize<Product>(json, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+
+			Assert.NotNull(product);
+			Assert.Equal(Guid.Empty, product!.Id);
+			Assert.Equal(3, Assert.Single(product.Variants).StockQuantity);
+		}
+
+		[Theory]
+		[InlineData(7, 10, 10, 7)]      // only other fields edited: orders that took 3 units keep them
+		[InlineData(7, 10, 15, 12)]     // restocked by 5 while orders took 3
+		[InlineData(7, 10, 2, 0)]       // a correction below what orders already took does not go negative
+		[InlineData(7, null, 15, 15)]   // a client that does not send the loaded stock sets it as given
+		[InlineData(null, null, 5, 5)]  // starts tracking stock
+		[InlineData(7, 10, null, null)] // stops tracking stock
+		public void MergeStock_AppliesTheEditAsAChangeFromTheLoadedStock(int? current, int? loaded, int? desired, int? expected)
+		{
+			Assert.Equal(expected, ShopAdminController.MergeStock(current, loaded, desired));
+		}
+
+		[Fact]
+		public async Task UpdateProduct_KeepsStockThatOrdersTookWhileTheEditorWasOpen()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var jersey = TestUtils.CreateJersey();
+			db.Products.Add(jersey);
+			await db.SaveChangesAsync();
+			var maleL = jersey.Variants.First(v => v.Cut == JerseyCut.Male);
+			int loadedStock = maleL.StockQuantity!.Value;
+			var update = new Product
+			{
+				Name = jersey.Name,
+				Slug = jersey.Slug,
+				Description = "New description",
+				Price = jersey.Price,
+				Type = jersey.Type,
+				Brand = jersey.Brand,
+				Active = true,
+				Variants = jersey.Variants.Select(v => new ProductVariant
+				{
+					Id = v.Id,
+					Name = v.Name,
+					Cut = v.Cut,
+					Size = v.Size,
+					Active = v.Active,
+					StockQuantity = v.StockQuantity,
+					OriginalStockQuantity = v.StockQuantity
+				}).ToList()
+			};
+			maleL.StockQuantity = loadedStock - 3; // orders placed after the editor loaded the product
+			await db.SaveChangesAsync();
+			var controller = CreateController(db);
+
+			Assert.IsType<OkObjectResult>(await controller.UpdateProduct(jersey.Id, update));
+
+			Assert.Equal("New description", db.Products.Single(p => p.Id == jersey.Id).Description);
+			Assert.Equal(loadedStock - 3, db.ProductVariants.Single(v => v.Id == maleL.Id).StockQuantity);
+		}
+
+		[Fact]
+		public async Task UpdateOrderStatus_ReturnsTheOrderWithItsItemsAndPayments()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var order = TestUtils.CreateShopOrder(OrderStatus.Paid);
+			order.Items.Add(new OrderItem { ProductId = Guid.NewGuid(), ProductName = "Umbrella", UnitPrice = 15m, Quantity = 2, LineTotal = 30m });
+			order.Payments.Add(new Payment { OrderId = order.Id, ProviderOrderId = "rev_ok", Amount = 36m, Status = PaymentStatus.Completed });
+			db.ShopOrders.Add(order);
+			await db.SaveChangesAsync();
+			db.ChangeTracker.Clear();
+			var controller = CreateController(db);
+
+			var result = await controller.UpdateOrderStatus(order.Id, new OrderStatusUpdate { Status = OrderStatus.Shipped });
+
+			var saved = Assert.IsType<ShopOrder>(Assert.IsType<OkObjectResult>(result).Value);
+			Assert.Single(saved.Items);
+			Assert.Single(saved.Payments);
+		}
+
+		[Fact]
+		public async Task RefundOrder_ReturnsTheOrderWithItsItemsAndPayments()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var order = TestUtils.CreateShopOrder(OrderStatus.Paid);
+			order.Items.Add(new OrderItem { ProductId = Guid.NewGuid(), ProductName = "Umbrella", UnitPrice = 15m, Quantity = 2, LineTotal = 30m });
+			order.Payments.Add(new Payment { OrderId = order.Id, ProviderOrderId = "rev_ok", Amount = 36m, Status = PaymentStatus.Completed });
+			db.ShopOrders.Add(order);
+			await db.SaveChangesAsync();
+			db.ChangeTracker.Clear();
+			var payments = TestUtils.CreateMockPaymentProvider();
+			payments.Setup(p => p.RefundAsync("rev_ok", 3600, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+				.ReturnsAsync(new PaymentOrderResult { ProviderOrderId = "refund_1", Status = PaymentStatus.Completed });
+			var controller = CreateController(db, payments);
+
+			var saved = Assert.IsType<ShopOrder>(Assert.IsType<OkObjectResult>(await controller.RefundOrder(order.Id)).Value);
+
+			Assert.Single(saved.Items);
+			Assert.Single(saved.Payments);
+		}
 	}
 }

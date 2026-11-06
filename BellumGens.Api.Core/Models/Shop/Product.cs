@@ -14,8 +14,10 @@ namespace BellumGens.Api.Core.Models
 		[Required]
 		public string Name { get; set; }
 
-		/// <summary>URL-friendly unique identifier used by the storefront product page.</summary>
-		[Required]
+		/// <summary>
+		/// URL-friendly unique identifier used by the storefront product page. Optional on input: the admin
+		/// endpoints generate it from the name when it is left blank. Required in the database (see ConfigureShop).
+		/// </summary>
 		public string Slug { get; set; }
 
 		public string Description { get; set; }
@@ -38,6 +40,14 @@ namespace BellumGens.Api.Core.Models
 
 		/// <summary>Stock for products without variants. Null means stock is not tracked.</summary>
 		public int? StockQuantity { get; set; }
+
+		/// <summary>
+		/// Write-only: the stock the admin editor loaded. An update applies the change from this value instead of
+		/// overwriting the stock, so units that orders took or released while the editor was open are kept.
+		/// </summary>
+		[NotMapped]
+		[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+		public int? OriginalStockQuantity { get; set; }
 
 		public bool Active { get; set; } = true;
 

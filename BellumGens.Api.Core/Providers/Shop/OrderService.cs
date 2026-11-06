@@ -37,8 +37,8 @@ namespace BellumGens.Api.Core.Providers
 			List<Product> products = await LoadProductsAsync(request.Lines, cancellationToken);
 			QuoteResult quote = await BuildQuoteAsync(request, products, now, cancellationToken);
 
-			// A promo the customer typed but that does not apply must fail loudly, otherwise they pay more than they saw.
-			if (!quote.IsValid || (quote.PromoCode != null && !quote.PromoApplied))
+			// Also fails for a promo the customer typed but that does not apply, otherwise they pay more than they saw.
+			if (!quote.IsValid)
 			{
 				throw ShopValidationException.FromQuote(quote);
 			}
@@ -70,6 +70,7 @@ namespace BellumGens.Api.Core.Providers
 				promo.TimesUsed++;
 			}
 
+			bool courier = request.DeliveryMethod == DeliveryMethod.Courier;
 			ShopOrder order = new()
 			{
 				UserId = userId,
@@ -77,9 +78,10 @@ namespace BellumGens.Api.Core.Providers
 				FirstName = request.FirstName.Trim(),
 				LastName = request.LastName.Trim(),
 				PhoneNumber = request.PhoneNumber.Trim(),
-				City = request.City.Trim(),
-				StreetAddress = request.StreetAddress.Trim(),
-				PostalCode = request.PostalCode?.Trim(),
+				// An order picked up at an event has no delivery address.
+				City = courier ? request.City?.Trim() : null,
+				StreetAddress = courier ? request.StreetAddress?.Trim() : null,
+				PostalCode = courier ? request.PostalCode?.Trim() : null,
 				Country = string.IsNullOrWhiteSpace(request.Country) ? "BG" : request.Country.Trim().ToUpperInvariant(),
 				Language = NormalizeLanguage(request.Language),
 				PromoCode = quote.PromoApplied ? quote.PromoCode : null,
@@ -157,6 +159,11 @@ namespace BellumGens.Api.Core.Providers
 					{
 						_logger.LogWarning("Payment {PaymentId} completed for order {OrderNumber} which is already {Status}. Check for a double charge or refund it.",
 							payment.Id, order.OrderNumber, order.Status);
+						if (order.Status == OrderStatus.Cancelled)
+						{
+							// Shown to the admin, who can refund it from the orders grid.
+							order.AdminNote = "Payment completed after the order was cancelled and its stock was no longer available. Refund it.";
+						}
 					}
 					break;
 				case PaymentStatus.Authorised:
@@ -257,6 +264,12 @@ namespace BellumGens.Api.Core.Providers
 				await TrySendAsync(order, ShopEmailTemplates.OrderShipped(order, _options));
 			}
 			return order;
+		}
+
+		public bool IsPaymentInProgress(ShopOrder order, PaymentStatus status, DateTimeOffset now)
+		{
+			return status is PaymentStatus.Pending or PaymentStatus.Authorised
+				&& now < order.ExpiresOn.AddMinutes(Math.Max(0, _options.PendingPaymentGraceMinutes));
 		}
 
 		public async Task MarkRefundedAsync(ShopOrder order, CancellationToken cancellationToken = default)

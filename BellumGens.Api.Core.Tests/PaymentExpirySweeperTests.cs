@@ -84,10 +84,10 @@ namespace BellumGens.Api.Core.Tests
 		}
 
 		[Fact]
-		public async Task Sweep_PendingPaymentStillPendingAtProvider_Cancels()
+		public async Task Sweep_PendingPaymentStillPendingAtProviderPastTheGracePeriod_Cancels()
 		{
 			using var db = TestUtils.CreateInMemoryDbContext();
-			var order = TestUtils.CreateShopOrder(expiresOn: DateTimeOffset.Now.AddMinutes(-5));
+			var order = TestUtils.CreateShopOrder(expiresOn: DateTimeOffset.Now.AddMinutes(-(new ShopOptions().PendingPaymentGraceMinutes + 5)));
 			order.Payments.Add(new Payment { OrderId = order.Id, ProviderOrderId = "rev_1", Amount = 36m, Status = PaymentStatus.Pending });
 			db.ShopOrders.Add(order);
 			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -117,6 +117,30 @@ namespace BellumGens.Api.Core.Tests
 
 			Assert.Equal(0, cancelled);
 			Assert.Equal(OrderStatus.AwaitingPayment, order.Status);
+		}
+
+		[Theory]
+		[InlineData(PaymentStatus.Pending)]
+		[InlineData(PaymentStatus.Authorised)]
+		public async Task Sweep_PaymentStillInProgressAtProviderWithinTheGracePeriod_KeepsOrderAndStock(PaymentStatus remoteStatus)
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var product = TestUtils.CreateProduct("Umbrella", 15m, stock: 3);
+			db.Products.Add(product);
+			var order = TestUtils.CreateShopOrder(expiresOn: DateTimeOffset.Now.AddMinutes(-5));
+			order.Items.Add(new OrderItem { ProductId = product.Id, ProductName = product.Name, UnitPrice = 15m, Quantity = 2, LineTotal = 30m });
+			order.Payments.Add(new Payment { OrderId = order.Id, ProviderOrderId = "rev_1", Amount = 36m, Status = PaymentStatus.Pending });
+			db.ShopOrders.Add(order);
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+			var provider = TestUtils.CreateMockPaymentProvider();
+			provider.Setup(p => p.GetOrderAsync("rev_1", It.IsAny<CancellationToken>()))
+				.ReturnsAsync(new PaymentOrderResult { ProviderOrderId = "rev_1", Status = remoteStatus, RawState = "processing" });
+
+			int cancelled = await PaymentExpirySweeper.SweepAsync(db, TestUtils.CreateOrderService(db), provider.Object, DateTimeOffset.Now, Logger, CancellationToken.None);
+
+			Assert.Equal(0, cancelled);
+			Assert.Equal(OrderStatus.AwaitingPayment, order.Status);
+			Assert.Equal(3, product.StockQuantity);
 		}
 	}
 }

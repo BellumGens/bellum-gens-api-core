@@ -34,10 +34,9 @@ namespace BellumGens.Api.Core.Models
 		[Required]
 		public string PhoneNumber { get; set; }
 
-		[Required]
+		/// <summary>Delivery address; null for orders picked up at an event.</summary>
 		public string City { get; set; }
 
-		[Required]
 		public string StreetAddress { get; set; }
 
 		public string PostalCode { get; set; }

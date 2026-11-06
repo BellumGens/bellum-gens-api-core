@@ -256,7 +256,8 @@ namespace BellumGens.Api.Controllers
 
 		/// <summary>
 		/// Refreshes a pending payment from the provider when the webhook is late, and expires orders past their window.
-		/// An expired order with a pending payment is only cancelled once the provider confirms it was not paid.
+		/// An expired order with a pending payment is checked with the provider first, and kept while the provider still
+		/// reports the payment in progress (up to the grace period), so a payment completing at the last moment is honoured.
 		/// Returns the order as currently stored, which is a fresh copy when a webhook updated it concurrently.
 		/// </summary>
 		private async Task<ShopOrder> ReconcileAsync(ShopOrder order)
@@ -289,6 +290,10 @@ namespace BellumGens.Api.Controllers
 						return order;
 					}
 					await _orders.ApplyPaymentStatusAsync(latest, remote.Status, "RECONCILE:" + remote.RawState, null);
+					if (_orders.IsPaymentInProgress(order, remote.Status, now))
+					{
+						return order;
+					}
 				}
 				if (order.Status == OrderStatus.AwaitingPayment && expired)
 				{
@@ -308,9 +313,16 @@ namespace BellumGens.Api.Controllers
 		/// Opens a provider checkout for the order. The attempt is recorded, and the order's row version bumped, before the
 		/// provider is called: a concurrent retry either fails that claim with <see cref="DbUpdateConcurrencyException"/>
 		/// or finds this attempt as the active payment, so one order never gets two open checkouts.
+		/// The checkout stays open for the full payment window, so the order's hold is extended to cover it; otherwise a
+		/// retry late in the window would leave the customer paying for an order that expires under them.
 		/// </summary>
 		private async Task<OrderCreatedResponse> StartPaymentAsync(ShopOrder order)
 		{
+			DateTimeOffset checkoutCloses = DateTimeOffset.Now.AddMinutes(PaymentWindowMinutes);
+			if (order.ExpiresOn < checkoutCloses)
+			{
+				order.ExpiresOn = checkoutCloses;
+			}
 			Payment payment = new()
 			{
 				OrderId = order.Id,
@@ -357,9 +369,11 @@ namespace BellumGens.Api.Controllers
 				CustomerEmail = order.Email,
 				Reference = order.OrderNumber,
 				RedirectUrl = $"{_options.StorefrontUrl?.TrimEnd('/')}/{lang}/shop/order/{order.Id}",
-				ExpirePendingAfter = $"PT{Math.Max(1, _options.PaymentExpiryMinutes)}M"
+				ExpirePendingAfter = $"PT{PaymentWindowMinutes}M"
 			};
 		}
+
+		private int PaymentWindowMinutes => Math.Max(1, _options.PaymentExpiryMinutes);
 
 		private static OrderCreatedResponse ToResponse(ShopOrder order, Payment payment)
 		{

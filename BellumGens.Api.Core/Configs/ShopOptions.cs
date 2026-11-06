@@ -16,8 +16,17 @@ namespace BellumGens.Api.Core
 		/// <summary>Orders whose discounted subtotal reaches this amount ship for free.</summary>
 		public decimal FreeShippingThreshold { get; set; } = 50.00M;
 
-		/// <summary>How long an unpaid order holds its stock before the sweeper cancels it.</summary>
+		/// <summary>
+		/// How long an unpaid order holds its stock before the sweeper cancels it. Each payment attempt opens a
+		/// checkout for this long and extends the order's hold to match.
+		/// </summary>
 		public int PaymentExpiryMinutes { get; set; } = 60;
+
+		/// <summary>
+		/// How long past its payment window an order is still kept while the provider reports its payment as in
+		/// progress (pending or authorised), so a payment completing at the last moment is not cancelled under it.
+		/// </summary>
+		public int PendingPaymentGraceMinutes { get; set; } = 15;
 
 		public int MaxQuantityPerLine { get; set; } = 10;
 

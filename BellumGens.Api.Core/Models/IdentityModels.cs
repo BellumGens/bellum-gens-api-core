@@ -284,6 +284,10 @@ namespace BellumGens.Api.Core.Models
 						.HasPrecision(10, 2);
 
 			modelBuilder.Entity<Product>()
+						.Property(p => p.Slug)
+						.IsRequired();
+
+			modelBuilder.Entity<Product>()
 						.HasIndex(p => p.Slug)
 						.IsUnique();
 

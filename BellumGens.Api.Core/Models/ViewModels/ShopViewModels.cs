@@ -27,7 +27,7 @@ namespace BellumGens.Api.Core.Models
 		public DeliveryMethod DeliveryMethod { get; set; } = DeliveryMethod.Courier;
 	}
 
-	public class CreateOrderRequest : QuoteRequest
+	public class CreateOrderRequest : QuoteRequest, IValidatableObject
 	{
 		[Required]
 		[EmailAddress]
@@ -42,10 +42,10 @@ namespace BellumGens.Api.Core.Models
 		[Required]
 		public string PhoneNumber { get; set; }
 
-		[Required]
+		/// <summary>Required for courier delivery; ignored for event pickup.</summary>
 		public string City { get; set; }
 
-		[Required]
+		/// <summary>Required for courier delivery; ignored for event pickup.</summary>
 		public string StreetAddress { get; set; }
 
 		public string PostalCode { get; set; }
@@ -59,6 +59,22 @@ namespace BellumGens.Api.Core.Models
 
 		[Range(typeof(bool), "true", "true", ErrorMessage = "The terms and conditions must be accepted.")]
 		public bool AcceptedTerms { get; set; }
+
+		public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+		{
+			if (DeliveryMethod != DeliveryMethod.Courier)
+			{
+				yield break;
+			}
+			if (string.IsNullOrWhiteSpace(City))
+			{
+				yield return new ValidationResult("The City field is required for courier delivery.", new[] { nameof(City) });
+			}
+			if (string.IsNullOrWhiteSpace(StreetAddress))
+			{
+				yield return new ValidationResult("The StreetAddress field is required for courier delivery.", new[] { nameof(StreetAddress) });
+			}
+		}
 	}
 
 	/// <summary>What the storefront may see about a promo code. Usage counters stay internal.</summary>
@@ -99,7 +115,11 @@ namespace BellumGens.Api.Core.Models
 		public bool PromoApplied { get; set; }
 		public string PromoProblem { get; set; }
 		public bool FreeShipping { get; set; }
-		public bool IsValid => Lines.Count > 0 && Lines.All(l => l.Problem == null);
+		/// <summary>
+		/// Whether an order can be placed from this quote: every line can be fulfilled and a promo code the customer
+		/// entered applies. A code that does not apply blocks the order, otherwise the customer would pay more than they expect.
+		/// </summary>
+		public bool IsValid => Lines.Count > 0 && Lines.All(l => l.Problem == null) && (PromoCode == null || PromoApplied);
 	}
 
 	public class OrderCreatedResponse
