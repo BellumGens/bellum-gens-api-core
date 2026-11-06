@@ -124,6 +124,61 @@ namespace BellumGens.Api.Core.Models
 		Zerg
 	}
 
+	// Shop
+
+	public enum ProductType
+	{
+		Jersey,
+		Umbrella,
+		Pen,
+		Pin,
+		Bracelet,
+		Other
+	}
+
+	public enum Brand
+	{
+		BellumGens,
+		EBLeague,
+		BGEStaraZagora
+	}
+
+	public enum OrderStatus
+	{
+		AwaitingPayment,
+		Paid,
+		Shipped,
+		Delivered,
+		Cancelled,
+		Refunded
+	}
+
+	public enum PaymentStatus
+	{
+		Pending,
+		Authorised,
+		Completed,
+		Failed,
+		Cancelled
+	}
+
+	public enum PaymentProvider
+	{
+		Revolut
+	}
+
+	public enum PaymentMethod
+	{
+		Revolut,
+		CashOnDelivery
+	}
+
+	public enum DeliveryMethod
+	{
+		Courier,
+		EventPickup
+	}
+
 	/// <summary>Serialized as the kebab-case strings the client uses ("draft", "in-progress", ...); stored as int.</summary>
 	[JsonConverter(typeof(JsonStringEnumConverter<TournamentStatus>))]
 	public enum TournamentStatus
