@@ -346,33 +346,6 @@ namespace BellumGens.Api.Controllers
 			return Ok(order);
 		}
 
-		[HttpGet("orders/export.csv")]
-		public async Task<IActionResult> ExportOrders(OrderStatus? status = null)
-		{
-			IQueryable<ShopOrder> query = _dbContext.ShopOrders.Include(o => o.Items);
-			if (status != null)
-			{
-				query = query.Where(o => o.Status == status);
-			}
-			List<ShopOrder> orders = await query.OrderByDescending(o => o.OrderDate).ToListAsync();
-
-			StringBuilder csv = new();
-			csv.AppendLine("OrderNumber,OrderDate,Status,FirstName,LastName,Email,Phone,City,Street,PostalCode,Country,Delivery,Items,Total,Currency,TrackingNumber");
-			foreach (ShopOrder order in orders)
-			{
-				string items = string.Join(" | ", order.Items.OrderBy(i => i.Id).Select(i =>
-					$"{i.Quantity}x {i.ProductName}{(string.IsNullOrEmpty(i.VariantName) ? "" : $" ({i.VariantName})")}"));
-				csv.AppendLine(string.Join(",",
-					Csv(order.OrderNumber), Csv(order.OrderDate.ToString("yyyy-MM-dd HH:mm")), Csv(order.Status.ToString()),
-					Csv(order.FirstName), Csv(order.LastName), Csv(order.Email), Csv(order.PhoneNumber),
-					Csv(order.City), Csv(order.StreetAddress), Csv(order.PostalCode), Csv(order.Country),
-					Csv(order.DeliveryMethod.ToString()), Csv(items), Csv(order.Total.ToString("0.00")), Csv(order.Currency),
-					Csv(order.TrackingNumber)));
-			}
-			byte[] bytes = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(csv.ToString())).ToArray();
-			return File(bytes, "text/csv", $"orders-{DateTime.UtcNow:yyyyMMdd}.csv");
-		}
-
 		// Promo codes
 
 		[HttpGet("promos")]
@@ -546,17 +519,6 @@ namespace BellumGens.Api.Controllers
 		private void InvalidateCatalogCache()
 		{
 			_cache.Remove(ShopController.ProductsCacheKey);
-		}
-
-		private static string Csv(string value)
-		{
-			if (string.IsNullOrEmpty(value))
-			{
-				return "";
-			}
-			return value.Contains(',') || value.Contains('"') || value.Contains('\n')
-				? "\"" + value.Replace("\"", "\"\"") + "\""
-				: value;
 		}
 	}
 }

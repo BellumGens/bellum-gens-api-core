@@ -317,28 +317,6 @@ namespace BellumGens.Api.Core.Tests
 		}
 
 		[Fact]
-		public async Task ExportOrders_ReturnsCsvWithHeaderAndRows()
-		{
-			using var db = TestUtils.CreateInMemoryDbContext();
-			var order = TestUtils.CreateShopOrder(OrderStatus.Paid);
-			order.City = "Sofia, Center";
-			order.Items.Add(new OrderItem { ProductId = Guid.NewGuid(), ProductName = "Umbrella", VariantName = null, UnitPrice = 30m, Quantity = 1, LineTotal = 30m });
-			db.ShopOrders.Add(order);
-			await db.SaveChangesAsync();
-			var controller = CreateController(db);
-
-			var result = await controller.ExportOrders();
-
-			var file = Assert.IsType<FileContentResult>(result);
-			Assert.Equal("text/csv", file.ContentType);
-			string csv = System.Text.Encoding.UTF8.GetString(file.FileContents);
-			Assert.Contains("OrderNumber,OrderDate,Status", csv);
-			Assert.Contains(order.OrderNumber, csv);
-			Assert.Contains("\"Sofia, Center\"", csv);
-			Assert.Contains("1x Umbrella", csv);
-		}
-
-		[Fact]
 		public async Task CreatePromo_NormalizesCode_AndRejectsDuplicates()
 		{
 			using var db = TestUtils.CreateInMemoryDbContext();

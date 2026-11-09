@@ -12,15 +12,26 @@ namespace BellumGens.Api.Core.Providers
 		public static (string Subject, string Body) OrderConfirmation(ShopOrder order, ShopOptions options)
 		{
 			bool bg = IsBulgarian(order);
+			bool cashOnDelivery = order.PaymentMethod == PaymentMethod.CashOnDelivery;
 			string subject = bg
-				? $"Поръчка {order.OrderNumber} е платена успешно"
+				? (cashOnDelivery ? $"Поръчка {order.OrderNumber} е приета" : $"Поръчка {order.OrderNumber} е платена успешно")
 				: $"Order {order.OrderNumber} is confirmed";
 
 			StringBuilder body = new();
 			body.Append(Greeting(order, bg));
-			body.Append(bg
-				? $"<p>Получихме плащането за поръчка <b>{order.OrderNumber}</b>. Благодарим ви!</p>"
-				: $"<p>We received your payment for order <b>{order.OrderNumber}</b>. Thank you!</p>");
+			if (cashOnDelivery)
+			{
+				string total = Money(order.Total, order.Currency);
+				body.Append(bg
+					? $"<p>Получихме поръчка <b>{order.OrderNumber}</b>. Благодарим ви! Ще платите <b>{total}</b> на куриера при доставка (наложен платеж).</p>"
+					: $"<p>We received order <b>{order.OrderNumber}</b>. Thank you! You will pay <b>{total}</b> to the courier on delivery.</p>");
+			}
+			else
+			{
+				body.Append(bg
+					? $"<p>Получихме плащането за поръчка <b>{order.OrderNumber}</b>. Благодарим ви!</p>"
+					: $"<p>We received your payment for order <b>{order.OrderNumber}</b>. Thank you!</p>");
+			}
 			body.Append(order.DeliveryMethod == DeliveryMethod.EventPickup
 				? (bg ? "<p>Поръчката може да бъде получена на място на следващото ни събитие. Ще се свържем с вас за подробности.</p>"
 					  : "<p>Your order can be collected at our next event. We will contact you with the details.</p>")
@@ -54,6 +65,13 @@ namespace BellumGens.Api.Core.Providers
 				body.Append(bg
 					? $"<p>Номер за проследяване: <b>{Encode(order.TrackingNumber)}</b></p>"
 					: $"<p>Tracking number: <b>{Encode(order.TrackingNumber)}</b></p>");
+			}
+			if (order.PaymentMethod == PaymentMethod.CashOnDelivery)
+			{
+				string total = Money(order.Total, order.Currency);
+				body.Append(bg
+					? $"<p>Моля, подгответе <b>{total}</b> за куриера (наложен платеж).</p>"
+					: $"<p>Please have <b>{total}</b> ready for the courier, who collects the payment on delivery.</p>");
 			}
 			AppendSummary(body, order, bg);
 			AppendFooter(body, order, options, bg);

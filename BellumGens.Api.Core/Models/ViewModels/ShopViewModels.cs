@@ -60,10 +60,24 @@ namespace BellumGens.Api.Core.Models
 		[Range(typeof(bool), "true", "true", ErrorMessage = "The terms and conditions must be accepted.")]
 		public bool AcceptedTerms { get; set; }
 
+		/// <summary>Online with Revolut, or cash on delivery (courier delivery only).</summary>
+		[EnumDataType(typeof(PaymentMethod))]
+		public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.Revolut;
+
+		/// <summary>
+		/// The unpaid order placed earlier from the same cart, which this order replaces (e.g. after the customer switched
+		/// the payment method or changed their details). Its stock is released, so one cart never holds stock twice.
+		/// </summary>
+		public Guid? ReplacesOrderId { get; set; }
+
 		public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
 		{
 			if (DeliveryMethod != DeliveryMethod.Courier)
 			{
+				if (PaymentMethod == PaymentMethod.CashOnDelivery)
+				{
+					yield return new ValidationResult("Cash on delivery is only available for courier delivery.", new[] { nameof(PaymentMethod) });
+				}
 				yield break;
 			}
 			if (string.IsNullOrWhiteSpace(City))
@@ -155,6 +169,7 @@ namespace BellumGens.Api.Core.Models
 		public string PostalCode { get; set; }
 		public string Country { get; set; }
 		public DeliveryMethod DeliveryMethod { get; set; }
+		public PaymentMethod PaymentMethod { get; set; }
 		public DateTimeOffset OrderDate { get; set; }
 		public DateTimeOffset? PaidOn { get; set; }
 		public DateTimeOffset? ShippedOn { get; set; }
@@ -192,6 +207,7 @@ namespace BellumGens.Api.Core.Models
 				PostalCode = order.PostalCode,
 				Country = order.Country,
 				DeliveryMethod = order.DeliveryMethod,
+				PaymentMethod = order.PaymentMethod,
 				OrderDate = order.OrderDate,
 				PaidOn = order.PaidOn,
 				ShippedOn = order.ShippedOn,

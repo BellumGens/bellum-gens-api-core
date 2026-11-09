@@ -660,5 +660,235 @@ namespace BellumGens.Api.Core.Tests
 			Assert.Equal(PaymentStatus.Completed, payment.Status);
 			Assert.Contains("Refund it", order.AdminNote);
 		}
+
+		[Fact]
+		public async Task CreateOrder_CashOnDelivery_IsConfirmedReservesStockAndEmailsTheCustomer()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var product = TestUtils.CreateProduct("Umbrella", 15m, stock: 3);
+			db.Products.Add(product);
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+			var email = TestUtils.CreateMockEmailSender();
+			var service = TestUtils.CreateOrderService(db, email);
+			var request = TestUtils.CreateOrderRequest(Line(product, 2));
+			request.PaymentMethod = PaymentMethod.CashOnDelivery;
+			request.Language = "en";
+
+			var order = await service.CreateOrderAsync(request, null, TestContext.Current.CancellationToken);
+
+			Assert.Equal(OrderStatus.Confirmed, order.Status);
+			Assert.Equal(PaymentMethod.CashOnDelivery, order.PaymentMethod);
+			Assert.Null(order.PaidOn);
+			Assert.Equal(1, product.StockQuantity);
+			email.Verify(m => m.SendEmailAsync("customer@example.com", It.Is<string>(s => s.Contains("confirmed")), It.Is<string>(b => b.Contains("to the courier on delivery"))), Times.Once);
+		}
+
+		[Fact]
+		public async Task CreateOrder_Revolut_DoesNotEmailBeforePayment()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var product = TestUtils.CreateProduct("Umbrella", 15m);
+			db.Products.Add(product);
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+			var email = TestUtils.CreateMockEmailSender();
+			var service = TestUtils.CreateOrderService(db, email);
+
+			var order = await service.CreateOrderAsync(TestUtils.CreateOrderRequest(Line(product)), null, TestContext.Current.CancellationToken);
+
+			Assert.Equal(OrderStatus.AwaitingPayment, order.Status);
+			Assert.Equal(PaymentMethod.Revolut, order.PaymentMethod);
+			email.Verify(m => m.SendEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+		}
+
+		[Theory]
+		[InlineData(OrderStatus.Confirmed)]
+		[InlineData(OrderStatus.Shipped)]
+		public async Task UpdateStatus_CashOnDeliveryDelivered_MarksPaid(OrderStatus from)
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var order = TestUtils.CreateShopOrder(from);
+			order.PaymentMethod = PaymentMethod.CashOnDelivery;
+			db.ShopOrders.Add(order);
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+			var service = TestUtils.CreateOrderService(db);
+
+			await service.UpdateStatusAsync(order, new OrderStatusUpdate { Status = OrderStatus.Delivered }, TestContext.Current.CancellationToken);
+
+			Assert.Equal(OrderStatus.Delivered, order.Status);
+			Assert.NotNull(order.PaidOn);
+		}
+
+		[Fact]
+		public async Task UpdateStatus_CashOnDeliveryConfirmedToShipped_EmailsTheAmountToPay()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var order = TestUtils.CreateShopOrder(OrderStatus.Confirmed);
+			order.PaymentMethod = PaymentMethod.CashOnDelivery;
+			order.Language = "en";
+			db.ShopOrders.Add(order);
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+			var email = TestUtils.CreateMockEmailSender();
+			var service = TestUtils.CreateOrderService(db, email);
+
+			await service.UpdateStatusAsync(order, new OrderStatusUpdate { Status = OrderStatus.Shipped, TrackingNumber = "SPD9" }, TestContext.Current.CancellationToken);
+
+			Assert.Equal(OrderStatus.Shipped, order.Status);
+			Assert.NotNull(order.ShippedOn);
+			Assert.Null(order.PaidOn);
+			email.Verify(m => m.SendEmailAsync("customer@example.com", It.Is<string>(s => s.Contains("shipped")), It.Is<string>(b => b.Contains("36.00 EUR</b> ready for the courier"))), Times.Once);
+		}
+
+		[Theory]
+		[InlineData(OrderStatus.Confirmed)]
+		[InlineData(OrderStatus.Shipped)]
+		public async Task UpdateStatus_CashOnDeliveryCancelled_ReleasesStock(OrderStatus from)
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var umbrella = TestUtils.CreateProduct("Umbrella", 15m, stock: 0);
+			db.Products.Add(umbrella);
+			var order = TestUtils.CreateShopOrder(from);
+			order.PaymentMethod = PaymentMethod.CashOnDelivery;
+			order.Items.Add(new OrderItem { ProductId = umbrella.Id, ProductName = umbrella.Name, UnitPrice = 15m, Quantity = 2, LineTotal = 30m });
+			db.ShopOrders.Add(order);
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+			var service = TestUtils.CreateOrderService(db);
+
+			await service.UpdateStatusAsync(order, new OrderStatusUpdate { Status = OrderStatus.Cancelled }, TestContext.Current.CancellationToken);
+
+			Assert.Equal(OrderStatus.Cancelled, order.Status);
+			Assert.Equal(2, umbrella.StockQuantity);
+		}
+
+		[Fact]
+		public async Task UpdateStatus_PaidOnlineShippedOrder_CannotBeCancelled()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var order = TestUtils.CreateShopOrder(OrderStatus.Shipped);
+			db.ShopOrders.Add(order);
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+			var service = TestUtils.CreateOrderService(db);
+
+			await Assert.ThrowsAsync<ShopValidationException>(() => service.UpdateStatusAsync(order, new OrderStatusUpdate { Status = OrderStatus.Cancelled }, TestContext.Current.CancellationToken));
+
+			Assert.Equal(OrderStatus.Shipped, order.Status);
+		}
+
+		[Fact]
+		public async Task CreateOrder_ReplacingAnUnpaidOrder_ReleasesItsStockAndPromoForTheNewOne()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			// The last unit and the last use of the code: the new order only fits once the old one lets go of them.
+			var umbrella = TestUtils.CreateProduct("Umbrella", 15m, stock: 1);
+			var promo = new Promo { Code = "ONCE", Discount = 0.1m, UsageLimit = 1 };
+			db.Products.Add(umbrella);
+			db.PromoCodes.Add(promo);
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+			var service = TestUtils.CreateOrderService(db);
+			var request = TestUtils.CreateOrderRequest(Line(umbrella));
+			request.PromoCode = "ONCE";
+			var first = await service.CreateOrderAsync(request, null, TestContext.Current.CancellationToken);
+
+			request.PaymentMethod = PaymentMethod.CashOnDelivery;
+			request.ReplacesOrderId = first.Id;
+			request.Email = " CUSTOMER@example.com ";
+			var second = await service.CreateOrderAsync(request, null, TestContext.Current.CancellationToken);
+
+			Assert.Equal(OrderStatus.Cancelled, first.Status);
+			Assert.Equal($"Replaced by order {second.OrderNumber}.", first.AdminNote);
+			Assert.Equal(OrderStatus.Confirmed, second.Status);
+			Assert.True(second.DiscountTotal > 0);
+			Assert.Equal(0, umbrella.StockQuantity);
+			Assert.Equal(1, promo.TimesUsed);
+		}
+
+		[Fact]
+		public async Task CreateOrder_ReplacementThatFails_LeavesTheOldOrderHoldingItsStock()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var umbrella = TestUtils.CreateProduct("Umbrella", 15m, stock: 1);
+			db.Products.Add(umbrella);
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+			var service = TestUtils.CreateOrderService(db);
+			var first = await service.CreateOrderAsync(TestUtils.CreateOrderRequest(Line(umbrella)), null, TestContext.Current.CancellationToken);
+			var request = TestUtils.CreateOrderRequest(Line(umbrella, 2));
+			request.ReplacesOrderId = first.Id;
+
+			await Assert.ThrowsAsync<ShopValidationException>(() => service.CreateOrderAsync(request, null, TestContext.Current.CancellationToken));
+
+			// Nothing was saved: the stored order still awaits payment and still holds the unit.
+			db.ChangeTracker.Clear();
+			Assert.Equal(OrderStatus.AwaitingPayment, db.ShopOrders.Single(o => o.Id == first.Id).Status);
+			Assert.Equal(0, db.Products.Single(p => p.Id == umbrella.Id).StockQuantity);
+			Assert.Single(db.ShopOrders);
+		}
+
+		[Theory]
+		[InlineData("other-email")]
+		[InlineData("paid")]
+		[InlineData("payment-authorised")]
+		public async Task CreateOrder_DoesNotReplaceAnOrderItShouldNotTouch(string kind)
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var umbrella = TestUtils.CreateProduct("Umbrella", 15m, stock: 2);
+			db.Products.Add(umbrella);
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+			var service = TestUtils.CreateOrderService(db);
+			var first = await service.CreateOrderAsync(TestUtils.CreateOrderRequest(Line(umbrella)), null, TestContext.Current.CancellationToken);
+			var request = TestUtils.CreateOrderRequest(Line(umbrella));
+			request.ReplacesOrderId = first.Id;
+			var expected = OrderStatus.AwaitingPayment;
+			switch (kind)
+			{
+				case "other-email":
+					request.Email = "someone.else@example.com";
+					break;
+				case "paid":
+					first.Status = OrderStatus.Paid;
+					expected = OrderStatus.Paid;
+					break;
+				case "payment-authorised":
+					first.Payments.Add(new Payment { OrderId = first.Id, ProviderOrderId = "rev_1", Amount = 21m, Status = PaymentStatus.Authorised });
+					break;
+			}
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+			await service.CreateOrderAsync(request, null, TestContext.Current.CancellationToken);
+
+			Assert.Equal(expected, first.Status);
+			Assert.Equal(0, umbrella.StockQuantity);
+		}
+
+		[Fact]
+		public async Task CreateOrder_ReplacingAnUnknownOrder_PlacesTheOrder()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var umbrella = TestUtils.CreateProduct("Umbrella", 15m, stock: 1);
+			db.Products.Add(umbrella);
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+			var service = TestUtils.CreateOrderService(db);
+			var request = TestUtils.CreateOrderRequest(Line(umbrella));
+			request.ReplacesOrderId = Guid.NewGuid();
+
+			var order = await service.CreateOrderAsync(request, null, TestContext.Current.CancellationToken);
+
+			Assert.Equal(OrderStatus.AwaitingPayment, order.Status);
+			Assert.Equal(0, umbrella.StockQuantity);
+		}
+
+		[Theory]
+		[InlineData(DeliveryMethod.Courier, true)]
+		[InlineData(DeliveryMethod.EventPickup, false)]
+		public void CreateOrderRequest_CashOnDeliveryOnlyForCourierDelivery(DeliveryMethod method, bool valid)
+		{
+			var request = TestUtils.CreateOrderRequest(new CartLineRequest { ProductId = Guid.NewGuid() });
+			request.DeliveryMethod = method;
+			request.PaymentMethod = PaymentMethod.CashOnDelivery;
+			var results = new List<System.ComponentModel.DataAnnotations.ValidationResult>();
+
+			bool isValid = System.ComponentModel.DataAnnotations.Validator.TryValidateObject(
+				request, new System.ComponentModel.DataAnnotations.ValidationContext(request), results, validateAllProperties: true);
+
+			Assert.Equal(valid, isValid);
+		}
 	}
 }

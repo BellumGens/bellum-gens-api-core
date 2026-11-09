@@ -12,7 +12,10 @@ namespace BellumGens.Api.Core.Providers
 		/// <summary>Prices a cart without touching stock.</summary>
 		Task<QuoteResult> QuoteAsync(QuoteRequest request, CancellationToken cancellationToken = default);
 
-		/// <summary>Validates, prices and saves an order in AwaitingPayment, reserving stock. Throws <see cref="ShopValidationException"/>.</summary>
+		/// <summary>
+		/// Validates, prices and saves an order, reserving stock: in AwaitingPayment when paid online, or Confirmed (and
+		/// confirmed by email) when paid in cash on delivery. Throws <see cref="ShopValidationException"/>.
+		/// </summary>
 		Task<ShopOrder> CreateOrderAsync(CreateOrderRequest request, string userId, CancellationToken cancellationToken = default);
 
 		/// <summary>

@@ -202,6 +202,103 @@ namespace BellumGens.Api.Core.Tests
 		}
 
 		[Fact]
+		public async Task CreateOrder_CashOnDelivery_ConfirmsWithoutStartingAPayment()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var product = TestUtils.CreateProduct("Umbrella", 15m, stock: 5);
+			db.Products.Add(product);
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+			// Cash on delivery does not need the payment provider, even when it is not configured.
+			var payments = TestUtils.CreateMockPaymentProvider(configured: false);
+			var controller = CreateController(db, payments);
+			var request = TestUtils.CreateOrderRequest(Line(product, 2));
+			request.PaymentMethod = PaymentMethod.CashOnDelivery;
+
+			var result = await controller.CreateOrder(request);
+
+			var response = Assert.IsType<OrderCreatedResponse>(Assert.IsType<OkObjectResult>(result).Value);
+			Assert.Null(response.CheckoutUrl);
+			Assert.Equal(36m, response.Total);
+			var order = Assert.Single(db.ShopOrders);
+			Assert.Equal(order.Id, response.OrderId);
+			Assert.Equal(OrderStatus.Confirmed, order.Status);
+			Assert.Equal(PaymentMethod.CashOnDelivery, order.PaymentMethod);
+			Assert.Empty(db.Payments);
+			Assert.Equal(3, product.StockQuantity);
+			payments.Verify(p => p.CreateOrderAsync(It.IsAny<PaymentOrderRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+		}
+
+		[Fact]
+		public async Task CreateOrder_ReplacingAnOrderWhosePaymentWentThrough_KeepsItPaid()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var product = TestUtils.CreateProduct("Umbrella", 15m, stock: 5);
+			db.Products.Add(product);
+			var previous = TestUtils.CreateShopOrder();
+			previous.Items.Add(new OrderItem { ProductId = product.Id, ProductName = product.Name, UnitPrice = 15m, Quantity = 1, LineTotal = 15m });
+			previous.Payments.Add(new Payment { OrderId = previous.Id, ProviderOrderId = "rev_old", Amount = 36m, UpdatedOn = DateTimeOffset.Now.AddMinutes(-2) });
+			db.ShopOrders.Add(previous);
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+			var payments = TestUtils.CreateMockPaymentProvider();
+			payments.Setup(p => p.GetOrderAsync("rev_old", It.IsAny<CancellationToken>()))
+				.ReturnsAsync(new PaymentOrderResult { ProviderOrderId = "rev_old", Status = PaymentStatus.Completed, RawState = "completed" });
+			var controller = CreateController(db, payments);
+			var request = TestUtils.CreateOrderRequest(Line(product));
+			request.PaymentMethod = PaymentMethod.CashOnDelivery;
+			request.ReplacesOrderId = previous.Id;
+
+			Assert.IsType<OkObjectResult>(await controller.CreateOrder(request));
+
+			Assert.Equal(OrderStatus.Paid, previous.Status);
+			Assert.Equal(2, db.ShopOrders.Count());
+		}
+
+		[Fact]
+		public async Task CreateOrder_ReplacingAnAbandonedCheckout_CancelsTheOldOrder()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var product = TestUtils.CreateProduct("Umbrella", 15m, stock: 1);
+			db.Products.Add(product);
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+			var payments = TestUtils.CreateMockPaymentProvider();
+			payments.Setup(p => p.CreateOrderAsync(It.IsAny<PaymentOrderRequest>(), It.IsAny<CancellationToken>()))
+				.ReturnsAsync(new PaymentOrderResult { ProviderOrderId = "rev_1", CheckoutUrl = "https://checkout.revolut.com/x", Status = PaymentStatus.Pending });
+			payments.Setup(p => p.GetOrderAsync("rev_1", It.IsAny<CancellationToken>()))
+				.ReturnsAsync(new PaymentOrderResult { ProviderOrderId = "rev_1", Status = PaymentStatus.Pending, RawState = "pending" });
+			var controller = CreateController(db, payments);
+			var first = Assert.IsType<OrderCreatedResponse>(Assert.IsType<OkObjectResult>(await controller.CreateOrder(TestUtils.CreateOrderRequest(Line(product)))).Value);
+			var request = TestUtils.CreateOrderRequest(Line(product));
+			request.PaymentMethod = PaymentMethod.CashOnDelivery;
+			request.ReplacesOrderId = first.OrderId;
+
+			var second = Assert.IsType<OrderCreatedResponse>(Assert.IsType<OkObjectResult>(await controller.CreateOrder(request)).Value);
+
+			Assert.Equal(OrderStatus.Cancelled, db.ShopOrders.Single(o => o.Id == first.OrderId).Status);
+			Assert.Equal(OrderStatus.Confirmed, db.ShopOrders.Single(o => o.Id == second.OrderId).Status);
+			Assert.Equal(0, product.StockQuantity);
+		}
+
+		[Fact]
+		public async Task GetOrder_CashOnDelivery_CannotBePaidOnline()
+		{
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var order = TestUtils.CreateShopOrder(OrderStatus.Confirmed, expiresOn: DateTimeOffset.Now.AddMinutes(-5));
+			order.PaymentMethod = PaymentMethod.CashOnDelivery;
+			db.ShopOrders.Add(order);
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+			var controller = CreateController(db);
+
+			var view = Assert.IsType<OrderStatusView>(Assert.IsType<OkObjectResult>(await controller.GetOrder(order.Id)).Value);
+
+			// Past its payment window, but a confirmed order is never expired.
+			Assert.Equal(OrderStatus.Confirmed, view.Status);
+			Assert.Equal(PaymentMethod.CashOnDelivery, view.PaymentMethod);
+			Assert.False(view.CanRetryPayment);
+			Assert.Null(view.CheckoutUrl);
+			Assert.IsType<ConflictObjectResult>(await controller.RetryPayment(order.Id));
+		}
+
+		[Fact]
 		public async Task CreateOrder_SoldOut_ReturnsConflictWithQuote()
 		{
 			using var db = TestUtils.CreateInMemoryDbContext();

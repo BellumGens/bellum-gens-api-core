@@ -34,6 +34,8 @@ namespace BellumGens.Api.Core.Providers
 		public async Task<ShopOrder> CreateOrderAsync(CreateOrderRequest request, string userId, CancellationToken cancellationToken = default)
 		{
 			DateTimeOffset now = DateTimeOffset.Now;
+			// Released before pricing, so the new order can take the stock and promo use the replaced one held.
+			ShopOrder replaced = await ReleaseReplacedOrderAsync(request, cancellationToken);
 			List<Product> products = await LoadProductsAsync(request.Lines, cancellationToken);
 			QuoteResult quote = await BuildQuoteAsync(request, products, now, cancellationToken);
 
@@ -71,6 +73,8 @@ namespace BellumGens.Api.Core.Providers
 			}
 
 			bool courier = request.DeliveryMethod == DeliveryMethod.Courier;
+			// The courier collects a cash on delivery order, so it is final once placed and never expires unpaid.
+			bool cashOnDelivery = courier && request.PaymentMethod == PaymentMethod.CashOnDelivery;
 			ShopOrder order = new()
 			{
 				UserId = userId,
@@ -91,8 +95,8 @@ namespace BellumGens.Api.Core.Providers
 				ShippingCost = quote.ShippingCost,
 				Total = quote.Total,
 				Currency = quote.Currency,
-				Status = OrderStatus.AwaitingPayment,
-				PaymentMethod = PaymentMethod.Revolut,
+				Status = cashOnDelivery ? OrderStatus.Confirmed : OrderStatus.AwaitingPayment,
+				PaymentMethod = cashOnDelivery ? PaymentMethod.CashOnDelivery : PaymentMethod.Revolut,
 				CustomerNote = request.CustomerNote?.Trim(),
 				OrderDate = now,
 				ExpiresOn = now.AddMinutes(Math.Max(1, _options.PaymentExpiryMinutes))
@@ -119,6 +123,15 @@ namespace BellumGens.Api.Core.Providers
 			catch (DbUpdateConcurrencyException)
 			{
 				throw new ShopValidationException("Stock or the promo code changed while placing the order. Please try again.");
+			}
+			if (replaced != null)
+			{
+				replaced.AdminNote = $"Replaced by order {order.OrderNumber}.";
+				await _db.SaveChangesAsync(cancellationToken);
+			}
+			if (cashOnDelivery)
+			{
+				await TrySendAsync(order, ShopEmailTemplates.OrderConfirmation(order, _options));
 			}
 			return order;
 		}
@@ -234,20 +247,34 @@ namespace BellumGens.Api.Core.Providers
 			}
 
 			bool shipped = false;
+			bool cashOnDelivery = order.PaymentMethod == PaymentMethod.CashOnDelivery;
 			if (update.Status != order.Status)
 			{
 				switch ((order.Status, update.Status))
 				{
 					case (OrderStatus.Paid, OrderStatus.Shipped):
+					case (OrderStatus.Confirmed, OrderStatus.Shipped):
 						order.Status = OrderStatus.Shipped;
 						order.ShippedOn = now;
 						shipped = true;
 						break;
 					case (OrderStatus.Paid, OrderStatus.Delivered):
 					case (OrderStatus.Shipped, OrderStatus.Delivered):
+					case (OrderStatus.Confirmed, OrderStatus.Delivered):
 						order.Status = OrderStatus.Delivered;
+						if (cashOnDelivery)
+						{
+							// The courier collected the payment on delivery.
+							order.PaidOn ??= now;
+						}
 						break;
 					case (OrderStatus.AwaitingPayment, OrderStatus.Cancelled):
+					case (OrderStatus.Confirmed, OrderStatus.Cancelled):
+						await ReleaseReservationsAsync(order, cancellationToken);
+						order.Status = OrderStatus.Cancelled;
+						break;
+					case (OrderStatus.Shipped, OrderStatus.Cancelled) when cashOnDelivery:
+						// The customer refused the parcel and the courier returned it unpaid; its items are back in stock.
 						await ReleaseReservationsAsync(order, cancellationToken);
 						order.Status = OrderStatus.Cancelled;
 						break;
@@ -452,6 +479,35 @@ namespace BellumGens.Api.Core.Providers
 			{
 				promo.TimesUsed--;
 			}
+		}
+
+		/// <summary>
+		/// Cancels the unpaid order the new one replaces and releases its stock and promo use. The change is saved together
+		/// with the new order, so a new order that fails validation leaves the old one as it was. Only an order still awaiting
+		/// payment, with no payment authorised or completed, and placed with the same email is replaced; anything else is
+		/// left alone (an order the customer did pay is honoured, an unrelated one expires on its own).
+		/// </summary>
+		private async Task<ShopOrder> ReleaseReplacedOrderAsync(CreateOrderRequest request, CancellationToken cancellationToken)
+		{
+			if (request.ReplacesOrderId == null)
+			{
+				return null;
+			}
+			ShopOrder previous = await _db.ShopOrders
+				.Include(o => o.Items)
+				.Include(o => o.Payments)
+				.FirstOrDefaultAsync(o => o.Id == request.ReplacesOrderId, cancellationToken);
+			if (previous == null
+				|| previous.Status != OrderStatus.AwaitingPayment
+				|| !string.Equals(previous.Email?.Trim(), request.Email?.Trim(), StringComparison.OrdinalIgnoreCase)
+				|| previous.Payments.Any(p => p.Status is PaymentStatus.Authorised or PaymentStatus.Completed))
+			{
+				return null;
+			}
+			await ReleaseReservationsAsync(previous, cancellationToken);
+			previous.Status = OrderStatus.Cancelled;
+			previous.AdminNote = "Replaced by a new order placed from the same cart.";
+			return previous;
 		}
 
 		/// <summary>Takes the stock and promo use of a cancelled order again. Changes nothing and returns false when the stock is gone.</summary>

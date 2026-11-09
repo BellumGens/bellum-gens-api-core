@@ -150,7 +150,9 @@ namespace BellumGens.Api.Core.Models
 		Shipped,
 		Delivered,
 		Cancelled,
-		Refunded
+		Refunded,
+		/// <summary>Placed with cash on delivery: nothing is paid online, the courier collects the payment.</summary>
+		Confirmed
 	}
 
 	public enum PaymentStatus

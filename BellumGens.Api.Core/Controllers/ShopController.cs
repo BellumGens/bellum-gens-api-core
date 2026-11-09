@@ -114,10 +114,17 @@ namespace BellumGens.Api.Controllers
 			{
 				return BadRequest(ModelState);
 			}
-			if (!_payments.IsConfigured)
+			bool payOnline = request.PaymentMethod != PaymentMethod.CashOnDelivery;
+			if (payOnline && !_payments.IsConfigured)
 			{
 				_logger.LogError("Order refused: the payment provider is not configured.");
 				return StatusCode(503, "Payments are temporarily unavailable.");
+			}
+
+			if (request.ReplacesOrderId is Guid replacesId && await LoadOrderAsync(replacesId) is ShopOrder previous)
+			{
+				// Picks up a payment that went through after all, so a paid order is never cancelled as replaced.
+				await ReconcileAsync(previous);
 			}
 
 			ApplicationUser user = await GetAuthUserOrNull();
@@ -129,6 +136,12 @@ namespace BellumGens.Api.Controllers
 			catch (ShopValidationException e)
 			{
 				return Conflict(new { problems = e.Problems, quote = e.Quote });
+			}
+
+			if (!payOnline)
+			{
+				// Paid to the courier on delivery: there is no checkout to open, the storefront shows the order instead.
+				return Ok(ToResponse(order, null));
 			}
 
 			OrderCreatedResponse response = await StartPaymentAsync(order);
@@ -383,8 +396,8 @@ namespace BellumGens.Api.Controllers
 				OrderNumber = order.OrderNumber,
 				Total = order.Total,
 				Currency = order.Currency,
-				CheckoutUrl = payment.CheckoutUrl,
-				PaymentToken = payment.ProviderToken,
+				CheckoutUrl = payment?.CheckoutUrl,
+				PaymentToken = payment?.ProviderToken,
 				ExpiresOn = order.ExpiresOn
 			};
 		}
