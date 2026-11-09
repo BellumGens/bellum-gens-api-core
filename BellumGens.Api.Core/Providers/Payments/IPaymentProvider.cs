@@ -16,7 +16,8 @@ namespace BellumGens.Api.Core.Providers
 
 		Task<PaymentOrderResult> GetOrderAsync(string providerOrderId, CancellationToken cancellationToken = default);
 
-		Task<PaymentOrderResult> RefundAsync(string providerOrderId, long amountMinor, string description, CancellationToken cancellationToken = default);
+		/// <summary>Refunds part or all of a completed order. Revolut requires the currency to match the original order.</summary>
+		Task<PaymentOrderResult> RefundAsync(string providerOrderId, long amountMinor, string currency, string description, CancellationToken cancellationToken = default);
 
 		Task<WebhookRegistrationResult> RegisterWebhookAsync(string url, CancellationToken cancellationToken = default);
 

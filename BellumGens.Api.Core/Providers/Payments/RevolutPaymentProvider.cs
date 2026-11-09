@@ -16,7 +16,7 @@ namespace BellumGens.Api.Core.Providers
 {
 	/// <summary>
 	/// Revolut Merchant API client. Orders: POST /api/orders, GET /api/orders/{id}, POST /api/orders/{id}/refund.
-	/// Webhooks: POST /api/1.0/webhooks. Signatures: HMAC-SHA256 over "v1.{timestamp}.{raw body}".
+	/// Webhooks: POST /api/webhooks (the path-versioned /api/1.0/webhooks is deprecated). Signatures: HMAC-SHA256 over "v1.{timestamp}.{raw body}".
 	/// </summary>
 	public class RevolutPaymentProvider : IPaymentProvider
 	{
@@ -93,10 +93,10 @@ namespace BellumGens.Api.Core.Providers
 			return Map(order);
 		}
 
-		public async Task<PaymentOrderResult> RefundAsync(string providerOrderId, long amountMinor, string description, CancellationToken cancellationToken = default)
+		public async Task<PaymentOrderResult> RefundAsync(string providerOrderId, long amountMinor, string currency, string description, CancellationToken cancellationToken = default)
 		{
 			EnsureConfigured();
-			var body = new RefundBody { Amount = amountMinor, Description = description };
+			var body = new RefundBody { Amount = amountMinor, Currency = currency, Description = description };
 			using HttpResponseMessage response = await _http.PostAsJsonAsync($"api/orders/{Uri.EscapeDataString(providerOrderId)}/refund", body, _json, cancellationToken);
 			OrderResponse refund = await ReadAsync<OrderResponse>(response, cancellationToken);
 			return Map(refund);
@@ -106,7 +106,7 @@ namespace BellumGens.Api.Core.Providers
 		{
 			EnsureConfigured();
 			var body = new WebhookBody { Url = url, Events = SubscribedEvents };
-			using HttpResponseMessage response = await _http.PostAsJsonAsync("api/1.0/webhooks", body, _json, cancellationToken);
+			using HttpResponseMessage response = await _http.PostAsJsonAsync("api/webhooks", body, _json, cancellationToken);
 			WebhookResponse created = await ReadAsync<WebhookResponse>(response, cancellationToken);
 			return new WebhookRegistrationResult
 			{
@@ -286,6 +286,7 @@ namespace BellumGens.Api.Core.Providers
 		private sealed class RefundBody
 		{
 			public long Amount { get; set; }
+			public string Currency { get; set; }
 			public string Description { get; set; }
 		}
 

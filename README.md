@@ -63,7 +63,7 @@ The API reads settings from `appsettings.json` / `appsettings.Development.json`.
 | `BlobService:ShopContainer` | Blob container for product images |
 | `shop:*` | Shop settings: `currency`, `shippingCost`, `freeShippingThreshold`, `paymentExpiryMinutes`, `maxQuantityPerLine`, `storefrontUrl`, `reconcileAfterSeconds` |
 | `revolut:baseUrl` | `https://sandbox-merchant.revolut.com` or `https://merchant.revolut.com` |
-| `revolut:apiVersion` | Merchant API version header, currently `2024-09-01` |
+| `revolut:apiVersion` | Merchant API version header, currently `2026-08-17` |
 | `revolut:secretKey` | Merchant API secret key. **Secret** — App Service settings or `dotnet user-secrets` only |
 | `revolut:webhookSigningSecret` | The `wsk_` secret returned by `POST api/shopadmin/payments/webhook`. **Secret** |
 

@@ -257,7 +257,7 @@ namespace BellumGens.Api.Core.Tests
 			db.ShopOrders.Add(order);
 			await db.SaveChangesAsync();
 			var payments = TestUtils.CreateMockPaymentProvider();
-			payments.Setup(p => p.RefundAsync("rev_ok", 3600, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+			payments.Setup(p => p.RefundAsync("rev_ok", 3600, "EUR", It.IsAny<string>(), It.IsAny<CancellationToken>()))
 				.ReturnsAsync(new PaymentOrderResult { ProviderOrderId = "refund_1", Status = PaymentStatus.Completed });
 			var controller = CreateController(db, payments);
 
@@ -265,7 +265,7 @@ namespace BellumGens.Api.Core.Tests
 
 			Assert.IsType<OkObjectResult>(result);
 			Assert.Equal(OrderStatus.Refunded, order.Status);
-			payments.Verify(p => p.RefundAsync("rev_ok", 3600, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+			payments.Verify(p => p.RefundAsync("rev_ok", 3600, "EUR", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
 		}
 
 		[Fact]
@@ -277,7 +277,7 @@ namespace BellumGens.Api.Core.Tests
 			db.ShopOrders.Add(order);
 			await db.SaveChangesAsync();
 			var payments = TestUtils.CreateMockPaymentProvider();
-			payments.Setup(p => p.RefundAsync("rev_late", 3600, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+			payments.Setup(p => p.RefundAsync("rev_late", 3600, "EUR", It.IsAny<string>(), It.IsAny<CancellationToken>()))
 				.ReturnsAsync(new PaymentOrderResult { ProviderOrderId = "refund_1", Status = PaymentStatus.Completed });
 			var controller = CreateController(db, payments);
 
@@ -306,7 +306,7 @@ namespace BellumGens.Api.Core.Tests
 			db.ShopOrders.Add(order);
 			await db.SaveChangesAsync();
 			var payments = TestUtils.CreateMockPaymentProvider();
-			payments.Setup(p => p.RefundAsync(It.IsAny<string>(), It.IsAny<long>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+			payments.Setup(p => p.RefundAsync(It.IsAny<string>(), It.IsAny<long>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
 				.ThrowsAsync(new PaymentProviderException("Revolut returned 422."));
 			var controller = CreateController(db, payments);
 
@@ -527,7 +527,7 @@ namespace BellumGens.Api.Core.Tests
 			await db.SaveChangesAsync();
 			db.ChangeTracker.Clear();
 			var payments = TestUtils.CreateMockPaymentProvider();
-			payments.Setup(p => p.RefundAsync("rev_ok", 3600, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+			payments.Setup(p => p.RefundAsync("rev_ok", 3600, "EUR", It.IsAny<string>(), It.IsAny<CancellationToken>()))
 				.ReturnsAsync(new PaymentOrderResult { ProviderOrderId = "refund_1", Status = PaymentStatus.Completed });
 			var controller = CreateController(db, payments);
 

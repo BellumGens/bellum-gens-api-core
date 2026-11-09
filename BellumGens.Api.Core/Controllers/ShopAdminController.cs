@@ -335,7 +335,7 @@ namespace BellumGens.Api.Controllers
 			}
 			try
 			{
-				await _payments.RefundAsync(completed.ProviderOrderId, ShopController.ToMinorUnits(completed.Amount), $"Refund for order {order.OrderNumber}");
+				await _payments.RefundAsync(completed.ProviderOrderId, ShopController.ToMinorUnits(completed.Amount), completed.Currency, $"Refund for order {order.OrderNumber}");
 			}
 			catch (Exception e)
 			{

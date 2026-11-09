@@ -13,7 +13,7 @@ namespace BellumGens.Api.Core
 
 		public string SecretKey { get; set; }
 
-		public string ApiVersion { get; set; } = "2024-09-01";
+		public string ApiVersion { get; set; } = "2026-08-17";
 
 		/// <summary>The wsk_ secret returned when the webhook was registered.</summary>
 		public string WebhookSigningSecret { get; set; }
