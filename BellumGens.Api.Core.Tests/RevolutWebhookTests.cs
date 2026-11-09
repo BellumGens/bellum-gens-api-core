@@ -164,11 +164,11 @@ namespace BellumGens.Api.Core.Tests
 			var order = TestUtils.CreateShopOrder();
 			order.Payments.Add(new Payment { OrderId = order.Id, ProviderOrderId = "rev_1", Amount = 36m });
 			db.ShopOrders.Add(order);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var controller = CreateController(db, TestUtils.CreateOrderService(db));
 			var now = DateTimeOffset.UtcNow;
 
-			var result = await controller.HandleAsync("{\"event\":\"ORDER_COMPLETED\",\"order_id\":\"rev_1\"}", "v1=00", Timestamp(now), now);
+			var result = await controller.HandleAsync("{\"event\":\"ORDER_COMPLETED\",\"order_id\":\"rev_1\"}", "v1=00", Timestamp(now), now, TestContext.Current.CancellationToken);
 
 			Assert.IsType<UnauthorizedResult>(result);
 			Assert.Equal(OrderStatus.AwaitingPayment, order.Status);
@@ -183,7 +183,7 @@ namespace BellumGens.Api.Core.Tests
 			var payment = new Payment { OrderId = order.Id, ProviderOrderId = "rev_1", Amount = 36m };
 			order.Payments.Add(payment);
 			db.ShopOrders.Add(order);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var email = TestUtils.CreateMockEmailSender();
 			var controller = CreateController(db, TestUtils.CreateOrderService(db, email));
 			var now = DateTimeOffset.UtcNow;
@@ -191,8 +191,8 @@ namespace BellumGens.Api.Core.Tests
 			string timestamp = Timestamp(now);
 			string signature = RevolutPaymentProvider.ComputeSignature(body, timestamp, Secret);
 
-			var first = await controller.HandleAsync(body, signature, timestamp, now);
-			var second = await controller.HandleAsync(body, signature, timestamp, now);
+			var first = await controller.HandleAsync(body, signature, timestamp, now, TestContext.Current.CancellationToken);
+			var second = await controller.HandleAsync(body, signature, timestamp, now, TestContext.Current.CancellationToken);
 
 			Assert.IsType<OkResult>(first);
 			Assert.IsType<OkResult>(second);
@@ -210,18 +210,18 @@ namespace BellumGens.Api.Core.Tests
 			var payment = new Payment { OrderId = order.Id, ProviderOrderId = "rev_1", Amount = 36m };
 			order.Payments.Add(payment);
 			db.ShopOrders.Add(order);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var controller = CreateController(db, TestUtils.CreateOrderService(db));
 			var now = DateTimeOffset.UtcNow;
 			string timestamp = Timestamp(now);
 
 			string authorised = "{\"event\":\"ORDER_AUTHORISED\",\"order_id\":\"rev_1\"}";
-			await controller.HandleAsync(authorised, RevolutPaymentProvider.ComputeSignature(authorised, timestamp, Secret), timestamp, now);
+			await controller.HandleAsync(authorised, RevolutPaymentProvider.ComputeSignature(authorised, timestamp, Secret), timestamp, now, TestContext.Current.CancellationToken);
 			Assert.Equal(PaymentStatus.Authorised, payment.Status);
 			Assert.Equal(OrderStatus.AwaitingPayment, order.Status);
 
 			string completed = "{\"event\":\"ORDER_COMPLETED\",\"order_id\":\"rev_1\"}";
-			await controller.HandleAsync(completed, RevolutPaymentProvider.ComputeSignature(completed, timestamp, Secret), timestamp, now);
+			await controller.HandleAsync(completed, RevolutPaymentProvider.ComputeSignature(completed, timestamp, Secret), timestamp, now, TestContext.Current.CancellationToken);
 			Assert.Equal(PaymentStatus.Completed, payment.Status);
 			Assert.Equal(OrderStatus.Paid, order.Status);
 		}
@@ -235,7 +235,7 @@ namespace BellumGens.Api.Core.Tests
 			string body = "{\"event\":\"ORDER_COMPLETED\",\"order_id\":\"rev_unknown\"}";
 			string timestamp = Timestamp(now);
 
-			var result = await controller.HandleAsync(body, RevolutPaymentProvider.ComputeSignature(body, timestamp, Secret), timestamp, now);
+			var result = await controller.HandleAsync(body, RevolutPaymentProvider.ComputeSignature(body, timestamp, Secret), timestamp, now, TestContext.Current.CancellationToken);
 
 			Assert.IsType<OkResult>(result);
 		}
@@ -249,7 +249,7 @@ namespace BellumGens.Api.Core.Tests
 			string body = "{not json";
 			string timestamp = Timestamp(now);
 
-			var result = await controller.HandleAsync(body, RevolutPaymentProvider.ComputeSignature(body, timestamp, Secret), timestamp, now);
+			var result = await controller.HandleAsync(body, RevolutPaymentProvider.ComputeSignature(body, timestamp, Secret), timestamp, now, TestContext.Current.CancellationToken);
 
 			Assert.IsType<BadRequestResult>(result);
 		}
@@ -262,14 +262,14 @@ namespace BellumGens.Api.Core.Tests
 			var payment = new Payment { OrderId = order.Id, ProviderOrderId = "rev_1", Amount = 36m };
 			order.Payments.Add(payment);
 			db.ShopOrders.Add(order);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var orders = new Mock<IOrderService>(MockBehavior.Strict);
 			var controller = CreateController(db, orders.Object);
 			var now = DateTimeOffset.UtcNow;
 			string body = "{\"event\":\"ORDER_PAYMENT_AUTHENTICATED\",\"order_id\":\"rev_1\"}";
 			string timestamp = Timestamp(now);
 
-			var result = await controller.HandleAsync(body, RevolutPaymentProvider.ComputeSignature(body, timestamp, Secret), timestamp, now);
+			var result = await controller.HandleAsync(body, RevolutPaymentProvider.ComputeSignature(body, timestamp, Secret), timestamp, now, TestContext.Current.CancellationToken);
 
 			Assert.IsType<OkResult>(result);
 			Assert.Equal("ORDER_PAYMENT_AUTHENTICATED", payment.LastEventType);
@@ -299,7 +299,7 @@ namespace BellumGens.Api.Core.Tests
 		{
 			var provider = new RevolutPaymentProvider(new HttpClient(), TestUtils.CreateRevolutOptions(secretKey: null), TestUtils.CreateMockLogger<RevolutPaymentProvider>().Object);
 
-			await Assert.ThrowsAsync<PaymentProviderException>(() => provider.CreateOrderAsync(new PaymentOrderRequest { AmountMinor = 100, Currency = "EUR" }));
+			await Assert.ThrowsAsync<PaymentProviderException>(() => provider.CreateOrderAsync(new PaymentOrderRequest { AmountMinor = 100, Currency = "EUR" }, TestContext.Current.CancellationToken));
 		}
 	}
 }
