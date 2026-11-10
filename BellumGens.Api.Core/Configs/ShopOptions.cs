@@ -8,6 +8,18 @@ namespace BellumGens.Api.Core
 		/// <summary>Name of the rate limiting policy applied to order creation.</summary>
 		public const string OrdersRateLimitPolicy = "shop-orders";
 
+		/// <summary>The only country the shop delivers to (ISO 3166-1 alpha-2).</summary>
+		public const string DeliveryCountry = "BG";
+
+		/// <summary>Shown when a delivery address outside <see cref="DeliveryCountry"/> is refused.</summary>
+		public const string DeliveryCountryMessage = "We currently deliver within Bulgaria only.";
+
+		/// <summary>Bulgarian postal codes have four digits.</summary>
+		public const string PostalCodePattern = @"^\d{4}$";
+
+		/// <summary>How many delivery addresses one customer can keep.</summary>
+		public const int MaxSavedAddresses = 10;
+
 		public string Currency { get; set; } = "EUR";
 
 		/// <summary>Courier fee charged below the free shipping threshold.</summary>

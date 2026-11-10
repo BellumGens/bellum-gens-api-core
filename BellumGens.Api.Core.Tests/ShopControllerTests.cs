@@ -201,6 +201,32 @@ namespace BellumGens.Api.Core.Tests
 			Assert.Equal(1, product.StockQuantity);
 		}
 
+		[Theory]
+		[InlineData("http://localhost:4200")]
+		[InlineData("http://127.0.0.1:4200")]
+		[InlineData("http://[::1]:4200")]
+		[InlineData("http://shop.localhost:4200")]
+		public async Task CreateOrder_LocalStorefront_StartsThePaymentWithoutARedirect(string storefrontUrl)
+		{
+			// Revolut refuses an order whose redirect is localhost or an IP address, which failed every local checkout.
+			using var db = TestUtils.CreateInMemoryDbContext();
+			var product = TestUtils.CreateProduct("Umbrella", 15m, stock: 5);
+			db.Products.Add(product);
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+			var payments = TestUtils.CreateMockPaymentProvider();
+			PaymentOrderRequest? sent = null;
+			payments.Setup(p => p.CreateOrderAsync(It.IsAny<PaymentOrderRequest>(), It.IsAny<CancellationToken>()))
+				.Callback((PaymentOrderRequest r, CancellationToken _) => sent = r)
+				.ReturnsAsync(new PaymentOrderResult { ProviderOrderId = "rev_1", CheckoutUrl = "https://checkout.revolut.com/x", Status = PaymentStatus.Pending });
+			var controller = CreateController(db, payments, o => o.StorefrontUrl = storefrontUrl);
+
+			var result = await controller.CreateOrder(TestUtils.CreateOrderRequest(Line(product)));
+
+			Assert.IsType<OkObjectResult>(result);
+			Assert.NotNull(sent);
+			Assert.Null(sent!.RedirectUrl);
+		}
+
 		[Fact]
 		public async Task CreateOrder_CashOnDelivery_ConfirmsWithoutStartingAPayment()
 		{

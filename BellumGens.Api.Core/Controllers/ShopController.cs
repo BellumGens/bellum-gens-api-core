@@ -138,6 +138,11 @@ namespace BellumGens.Api.Controllers
 				return Conflict(new { problems = e.Problems, quote = e.Quote });
 			}
 
+			if (user != null && request.SaveAddress && order.DeliveryMethod == DeliveryMethod.Courier)
+			{
+				await TrySaveOrderAddressAsync(user.Id, order);
+			}
+
 			if (!payOnline)
 			{
 				// Paid to the courier on delivery: there is no checkout to open, the storefront shows the order instead.
@@ -228,6 +233,65 @@ namespace BellumGens.Api.Controllers
 			return Ok(orders.Select(o => OrderStatusView.FromOrder(o, now)).ToList());
 		}
 
+		/// <summary>The signed-in customer's saved delivery addresses, the most recently used first.</summary>
+		[HttpGet("addresses")]
+		[Authorize]
+		public async Task<IActionResult> GetAddresses()
+		{
+			ApplicationUser user = await GetAuthUser();
+			if (user == null)
+			{
+				return Unauthorized();
+			}
+			return Ok(await _dbContext.ShippingAddresses
+				.Where(a => a.UserId == user.Id)
+				.OrderByDescending(a => a.LastUsedOn)
+				.ToListAsync());
+		}
+
+		/// <summary>
+		/// Saves a delivery address to the signed-in customer's address book. Saving one that is already there only marks
+		/// it as the most recently used, so the book holds no duplicates.
+		/// </summary>
+		[HttpPost("addresses")]
+		[Authorize]
+		public async Task<IActionResult> SaveAddress(ShippingAddressRequest request)
+		{
+			if (!ModelState.IsValid)
+			{
+				return BadRequest(ModelState);
+			}
+			ApplicationUser user = await GetAuthUser();
+			if (user == null)
+			{
+				return Unauthorized();
+			}
+			ShippingAddress address = await SaveAddressAsync(user.Id, request);
+			return address == null
+				? Conflict($"You can save up to {ShopOptions.MaxSavedAddresses} addresses. Remove one first.")
+				: Ok(address);
+		}
+
+		[HttpDelete("addresses/{id:guid}")]
+		[Authorize]
+		public async Task<IActionResult> DeleteAddress(Guid id)
+		{
+			ApplicationUser user = await GetAuthUser();
+			if (user == null)
+			{
+				return Unauthorized();
+			}
+			// Another customer's address is reported as missing, so ids cannot be probed.
+			ShippingAddress address = await _dbContext.ShippingAddresses.FirstOrDefaultAsync(a => a.Id == id && a.UserId == user.Id);
+			if (address == null)
+			{
+				return NotFound();
+			}
+			_dbContext.ShippingAddresses.Remove(address);
+			await _dbContext.SaveChangesAsync();
+			return NoContent();
+		}
+
 		/// <summary>Converts a decimal amount to minor units (cents) the way payment providers expect.</summary>
 		public static long ToMinorUnits(decimal amount)
 		{
@@ -257,6 +321,87 @@ namespace BellumGens.Api.Controllers
 			}
 			_cache.Set(ProductsCacheKey, products, _productsCacheDuration);
 			return products;
+		}
+
+		/// <summary>
+		/// Adds the address to the customer's book, or marks the matching saved one as just used. Returns null when the
+		/// book is full.
+		/// </summary>
+		private async Task<ShippingAddress> SaveAddressAsync(string userId, ShippingAddressRequest request)
+		{
+			DateTimeOffset now = DateTimeOffset.Now;
+			string firstName = request.FirstName.Trim();
+			string lastName = request.LastName.Trim();
+			string phoneNumber = request.PhoneNumber.Trim();
+			string city = request.City.Trim();
+			string streetAddress = request.StreetAddress.Trim();
+			string postalCode = request.PostalCode.Trim();
+
+			List<ShippingAddress> saved = await _dbContext.ShippingAddresses.Where(a => a.UserId == userId).ToListAsync();
+			ShippingAddress existing = saved.FirstOrDefault(a =>
+				Same(a.FirstName, firstName) && Same(a.LastName, lastName) && Same(a.PhoneNumber, phoneNumber)
+				&& Same(a.City, city) && Same(a.StreetAddress, streetAddress) && Same(a.PostalCode, postalCode));
+			if (existing != null)
+			{
+				existing.LastUsedOn = now;
+				await _dbContext.SaveChangesAsync();
+				return existing;
+			}
+			if (saved.Count >= ShopOptions.MaxSavedAddresses)
+			{
+				return null;
+			}
+			ShippingAddress address = new()
+			{
+				UserId = userId,
+				FirstName = firstName,
+				LastName = lastName,
+				PhoneNumber = phoneNumber,
+				City = city,
+				StreetAddress = streetAddress,
+				PostalCode = postalCode,
+				Country = ShopOptions.DeliveryCountry,
+				CreatedOn = now,
+				LastUsedOn = now
+			};
+			_dbContext.ShippingAddresses.Add(address);
+			await _dbContext.SaveChangesAsync();
+			return address;
+		}
+
+		/// <summary>Saving the address is a convenience: the order stands even when it fails or the book is full.</summary>
+		private async Task TrySaveOrderAddressAsync(string userId, ShopOrder order)
+		{
+			try
+			{
+				ShippingAddress saved = await SaveAddressAsync(userId, new ShippingAddressRequest
+				{
+					FirstName = order.FirstName,
+					LastName = order.LastName,
+					PhoneNumber = order.PhoneNumber,
+					City = order.City,
+					StreetAddress = order.StreetAddress,
+					PostalCode = order.PostalCode
+				});
+				if (saved == null)
+				{
+					_logger.LogInformation("The address of order {OrderNumber} was not saved: the customer's address book is full.", order.OrderNumber);
+				}
+			}
+			catch (Exception e)
+			{
+				_logger.LogWarning(e, "Could not save the address of order {OrderNumber}.", order.OrderNumber);
+				// Otherwise the failed change would be saved again, and fail again, with the payment that follows.
+				foreach (var entry in _dbContext.ChangeTracker.Entries<ShippingAddress>().Where(e => e.State != EntityState.Unchanged).ToList())
+				{
+					entry.State = EntityState.Detached;
+				}
+			}
+		}
+
+		private static bool Same(string a, string b)
+		{
+			return string.Equals(a?.Trim() ?? "", b?.Trim() ?? "", StringComparison.OrdinalIgnoreCase);
 		}
 
 		private Task<ShopOrder> LoadOrderAsync(Guid id)
@@ -371,6 +516,31 @@ namespace BellumGens.Api.Controllers
 			return ToResponse(order, payment);
 		}
 
+		/// <summary>
+		/// Where Revolut sends the customer after paying: the order page. Revolut refuses the whole order when the redirect
+		/// host is localhost or an IP address, so a local storefront (development) gets no redirect: the customer ends on
+		/// Revolut's own confirmation page, and the order page picks up the payment when opened.
+		/// </summary>
+		private string RedirectUrlFor(ShopOrder order, string lang)
+		{
+			string url = $"{_options.StorefrontUrl?.TrimEnd('/')}/{lang}/shop/order/{order.Id}";
+			if (!Uri.TryCreate(url, UriKind.Absolute, out Uri uri) || IsLocalHost(uri))
+			{
+				_logger.LogWarning("No payment redirect for order {OrderNumber}: Revolut does not accept the storefront URL {StorefrontUrl}.",
+					order.OrderNumber, _options.StorefrontUrl);
+				return null;
+			}
+			return url;
+		}
+
+		private static bool IsLocalHost(Uri uri)
+		{
+			return uri.IsLoopback
+				|| uri.HostNameType is UriHostNameType.IPv4 or UriHostNameType.IPv6
+				|| string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase)
+				|| uri.Host.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase);
+		}
+
 		private PaymentOrderRequest BuildPaymentRequest(ShopOrder order)
 		{
 			string lang = OrderService.NormalizeLanguage(order.Language);
@@ -381,7 +551,7 @@ namespace BellumGens.Api.Controllers
 				Description = $"Bellum Gens order {order.OrderNumber}",
 				CustomerEmail = order.Email,
 				Reference = order.OrderNumber,
-				RedirectUrl = $"{_options.StorefrontUrl?.TrimEnd('/')}/{lang}/shop/order/{order.Id}",
+				RedirectUrl = RedirectUrlFor(order, lang),
 				ExpirePendingAfter = $"PT{PaymentWindowMinutes}M"
 			};
 		}

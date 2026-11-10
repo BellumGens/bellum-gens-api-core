@@ -70,6 +70,12 @@ namespace BellumGens.Api.Core.Models
 		/// </summary>
 		public Guid? ReplacesOrderId { get; set; }
 
+		/// <summary>
+		/// Keep the delivery address in the signed-in customer's address book for later orders (or mark a saved one as
+		/// just used). Ignored for guests and for event pickup.
+		/// </summary>
+		public bool SaveAddress { get; set; }
+
 		public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
 		{
 			if (DeliveryMethod != DeliveryMethod.Courier)
@@ -87,6 +93,69 @@ namespace BellumGens.Api.Core.Models
 			if (string.IsNullOrWhiteSpace(StreetAddress))
 			{
 				yield return new ValidationResult("The StreetAddress field is required for courier delivery.", new[] { nameof(StreetAddress) });
+			}
+			// Several Bulgarian towns share a name; the postal code tells the courier which one.
+			if (string.IsNullOrWhiteSpace(PostalCode))
+			{
+				yield return new ValidationResult("The PostalCode field is required for courier delivery.", new[] { nameof(PostalCode) });
+			}
+			foreach (ValidationResult result in ShippingAddressRequest.ValidateBulgarian(Country, PostalCode))
+			{
+				yield return result;
+			}
+		}
+	}
+
+	/// <summary>A delivery address a signed-in customer saves to their address book. Delivery is within Bulgaria only.</summary>
+	public class ShippingAddressRequest : IValidatableObject
+	{
+		[Required]
+		[MaxLength(100)]
+		public string FirstName { get; set; }
+
+		[Required]
+		[MaxLength(100)]
+		public string LastName { get; set; }
+
+		[Required]
+		[MaxLength(30)]
+		public string PhoneNumber { get; set; }
+
+		[Required]
+		[MaxLength(100)]
+		public string City { get; set; }
+
+		[Required]
+		[MaxLength(200)]
+		public string StreetAddress { get; set; }
+
+		/// <summary>Required: several Bulgarian towns share a name, and the postal code tells them apart.</summary>
+		[Required]
+		[MaxLength(10)]
+		public string PostalCode { get; set; }
+
+		public string Country { get; set; } = ShopOptions.DeliveryCountry;
+
+		public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+		{
+			return ValidateBulgarian(Country, PostalCode);
+		}
+
+		/// <summary>
+		/// Refuses a country other than Bulgaria and a postal code that is not four digits. An empty country means Bulgaria;
+		/// whether the postal code is required is up to the caller.
+		/// </summary>
+		public static IEnumerable<ValidationResult> ValidateBulgarian(string country, string postalCode)
+		{
+			if (!string.IsNullOrWhiteSpace(country)
+				&& !string.Equals(country.Trim(), ShopOptions.DeliveryCountry, StringComparison.OrdinalIgnoreCase))
+			{
+				yield return new ValidationResult(ShopOptions.DeliveryCountryMessage, new[] { "Country" });
+			}
+			if (!string.IsNullOrWhiteSpace(postalCode)
+				&& !System.Text.RegularExpressions.Regex.IsMatch(postalCode.Trim(), ShopOptions.PostalCodePattern))
+			{
+				yield return new ValidationResult("A Bulgarian postal code has 4 digits.", new[] { "PostalCode" });
 			}
 		}
 	}

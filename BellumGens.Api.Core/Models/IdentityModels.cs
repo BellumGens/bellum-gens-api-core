@@ -116,6 +116,8 @@ namespace BellumGens.Api.Core.Models
 
 		public DbSet<Promo> PromoCodes { get; set; }
 
+		public DbSet<ShippingAddress> ShippingAddresses { get; set; }
+
 		public DbSet<EarlyBird> EarlyBirds { get; set; }
 
 		public BellumGensDbContext(DbContextOptions<BellumGensDbContext> options)
@@ -395,6 +397,16 @@ namespace BellumGens.Api.Core.Models
 						.WithMany(o => o.Payments)
 						.HasForeignKey(p => p.OrderId)
 						.OnDelete(DeleteBehavior.Cascade);
+
+			// A customer's saved addresses go with their account.
+			modelBuilder.Entity<ShippingAddress>()
+						.HasOne<ApplicationUser>()
+						.WithMany()
+						.HasForeignKey(a => a.UserId)
+						.OnDelete(DeleteBehavior.Cascade);
+
+			modelBuilder.Entity<ShippingAddress>()
+						.HasIndex(a => new { a.UserId, a.LastUsedOn });
 		}
 	}
 
