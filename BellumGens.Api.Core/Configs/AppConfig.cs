@@ -12,9 +12,6 @@ namespace BellumGens.Api.Core
 		public string TwitchSecret { get; set; }
 		public string PublicVapidKey { get; set; }
 		public string PrivateVapidKey { get; set; }
-		public string Email { get; set; }
-		public string EmailUsername { get; set; }
-		public string EmailPassword { get; set; }
 		public string Bank { get; set; }
 		public string BankAccountOwner { get; set; }
 		public string BIC { get; set; }
@@ -36,9 +33,6 @@ namespace BellumGens.Api.Core
 				TwitchSecret = configuration.GetValue<string>("twitch:secret"),
 				PublicVapidKey = configuration.GetValue<string>("vapid:public"),
 				PrivateVapidKey = configuration.GetValue<string>("vapid:private"),
-				Email = configuration.GetValue<string>("email:username"),
-				EmailUsername = configuration.GetValue<string>("email:username"),
-				EmailPassword = configuration.GetValue<string>("email:password"),
 				Bank = configuration.GetValue<string>("bank:name"),
 				BankAccountOwner = configuration.GetValue<string>("bank:owner"),
 				BIC = configuration.GetValue<string>("bank:bic"),

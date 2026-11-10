@@ -11,12 +11,12 @@ using BellumGens.Api.Core.Providers;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 
 string[] devCors = [
 	"http://localhost:4200",
@@ -117,7 +117,10 @@ builder.Services.AddSingleton(_ => new BattleNetTokenCache(TimeProvider.System))
 builder.Services.AddHttpClient<IBattleNetService, BattleNetServiceProvider>();
 builder.Services.AddHttpClient<WebPush.IWebPushClient, WebPush.WebPushClient>();
 builder.Services.AddScoped<INotificationService, NotificationsService>();
-builder.Services.AddScoped<IEmailService, EmailServiceProvider>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.Section));
+builder.Services.AddSingleton(sp => GraphMailCredential.FromOptions(sp.GetRequiredService<IOptions<EmailOptions>>().Value));
+builder.Services.AddHttpClient<IEmailService, EmailServiceProvider>(client => client.BaseAddress = new Uri(EmailServiceProvider.GraphBaseUrl));
 builder.Services.AddSingleton<IBlobContainerProvider, ConfigurationBlobContainerProvider>();
 builder.Services.AddScoped<IStorageService, StorageService>();
 

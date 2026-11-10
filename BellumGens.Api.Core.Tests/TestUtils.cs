@@ -221,8 +221,6 @@ namespace BellumGens.Api.Core.Tests
 				{ "twitch:secret", "test" },
 				{ "vapid:public", "test" },
 				{ "vapid:private", "test" },
-				{ "email:username", "test@test.com" },
-				{ "email:password", "test" },
 				{ "bank:name", "test" },
 				{ "bank:owner", "test" },
 				{ "bank:bic", "test" },
