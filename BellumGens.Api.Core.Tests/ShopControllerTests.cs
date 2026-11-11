@@ -25,8 +25,9 @@ namespace BellumGens.Api.Core.Tests
 		private ShopController CreateController(BellumGensDbContext db, Mock<IPaymentProvider>? payments = null, Action<ShopOptions>? configure = null)
 		{
 			var options = TestUtils.CreateShopOptions(configure);
-			var orders = new OrderService(db, options, _email.Object, TestUtils.CreateMockLogger<OrderService>().Object);
-			var controller = new ShopController(orders, (payments ?? TestUtils.CreateMockPaymentProvider()).Object, TestUtils.CreateMemoryCache(), options,
+			var settings = TestUtils.CreateShopSettingsService(db);
+			var orders = new OrderService(db, options, settings, _email.Object, TestUtils.CreateMockLogger<OrderService>().Object);
+			var controller = new ShopController(orders, (payments ?? TestUtils.CreateMockPaymentProvider()).Object, TestUtils.CreateMemoryCache(), options, settings,
 				_mockUserManager.Object, _mockRoleManager.Object, _mockSignInManager.Object, _email.Object, db,
 				TestUtils.CreateMockLogger<ShopController>().Object);
 			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());

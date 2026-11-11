@@ -819,6 +819,34 @@ namespace BellumGens.Api.Core.Migrations
                     b.ToTable("ShopOrders");
                 });
 
+            modelBuilder.Entity("BellumGens.Api.Core.Models.ShopSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("FreeShippingThreshold")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<int>("MaxQuantityPerLine")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("ShippingCost")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTimeOffset>("UpdatedOn")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ShopSettings");
+                });
+
             modelBuilder.Entity("BellumGens.Api.Core.Models.StarCraft2Details", b =>
                 {
                     b.Property<string>("BattleNetId")

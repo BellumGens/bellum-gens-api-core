@@ -1,4 +1,5 @@
 using BellumGens.Api.Core.Models;
+using BellumGens.Api.Core.Models.Extensions;
 using BellumGens.Api.Core.Providers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -24,12 +25,14 @@ namespace BellumGens.Api.Controllers
 		private readonly IPaymentProvider _payments;
 		private readonly IMemoryCache _cache;
 		private readonly IConfiguration _config;
+		private readonly IShopSettingsService _settings;
 
 		public ShopAdminController(IStorageService storage,
 								   IOrderService orders,
 								   IPaymentProvider payments,
 								   IMemoryCache cache,
 								   IConfiguration config,
+								   IShopSettingsService settings,
 								   UserManager<ApplicationUser> userManager,
 								   RoleManager<IdentityRole> roleManager,
 								   SignInManager<ApplicationUser> signInManager,
@@ -43,6 +46,25 @@ namespace BellumGens.Api.Controllers
 			_payments = payments;
 			_cache = cache;
 			_config = config;
+			_settings = settings;
+		}
+
+		// Settings
+
+		[HttpGet("settings")]
+		public async Task<IActionResult> GetSettings()
+		{
+			return Ok(await _settings.GetAsync());
+		}
+
+		[HttpPut("settings")]
+		public async Task<IActionResult> UpdateSettings(ShopSettings settings)
+		{
+			if (!ModelState.IsValid)
+			{
+				return BadRequest(ModelState);
+			}
+			return Ok(await _settings.UpdateAsync(settings, User.GetResolvedUserId()));
 		}
 
 		// Products

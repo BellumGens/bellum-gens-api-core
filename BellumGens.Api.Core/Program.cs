@@ -128,6 +128,7 @@ builder.Services.AddScoped<IStorageService, StorageService>();
 builder.Services.Configure<ShopOptions>(builder.Configuration.GetSection(ShopOptions.Section));
 builder.Services.Configure<RevolutOptions>(builder.Configuration.GetSection(RevolutOptions.Section));
 builder.Services.AddHttpClient<IPaymentProvider, RevolutPaymentProvider>();
+builder.Services.AddScoped<IShopSettingsService, ShopSettingsService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddHostedService<PaymentExpirySweeper>();
 
@@ -200,6 +201,7 @@ using (var serviceScope = app.Services.CreateScope())
 	{
 		context.Database.Migrate();
 	}
+	ShopSettingsService.EnsureCreated(context, builder.Configuration);
 }
 
 app.UseHttpsRedirection();

@@ -24,7 +24,7 @@ namespace BellumGens.Api.Core.Tests
 			}).Build();
 			var orders = TestUtils.CreateOrderService(db, _email);
 			var controller = new ShopAdminController(_storage.Object, orders, (payments ?? TestUtils.CreateMockPaymentProvider()).Object,
-				TestUtils.CreateMemoryCache(), config, _mockUserManager.Object, _mockRoleManager.Object,
+				TestUtils.CreateMemoryCache(), config, TestUtils.CreateShopSettingsService(db), _mockUserManager.Object, _mockRoleManager.Object,
 				TestUtils.CreateMockSignInManager(_mockUserManager).Object, _email.Object, db,
 				TestUtils.CreateMockLogger<ShopAdminController>().Object);
 			TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser("admin1"));

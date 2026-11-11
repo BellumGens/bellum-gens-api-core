@@ -14,13 +14,15 @@ namespace BellumGens.Api.Core.Providers
 	{
 		private readonly BellumGensDbContext _db;
 		private readonly ShopOptions _options;
+		private readonly IShopSettingsService _settings;
 		private readonly IEmailService _email;
 		private readonly ILogger<OrderService> _logger;
 
-		public OrderService(BellumGensDbContext db, IOptions<ShopOptions> options, IEmailService email, ILogger<OrderService> logger)
+		public OrderService(BellumGensDbContext db, IOptions<ShopOptions> options, IShopSettingsService settings, IEmailService email, ILogger<OrderService> logger)
 		{
 			_db = db;
 			_options = options.Value;
+			_settings = settings;
 			_email = email;
 			_logger = logger;
 		}
@@ -333,6 +335,7 @@ namespace BellumGens.Api.Core.Providers
 		private async Task<QuoteResult> BuildQuoteAsync(QuoteRequest request, List<Product> products, DateTimeOffset now, CancellationToken cancellationToken)
 		{
 			List<CartLineRequest> lines = request.Lines ?? new List<CartLineRequest>();
+			ShopSettings settings = await _settings.GetAsync(cancellationToken);
 			QuoteResult result = new()
 			{
 				Currency = _options.Currency,
@@ -381,9 +384,9 @@ namespace BellumGens.Api.Core.Providers
 					continue;
 				}
 
-				if (line.Quantity < 1 || line.Quantity > _options.MaxQuantityPerLine)
+				if (line.Quantity < 1 || line.Quantity > settings.MaxQuantityPerLine)
 				{
-					quoteLine.Problem = $"Quantity must be between 1 and {_options.MaxQuantityPerLine}.";
+					quoteLine.Problem = $"Quantity must be between 1 and {settings.MaxQuantityPerLine}.";
 					continue;
 				}
 
@@ -445,8 +448,8 @@ namespace BellumGens.Api.Core.Providers
 			}
 			else
 			{
-				result.FreeShipping = discounted >= _options.FreeShippingThreshold;
-				result.ShippingCost = result.FreeShipping ? 0 : _options.ShippingCost;
+				result.FreeShipping = discounted >= settings.FreeShippingThreshold;
+				result.ShippingCost = result.FreeShipping ? 0 : settings.ShippingCost;
 			}
 			result.Total = Round(discounted + result.ShippingCost);
 			return result;

@@ -205,6 +205,15 @@ namespace BellumGens.Api.Core.Models
 		public bool IsValid => Lines.Count > 0 && Lines.All(l => l.Problem == null) && (PromoCode == null || PromoApplied);
 	}
 
+	/// <summary>The pricing rules the storefront shows customers, such as "free shipping over 50 EUR".</summary>
+	public class ShopSettingsView
+	{
+		public decimal ShippingCost { get; set; }
+		public decimal FreeShippingThreshold { get; set; }
+		public int MaxQuantityPerLine { get; set; }
+		public string Currency { get; set; }
+	}
+
 	public class OrderCreatedResponse
 	{
 		public Guid OrderId { get; set; }

@@ -61,11 +61,13 @@ The API reads settings from `appsettings.json` / `appsettings.Development.json`.
 | VAPID keys | Web Push VAPID key pair |
 | SMTP credentials | Email sending via Office 365 |
 | `BlobService:ShopContainer` | Blob container for product images |
-| `shop:*` | Shop settings: `currency`, `shippingCost`, `freeShippingThreshold`, `paymentExpiryMinutes`, `maxQuantityPerLine`, `storefrontUrl`, `reconcileAfterSeconds` |
+| `shop:*` | Shop deployment settings: `currency`, `paymentExpiryMinutes`, `pendingPaymentGraceMinutes`, `storefrontUrl`, `reconcileAfterSeconds` |
 | `revolut:baseUrl` | `https://sandbox-merchant.revolut.com` or `https://merchant.revolut.com` |
 | `revolut:apiVersion` | Merchant API version header, currently `2026-08-17` |
 | `revolut:secretKey` | Merchant API secret key. **Secret** — App Service settings or `dotnet user-secrets` only |
 | `revolut:webhookSigningSecret` | The `wsk_` secret returned by `POST api/shopadmin/payments/webhook`. **Secret** |
+
+The shipping cost, free shipping threshold and per-line quantity limit are stored in the `ShopSettings` table and edited from the admin panel (`GET`/`PUT api/shopadmin/settings`; the storefront reads them from `GET api/shop/settings`). The row is created on first start from the legacy `shop:shippingCost`, `shop:freeShippingThreshold` and `shop:maxQuantityPerLine` values when an environment still has them, otherwise from the defaults (6.00, 50.00, 10); after that those configuration keys are ignored.
 
 Secrets must never be committed to `appsettings.json`. Locally use `dotnet user-secrets set "revolut:secretKey" "sk_..."`; in Azure use the App Service configuration.
 

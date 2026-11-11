@@ -27,11 +27,13 @@ namespace BellumGens.Api.Controllers
 		private readonly IPaymentProvider _payments;
 		private readonly IMemoryCache _cache;
 		private readonly ShopOptions _options;
+		private readonly IShopSettingsService _settings;
 
 		public ShopController(IOrderService orders,
 							  IPaymentProvider payments,
 							  IMemoryCache cache,
 							  IOptions<ShopOptions> options,
+							  IShopSettingsService settings,
 							  UserManager<ApplicationUser> userManager,
 							  RoleManager<IdentityRole> roleManager,
 							  SignInManager<ApplicationUser> signInManager,
@@ -44,6 +46,21 @@ namespace BellumGens.Api.Controllers
 			_payments = payments;
 			_cache = cache;
 			_options = options.Value;
+			_settings = settings;
+		}
+
+		[HttpGet("settings")]
+		[AllowAnonymous]
+		public async Task<IActionResult> GetSettings()
+		{
+			ShopSettings settings = await _settings.GetAsync();
+			return Ok(new ShopSettingsView
+			{
+				ShippingCost = settings.ShippingCost,
+				FreeShippingThreshold = settings.FreeShippingThreshold,
+				MaxQuantityPerLine = settings.MaxQuantityPerLine,
+				Currency = _options.Currency
+			});
 		}
 
 		[HttpGet("products")]

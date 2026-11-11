@@ -1,6 +1,9 @@
 namespace BellumGens.Api.Core
 {
-	/// <summary>Bound from the "shop" configuration section.</summary>
+	/// <summary>
+	/// Bound from the "shop" configuration section: deployment and payment settings. Shipping prices and the quantity limit
+	/// are edited from the admin panel and stored in the database (see <see cref="Models.ShopSettings"/>).
+	/// </summary>
 	public class ShopOptions
 	{
 		public const string Section = "shop";
@@ -22,12 +25,6 @@ namespace BellumGens.Api.Core
 
 		public string Currency { get; set; } = "EUR";
 
-		/// <summary>Courier fee charged below the free shipping threshold.</summary>
-		public decimal ShippingCost { get; set; } = 6.00M;
-
-		/// <summary>Orders whose discounted subtotal reaches this amount ship for free.</summary>
-		public decimal FreeShippingThreshold { get; set; } = 50.00M;
-
 		/// <summary>
 		/// How long an unpaid order holds its stock before the sweeper cancels it. Each payment attempt opens a
 		/// checkout for this long and extends the order's hold to match.
@@ -39,8 +36,6 @@ namespace BellumGens.Api.Core
 		/// progress (pending or authorised), so a payment completing at the last moment is not cancelled under it.
 		/// </summary>
 		public int PendingPaymentGraceMinutes { get; set; } = 15;
-
-		public int MaxQuantityPerLine { get; set; } = 10;
 
 		/// <summary>Storefront origin used to build the post-payment redirect URL.</summary>
 		public string StorefrontUrl { get; set; } = "https://bellumgens.com";

@@ -86,10 +86,7 @@ namespace BellumGens.Api.Core.Tests
 			var options = new ShopOptions
 			{
 				Currency = "EUR",
-				ShippingCost = 6m,
-				FreeShippingThreshold = 50m,
 				PaymentExpiryMinutes = 60,
-				MaxQuantityPerLine = 10,
 				StorefrontUrl = "https://bellumgens.com",
 				ReconcileAfterSeconds = 30
 			};
@@ -133,9 +130,27 @@ namespace BellumGens.Api.Core.Tests
 			return mock;
 		}
 
-		public static OrderService CreateOrderService(BellumGensDbContext db, Mock<IEmailService>? email = null, Action<ShopOptions>? configure = null)
+		/// <summary>
+		/// A settings service over <paramref name="db"/>. With <paramref name="configure"/>, stores a settings row
+		/// (6.00 shipping, 50.00 threshold, 10 per line) changed by it; without, the service falls back to those defaults.
+		/// </summary>
+		public static ShopSettingsService CreateShopSettingsService(BellumGensDbContext db, Action<ShopSettings>? configure = null)
 		{
-			return new OrderService(db, CreateShopOptions(configure), (email ?? CreateMockEmailSender()).Object, CreateMockLogger<OrderService>().Object);
+			if (configure != null)
+			{
+				var settings = new ShopSettings();
+				configure(settings);
+				db.ShopSettings.Add(settings);
+				db.SaveChanges();
+			}
+			return new ShopSettingsService(db, CreateMemoryCache());
+		}
+
+		public static OrderService CreateOrderService(BellumGensDbContext db, Mock<IEmailService>? email = null, Action<ShopOptions>? configure = null,
+			Action<ShopSettings>? settings = null)
+		{
+			return new OrderService(db, CreateShopOptions(configure), CreateShopSettingsService(db, settings),
+				(email ?? CreateMockEmailSender()).Object, CreateMockLogger<OrderService>().Object);
 		}
 
 		public static MemoryCache CreateMemoryCache()

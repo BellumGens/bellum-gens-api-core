@@ -229,7 +229,7 @@ namespace BellumGens.Api.Core.Tests
 			var product = TestUtils.CreateProduct();
 			db.Products.Add(product);
 			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
-			var service = TestUtils.CreateOrderService(db, configure: o => o.MaxQuantityPerLine = 2);
+			var service = TestUtils.CreateOrderService(db, settings: s => s.MaxQuantityPerLine = 2);
 
 			var quote = await service.QuoteAsync(new QuoteRequest { Lines = new List<CartLineRequest> { Line(product, 3) } }, TestContext.Current.CancellationToken);
 

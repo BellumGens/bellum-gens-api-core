@@ -118,6 +118,8 @@ namespace BellumGens.Api.Core.Models
 
 		public DbSet<ShippingAddress> ShippingAddresses { get; set; }
 
+		public DbSet<ShopSettings> ShopSettings { get; set; }
+
 		public DbSet<EarlyBird> EarlyBirds { get; set; }
 
 		public BellumGensDbContext(DbContextOptions<BellumGensDbContext> options)
@@ -407,6 +409,14 @@ namespace BellumGens.Api.Core.Models
 
 			modelBuilder.Entity<ShippingAddress>()
 						.HasIndex(a => new { a.UserId, a.LastUsedOn });
+
+			modelBuilder.Entity<ShopSettings>()
+						.Property(s => s.ShippingCost)
+						.HasPrecision(10, 2);
+
+			modelBuilder.Entity<ShopSettings>()
+						.Property(s => s.FreeShippingThreshold)
+						.HasPrecision(10, 2);
 		}
 	}
 
