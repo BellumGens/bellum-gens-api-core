@@ -32,7 +32,7 @@ namespace BellumGens.Api.Core.Tests
 		private static EmailOptions DefaultOptions() => new()
 		{
 			Sender = "info@bellumgens.com",
-			DomainSenders = new Dictionary<string, string> { { "eb-league.com", "info@eb-league.com" } }
+			DomainSenders = new Dictionary<string, string> { { "ebleague", "info@eb-league.com" } }
 		};
 
 		private static EmailServiceProvider CreateProvider(StubHandler handler, EmailOptions? options = null, bool configured = true,
@@ -122,6 +122,7 @@ namespace BellumGens.Api.Core.Tests
 		[InlineData("https://www.bellumgens.com")]
 		[InlineData("https://not-eb-league.com")]
 		[InlineData("https://eb-league.com.evil.example")]
+		[InlineData("http://localhost:4200")]
 		[InlineData("null")]
 		public void ResolveSender_UsesDefaultSenderForOtherOrigins(string origin)
 		{

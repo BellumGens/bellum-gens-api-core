@@ -98,17 +98,30 @@ namespace BellumGens.Api.Core.Providers
 				// A sandboxed or privacy-redirected request sends "Origin: null", which is not an absolute URI.
 				if (Uri.TryCreate(source, UriKind.Absolute, out Uri uri))
 				{
-					foreach ((string domain, string mailbox) in _options.DomainSenders)
+					string site = SiteName(uri.Host);
+					if (site != null)
 					{
-						if (uri.Host.Equals(domain, StringComparison.OrdinalIgnoreCase)
-							|| uri.Host.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase))
+						foreach ((string key, string mailbox) in _options.DomainSenders)
 						{
-							return mailbox;
+							if (site.Equals(key, StringComparison.OrdinalIgnoreCase))
+							{
+								return mailbox;
+							}
 						}
 					}
 				}
 			}
 			return _options.Sender;
+		}
+
+		/// <summary>
+		/// The label before the top-level domain with hyphens removed, so "www.eb-league.com" is "ebleague".
+		/// Null for single-label hosts such as localhost.
+		/// </summary>
+		private static string SiteName(string host)
+		{
+			string[] labels = host.Split('.');
+			return labels.Length < 2 ? null : labels[^2].Replace("-", string.Empty);
 		}
 
 		private static object Recipient(string address) => new { emailAddress = new { address } };

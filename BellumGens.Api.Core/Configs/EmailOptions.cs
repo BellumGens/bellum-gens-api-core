@@ -21,8 +21,10 @@ namespace BellumGens.Api.Core
 		public string Sender { get; set; }
 
 		/// <summary>
-		/// Source domain → sender mailbox. The source domain is the host of the request's Origin header (or Referer), and
-		/// a key matches that host and its subdomains, so "eb-league.com" also covers www. and staging.
+		/// Site name → sender mailbox. The site name is taken from the host of the request's Origin header (or Referer):
+		/// the label before the top-level domain, with hyphens removed. So "ebleague" covers eb-league.com and its
+		/// subdomains (www., staging.). Keys have no dots or hyphens, so they are valid App Service setting names on Linux
+		/// (email__domainSenders__ebleague).
 		/// </summary>
 		public Dictionary<string, string> DomainSenders { get; set; } = [];
 
