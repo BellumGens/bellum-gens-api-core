@@ -36,7 +36,7 @@ string[] prodCors = [
 
 var builder = WebApplication.CreateBuilder(args);
 
-Program.PublicClientId = builder.Configuration["publicClientId"];
+PublicClientId = builder.Configuration["publicClientId"];
 
 builder.Services.AddDbContext<BellumGensDbContext>(options =>
 {
@@ -151,8 +151,8 @@ builder.Services.AddResponseCompression(options =>
 	options.Providers.Add<BrotliCompressionProvider>();
 	options.Providers.Add<GzipCompressionProvider>();
 	options.EnableForHttps = true;
-	options.MimeTypes = new[]
-	{
+	options.MimeTypes =
+	[
 		// Default
 		"text/plain",
 		"text/css",
@@ -162,11 +162,10 @@ builder.Services.AddResponseCompression(options =>
 		"text/xml",
 		"application/json",
 		"text/json",
-
 		// Custom
 		"image/svg+xml",
 		"application/font-woff2"
-	};
+	];
 });
 
 builder.Services.AddControllers();
