@@ -2,7 +2,7 @@
 
 # Bellum Gens API
 
-ASP.NET Core Web API powering the [Bellum Gens](https://bellumgens.com) esports tournament platform. It provides backend services for tournament management, team organization, player profiles, strategy sharing, and an online jersey shop — with integrations to Steam, Battle.net, and Twitch.
+ASP.NET Core Web API powering the [Bellum Gens](https://bellumgens.com) esports tournament platform. It provides backend services for tournament management, team organization, player profiles, strategy sharing, and the merchandise shop — with integrations to Steam, Battle.net, Twitch and Revolut.
 
 ## Features
 
@@ -11,7 +11,7 @@ ASP.NET Core Web API powering the [Bellum Gens](https://bellumgens.com) esports 
 - **Player profiles** — linked Steam / Battle.net / Twitch accounts with live stats
 - **Strategy sharing** — create, vote, and comment on CS:GO strategies
 - **Search** — find players and teams by name, role, or playstyle overlap
-- **Shop** — jersey ordering with promo code support
+- **Shop** — product catalog with variants and stock, server-side cart pricing, promo codes, Revolut hosted checkout with signed webhooks, order administration
 - **Push notifications** — Web Push (RFC 8030) for real-time alerts
 
 ## Tech stack
@@ -24,6 +24,7 @@ ASP.NET Core Web API powering the [Bellum Gens](https://bellumgens.com) esports 
 | Storage | Azure Blob Storage |
 | Notifications | WebPush |
 | Email | SMTP (Office 365) |
+| Payments | Revolut Merchant API (hosted checkout + webhooks) |
 | CI | GitHub Actions |
 
 ## Getting started
@@ -59,6 +60,25 @@ The API reads settings from `appsettings.json` / `appsettings.Development.json`.
 | Azure Storage connection string | Blob storage for images and strategies |
 | VAPID keys | Web Push VAPID key pair |
 | SMTP credentials | Email sending via Office 365 |
+| `BlobService:ShopContainer` | Blob container for product images |
+| `shop:*` | Shop deployment settings: `currency`, `paymentExpiryMinutes`, `pendingPaymentGraceMinutes`, `storefrontUrl`, `reconcileAfterSeconds` |
+| `revolut:baseUrl` | `https://sandbox-merchant.revolut.com` or `https://merchant.revolut.com` |
+| `revolut:apiVersion` | Merchant API version header, currently `2026-08-17` |
+| `revolut:secretKey` | Merchant API key (`r_...`) from the Revolut API Console with **Orders: Write** and **Webhooks: Write** and signing **disabled** (the client does not sign requests). **Secret** — App Service settings or `dotnet user-secrets` only |
+| `revolut:webhookSigningSecret` | The `wsk_` secret returned by `POST api/shopadmin/payments/webhook`. **Secret** |
+
+The shipping cost, free shipping threshold and per-line quantity limit are stored in the `ShopSettings` table and edited from the admin panel (`GET`/`PUT api/shopadmin/settings`; the storefront reads them from `GET api/shop/settings`). The row is created on first start from the legacy `shop:shippingCost`, `shop:freeShippingThreshold` and `shop:maxQuantityPerLine` values when an environment still has them, otherwise from the defaults (6.00, 50.00, 10); after that those configuration keys are ignored.
+
+Secrets must never be committed to `appsettings.json`. Locally use `dotnet user-secrets set "revolut:secretKey" "r_..."`; in Azure use the App Service configuration.
+
+### Shop payment flow
+
+1. `POST api/shop/orders` validates and prices the cart on the server, reserves stock and creates a Revolut order. The response carries the `checkoutUrl` the storefront redirects to.
+2. Revolut calls `POST api/shop/webhooks/revolut`. The request is authenticated with the HMAC-SHA256 signature over `v1.{timestamp}.{body}`; `ORDER_COMPLETED` marks the order paid and sends the confirmation email.
+3. `GET api/shop/orders/{id}` serves the result page and, if the webhook is late, reconciles the payment with Revolut directly.
+4. `PaymentExpirySweeper` cancels unpaid orders after `shop:paymentExpiryMinutes` and releases their stock.
+
+Register the webhook once per environment (after configuring `revolut:secretKey`) by calling `POST api/shopadmin/payments/webhook` with `{ "url": "https://api.bellumgens.com/api/shop/webhooks/revolut" }` as an admin, then store the returned `signingSecret` as `revolut:webhookSigningSecret`.
 
 ### Local database provider
 
@@ -102,9 +122,9 @@ dotnet build -c Release -p:IncludeSqliteProvider=true
 
 ```
 BellumGens.Api.Core/           # Main Web API project
-├── Controllers/               # API controllers (11 total)
-├── Models/                    # EF Core entities and view models
-├── Providers/                 # External service integrations
+├── Controllers/               # API controllers
+├── Models/                    # EF Core entities and view models (Models/Shop for the catalog and orders)
+├── Providers/                 # External service integrations (Providers/Payments, Providers/Shop)
 ├── Migrations/                # EF Core database migrations
 ├── Configs/                   # CORS and app configuration
 └── Program.cs                 # Host, service and middleware registration
@@ -124,7 +144,9 @@ BellumGens.Api.Core.Tests/     # xUnit test project
 | `HomeController` | Root redirect |
 | `PushController` | Web Push subscription management |
 | `SearchController` | Player and team search |
-| `ShopController` | Jersey orders and promo codes |
+| `ShopController` | Storefront: catalog, promo lookup, cart quotes, order creation and status, payment retry |
+| `ShopAdminController` | Catalog, order, promo and payment administration (admin role) |
+| `ShopWebhooksController` | Revolut webhook receiver (signature authenticated) |
 | `StrategyController` | CS:GO strategy CRUD, voting, comments |
 | `TeamsController` | Team CRUD, roster, invites, availability |
 | `TournamentController` | Tournament lifecycle, brackets, matches |
@@ -132,7 +154,7 @@ BellumGens.Api.Core.Tests/     # xUnit test project
 
 ## Testing
 
-The solution includes an xUnit test project with 32 tests covering all 11 controllers. Tests use EF Core InMemory and [Moq](https://github.com/moq/moq4) for isolation.
+The solution includes an xUnit test project covering every controller plus the shop services (pricing, webhooks, the expiry sweeper). Tests use EF Core InMemory and [Moq](https://github.com/moq/moq4) for isolation.
 
 ```bash
 # Run all tests

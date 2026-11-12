@@ -399,7 +399,7 @@ namespace BellumGens.Api.Controllers
 				}
 				catch (Exception e)
 				{
-					System.Diagnostics.Trace.TraceError("Email confirmation send exception: " + e.Message);
+					_logger.LogError(e, "Sending the email change confirmation for user {UserId} failed.", user.Id);
 				}
 			}
 
@@ -690,7 +690,7 @@ namespace BellumGens.Api.Controllers
 					}
 					catch (Exception e)
 					{
-						System.Diagnostics.Trace.TraceError("Registration email confirmation send exception: " + e.Message);
+						_logger.LogError(e, "Sending the registration confirmation email for user {UserId} failed.", user.Id);
 					}
 				}
 			}

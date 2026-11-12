@@ -1,4 +1,5 @@
 using System;
+using System.Threading.RateLimiting;
 #if SQLITE_PROVIDER
 using System.Linq;
 using System.Security.Cryptography;
@@ -15,6 +16,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 
 string[] devCors = [
 	"http://localhost:4200",
@@ -34,7 +36,7 @@ string[] prodCors = [
 
 var builder = WebApplication.CreateBuilder(args);
 
-Program.PublicClientId = builder.Configuration["publicClientId"];
+PublicClientId = builder.Configuration["publicClientId"];
 
 builder.Services.AddDbContext<BellumGensDbContext>(options =>
 {
@@ -115,17 +117,42 @@ builder.Services.AddSingleton(_ => new BattleNetTokenCache(TimeProvider.System))
 builder.Services.AddHttpClient<IBattleNetService, BattleNetServiceProvider>();
 builder.Services.AddHttpClient<WebPush.IWebPushClient, WebPush.WebPushClient>();
 builder.Services.AddScoped<INotificationService, NotificationsService>();
-builder.Services.AddScoped<IEmailService, EmailServiceProvider>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.Section));
+builder.Services.AddSingleton(sp => GraphMailCredential.FromOptions(sp.GetRequiredService<IOptions<EmailOptions>>().Value));
+builder.Services.AddHttpClient<IEmailService, EmailServiceProvider>(client => client.BaseAddress = new Uri(EmailServiceProvider.GraphBaseUrl));
 builder.Services.AddSingleton<IBlobContainerProvider, ConfigurationBlobContainerProvider>();
 builder.Services.AddScoped<IStorageService, StorageService>();
+
+// Shop
+builder.Services.Configure<ShopOptions>(builder.Configuration.GetSection(ShopOptions.Section));
+builder.Services.Configure<RevolutOptions>(builder.Configuration.GetSection(RevolutOptions.Section));
+builder.Services.AddHttpClient<IPaymentProvider, RevolutPaymentProvider>();
+builder.Services.AddScoped<IShopSettingsService, ShopSettingsService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddHostedService<PaymentExpirySweeper>();
+
+builder.Services.AddRateLimiter(options =>
+{
+	options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+	options.AddPolicy(ShopOptions.OrdersRateLimitPolicy, context =>
+		RateLimitPartition.GetFixedWindowLimiter(
+			context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+			_ => new FixedWindowRateLimiterOptions
+			{
+				PermitLimit = 10,
+				Window = TimeSpan.FromMinutes(1),
+				QueueLimit = 0
+			}));
+});
 
 builder.Services.AddResponseCompression(options =>
 {
 	options.Providers.Add<BrotliCompressionProvider>();
 	options.Providers.Add<GzipCompressionProvider>();
 	options.EnableForHttps = true;
-	options.MimeTypes = new[]
-	{
+	options.MimeTypes =
+	[
 		// Default
 		"text/plain",
 		"text/css",
@@ -135,11 +162,10 @@ builder.Services.AddResponseCompression(options =>
 		"text/xml",
 		"application/json",
 		"text/json",
-
 		// Custom
 		"image/svg+xml",
 		"application/font-woff2"
-	};
+	];
 });
 
 builder.Services.AddControllers();
@@ -167,12 +193,14 @@ using (var serviceScope = app.Services.CreateScope())
 			throw new InvalidOperationException("The SQLite provider is only supported in the Development environment.");
 		}
 		SqliteDevelopmentDatabase.EnsureCurrentModel(context);
+		SqliteDevelopmentDatabase.EnsureShopCatalog(context);
 	}
 	else
 #endif
 	{
 		context.Database.Migrate();
 	}
+	ShopSettingsService.EnsureCreated(context, builder.Configuration);
 }
 
 app.UseHttpsRedirection();
@@ -193,6 +221,7 @@ else
 }
 
 app.UseRouting();
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -230,6 +259,49 @@ internal static class SqliteDevelopmentDatabase
 		context.Database.ExecuteSqlRaw("CREATE TABLE IF NOT EXISTS \"__DevSchema\" (\"Hash\" TEXT NOT NULL)");
 		context.Database.ExecuteSqlRaw("DELETE FROM \"__DevSchema\"");
 		context.Database.ExecuteSqlInterpolated($"INSERT INTO \"__DevSchema\" (\"Hash\") VALUES ({schemaHash})");
+	}
+
+	internal const string EBLeagueJerseySlug = "esports-business-league-jersey";
+
+	/// <summary>
+	/// Seeds the catalog that the SQL Server migrations create (see RestoreEBLeagueJersey), since the SQLite database
+	/// is built from the model and never runs migrations. Only runs when the product is missing, so local edits survive restarts.
+	/// </summary>
+	internal static void EnsureShopCatalog(BellumGensDbContext context)
+	{
+		if (context.Products.Any(p => p.Slug == EBLeagueJerseySlug))
+		{
+			return;
+		}
+
+		var jersey = new Product
+		{
+			Name = "Esports Business League Jersey",
+			Slug = EBLeagueJerseySlug,
+			Description = "Limited edition Esports Business League jersey made of 100% breathable sportswear polyester with a high quality print.",
+			Type = ProductType.Jersey,
+			Brand = Brand.EBLeague,
+			Price = 30.00m,
+			ImageUrl = "https://eb-league.com/assets/wallpapers/jersey-front-back.webp",
+			Active = true,
+			SortOrder = 0
+		};
+		foreach (var cut in Enum.GetValues<JerseyCut>())
+		{
+			foreach (var size in Enum.GetValues<JerseySize>())
+			{
+				jersey.Variants.Add(new ProductVariant
+				{
+					Name = $"{cut} / {size}",
+					Cut = cut,
+					Size = size,
+					Active = true,
+					SortOrder = (int)cut * 10 + (int)size
+				});
+			}
+		}
+		context.Products.Add(jersey);
+		context.SaveChanges();
 	}
 }
 #endif
