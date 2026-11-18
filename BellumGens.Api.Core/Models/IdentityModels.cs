@@ -102,6 +102,12 @@ namespace BellumGens.Api.Core.Models
 
 		public DbSet<SC2MatchMap> SC2MatchMaps { get; set; }
 
+		public DbSet<TournamentDota2Group> TournamentDota2Groups { get; set; }
+
+		public DbSet<TournamentDota2Match> TournamentDota2Matches { get; set; }
+
+		public DbSet<Dota2MatchGame> Dota2MatchGames { get; set; }
+
 		public DbSet<Company> Companies { get; set; }
 
 		public DbSet<Product> Products { get; set; }
@@ -242,6 +248,26 @@ namespace BellumGens.Api.Core.Models
 
 			modelBuilder.Entity<TournamentCSGOMatch>()
 						.HasOne(c => c.Team2)
+						.WithMany()
+						.OnDelete(DeleteBehavior.NoAction);
+
+			modelBuilder.Entity<TournamentDota2Match>()
+						.HasOne(c => c.Team1)
+						.WithMany()
+						.OnDelete(DeleteBehavior.NoAction);
+
+			modelBuilder.Entity<TournamentDota2Match>()
+						.HasOne(c => c.Team2)
+						.WithMany()
+						.OnDelete(DeleteBehavior.NoAction);
+
+			modelBuilder.Entity<Dota2MatchGame>()
+						.HasOne(c => c.RadiantTeam)
+						.WithMany()
+						.OnDelete(DeleteBehavior.NoAction);
+
+			modelBuilder.Entity<Dota2MatchGame>()
+						.HasOne(c => c.WinnerTeam)
 						.WithMany()
 						.OnDelete(DeleteBehavior.NoAction);
 

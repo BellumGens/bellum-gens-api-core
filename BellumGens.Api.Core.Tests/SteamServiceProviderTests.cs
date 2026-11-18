@@ -31,7 +31,7 @@ namespace BellumGens.Api.Core.Tests
 			_handler = new StubHttpMessageHandler();
 			_httpClient = new HttpClient(_handler);
 			var appConfig = TestUtils.CreateAppConfiguration();
-			_provider = new SteamServiceProvider(_httpClient, _cache, appConfig);
+			_provider = new SteamServiceProvider(_httpClient, _cache, appConfig, TestUtils.CreateMockLogger<SteamServiceProvider>().Object);
 		}
 
 		public void Dispose()

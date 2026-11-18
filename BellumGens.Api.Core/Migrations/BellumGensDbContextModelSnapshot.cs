@@ -347,6 +347,38 @@ namespace BellumGens.Api.Core.Migrations
                     b.ToTable("Companies");
                 });
 
+            modelBuilder.Entity("BellumGens.Api.Core.Models.Dota2MatchGame", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("Dota2MatchId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("GameNumber")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("RadiantTeamId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long?>("SteamMatchId")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("WinnerTeamId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Dota2MatchId");
+
+                    b.HasIndex("RadiantTeamId");
+
+                    b.HasIndex("WinnerTeamId");
+
+                    b.ToTable("Dota2MatchGames");
+                });
+
             modelBuilder.Entity("BellumGens.Api.Core.Models.EarlyBird", b =>
                 {
                     b.Property<string>("UserId")
@@ -1233,6 +1265,55 @@ namespace BellumGens.Api.Core.Migrations
                     b.ToTable("TournamentCSGOMatches");
                 });
 
+            modelBuilder.Entity("BellumGens.Api.Core.Models.TournamentDota2Match", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DemoLink")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("GroupId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("NoShow")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset>("StartTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("Team1Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Team1Points")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("Team2Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Team2Points")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("TournamentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("VideoLink")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GroupId");
+
+                    b.HasIndex("Team1Id");
+
+                    b.HasIndex("Team2Id");
+
+                    b.HasIndex("TournamentId");
+
+                    b.ToTable("TournamentDota2Matches");
+                });
+
             modelBuilder.Entity("BellumGens.Api.Core.Models.TournamentGroup", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1542,6 +1623,15 @@ namespace BellumGens.Api.Core.Migrations
                     b.HasDiscriminator().HasValue("TournamentCSGOGroup");
                 });
 
+            modelBuilder.Entity("BellumGens.Api.Core.Models.TournamentDota2Group", b =>
+                {
+                    b.HasBaseType("BellumGens.Api.Core.Models.TournamentGroup");
+
+                    b.HasIndex("TournamentId");
+
+                    b.HasDiscriminator().HasValue("TournamentDota2Group");
+                });
+
             modelBuilder.Entity("BellumGens.Api.Core.Models.TournamentSC2Group", b =>
                 {
                     b.HasBaseType("BellumGens.Api.Core.Models.TournamentGroup");
@@ -1611,6 +1701,31 @@ namespace BellumGens.Api.Core.Migrations
                     b.Navigation("Team");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("BellumGens.Api.Core.Models.Dota2MatchGame", b =>
+                {
+                    b.HasOne("BellumGens.Api.Core.Models.TournamentDota2Match", "Match")
+                        .WithMany("Games")
+                        .HasForeignKey("Dota2MatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BellumGens.Api.Core.Models.CSGOTeam", "RadiantTeam")
+                        .WithMany()
+                        .HasForeignKey("RadiantTeamId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("BellumGens.Api.Core.Models.CSGOTeam", "WinnerTeam")
+                        .WithMany()
+                        .HasForeignKey("WinnerTeamId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Match");
+
+                    b.Navigation("RadiantTeam");
+
+                    b.Navigation("WinnerTeam");
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.EarlyBird", b =>
@@ -1898,6 +2013,37 @@ namespace BellumGens.Api.Core.Migrations
                     b.Navigation("Tournament");
                 });
 
+            modelBuilder.Entity("BellumGens.Api.Core.Models.TournamentDota2Match", b =>
+                {
+                    b.HasOne("BellumGens.Api.Core.Models.TournamentDota2Group", "Group")
+                        .WithMany("Matches")
+                        .HasForeignKey("GroupId");
+
+                    b.HasOne("BellumGens.Api.Core.Models.CSGOTeam", "Team1")
+                        .WithMany()
+                        .HasForeignKey("Team1Id")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("BellumGens.Api.Core.Models.CSGOTeam", "Team2")
+                        .WithMany()
+                        .HasForeignKey("Team2Id")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("BellumGens.Api.Core.Models.Tournament", "Tournament")
+                        .WithMany("Dota2Matches")
+                        .HasForeignKey("TournamentId");
+
+                    b.Navigation("Group");
+
+                    b.Navigation("Team1");
+
+                    b.Navigation("Team2");
+
+                    b.Navigation("Tournament");
+                });
+
             modelBuilder.Entity("BellumGens.Api.Core.Models.TournamentGroupParticipant", b =>
                 {
                     b.HasOne("BellumGens.Api.Core.Models.TournamentApplication", "TournamentApplication")
@@ -2043,6 +2189,17 @@ namespace BellumGens.Api.Core.Migrations
                     b.Navigation("Tournament");
                 });
 
+            modelBuilder.Entity("BellumGens.Api.Core.Models.TournamentDota2Group", b =>
+                {
+                    b.HasOne("BellumGens.Api.Core.Models.Tournament", "Tournament")
+                        .WithMany("Dota2Groups")
+                        .HasForeignKey("TournamentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tournament");
+                });
+
             modelBuilder.Entity("BellumGens.Api.Core.Models.TournamentSC2Group", b =>
                 {
                     b.HasOne("BellumGens.Api.Core.Models.Tournament", "Tournament")
@@ -2111,6 +2268,10 @@ namespace BellumGens.Api.Core.Migrations
 
                     b.Navigation("CSGOMatches");
 
+                    b.Navigation("Dota2Groups");
+
+                    b.Navigation("Dota2Matches");
+
                     b.Navigation("SC2Groups");
 
                     b.Navigation("SC2Matches");
@@ -2126,6 +2287,11 @@ namespace BellumGens.Api.Core.Migrations
                     b.Navigation("Maps");
                 });
 
+            modelBuilder.Entity("BellumGens.Api.Core.Models.TournamentDota2Match", b =>
+                {
+                    b.Navigation("Games");
+                });
+
             modelBuilder.Entity("BellumGens.Api.Core.Models.TournamentGroup", b =>
                 {
                     b.Navigation("Participants");
@@ -2137,6 +2303,11 @@ namespace BellumGens.Api.Core.Migrations
                 });
 
             modelBuilder.Entity("BellumGens.Api.Core.Models.TournamentCSGOGroup", b =>
+                {
+                    b.Navigation("Matches");
+                });
+
+            modelBuilder.Entity("BellumGens.Api.Core.Models.TournamentDota2Group", b =>
                 {
                     b.Navigation("Matches");
                 });

@@ -749,5 +749,51 @@ namespace BellumGens.Api.Core.Tests
 				It.Is<TeamInvite>(i => i.Team != null && i.Team.TeamName == "Team1" && i.InvitedUser != null && i.InvitedUser.Id == "user1"),
 				NotificationState.Accepted), Times.Once);
 		}
+
+		[Theory]
+		[InlineData(null)]
+		[InlineData("")]
+		[InlineData("not-a-steam-id")]
+		[InlineData("12345")]
+		public async Task GetDota2Profile_WithInvalidSteamId_ReturnsBadRequest(string? steamid)
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			var result = await controller.GetDota2Profile(steamid!);
+
+			Assert.IsType<BadRequestObjectResult>(result);
+			_mockSteamService.Verify(s => s.GetDota2Profile(It.IsAny<string>()), Times.Never);
+		}
+
+		[Fact]
+		public async Task GetDota2Profile_ReturnsTheProfileFromTheService()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var profile = new Dota2ProfileViewModel { SteamId = "76561198012345678", AccountId = 52079950, Matches = 3 };
+			_mockSteamService.Setup(s => s.GetDota2Profile("76561198012345678")).ReturnsAsync(profile);
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			var result = await controller.GetDota2Profile("76561198012345678");
+
+			var okResult = Assert.IsType<OkObjectResult>(result);
+			Assert.Same(profile, okResult.Value);
+		}
+
+		[Fact]
+		public async Task GetDota2Profile_WhenSteamIsUnavailable_ReturnsBadGateway()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			_mockSteamService.Setup(s => s.GetDota2Profile(It.IsAny<string>())).ReturnsAsync((Dota2ProfileViewModel?)null);
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			var result = await controller.GetDota2Profile("76561198012345678");
+
+			var status = Assert.IsType<ObjectResult>(result);
+			Assert.Equal(502, status.StatusCode);
+		}
 	}
 }

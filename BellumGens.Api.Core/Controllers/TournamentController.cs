@@ -115,10 +115,16 @@ namespace BellumGens.Api.Controllers
 
 				try
 				{
-					string gameMsg = application.Game == Game.CSGO ? "Вашата регистрация е за участие в лигата по CS:GO" :
-																	$"Вашата регистрация е за участие в лигата по StarCraft II, с battle tag {application.BattleNetId}";
+					string gameMsg = application.Game switch
+					{
+						Game.CSGO => "Вашата регистрация е за участие в лигата по CS:GO",
+						Game.Dota2 => "Вашата регистрация е за участие в лигата по Dota 2",
+						_ => $"Вашата регистрация е за участие в лигата по StarCraft II, с battle tag {application.BattleNetId}"
+					};
+					// There is no published fee for the Dota 2 league yet, so its email leaves the amount out.
+					string feeMsg = application.Game == Game.Dota2 ? "" : " (60лв. с ДДС за лигата по StarCraft II, или 300лв. с ДДС за лигата по CS:GO)";
 					string message = $@"Здравей, { user.UserName },
-									<p>Успешно получихме вашата регистрация за Esports Бизнес Лигата. В регистрацията сте посочили, че текущо работите в <b>{ application.CompanyId }</b>. {gameMsg}. Регистрация ще бъде потвърдена след като преведете таксата за участие (60лв. с ДДС за лигата по StarCraft II, или 300лв. с ДДС за лигата по CS:GO).</p>
+									<p>Успешно получихме вашата регистрация за Esports Бизнес Лигата. В регистрацията сте посочили, че текущо работите в <b>{ application.CompanyId }</b>. {gameMsg}. Регистрация ще бъде потвърдена след като преведете таксата за участие{feeMsg}.</p>
 									<p>Банковата ни сметка е</p>
 									<ul>
 										<li>Име на Банката: <b>{ _appInfo.Config.Bank }</b></li>
@@ -266,7 +272,8 @@ namespace BellumGens.Api.Controllers
 			List<RegistrationCountViewModel> model = new()
 			{
 				new RegistrationCountViewModel(registrations.Where(r => r.Game == Game.CSGO).Count(), Game.CSGO),
-				new RegistrationCountViewModel(registrations.Where(r => r.Game == Game.StarCraft2).Count(), Game.StarCraft2)
+				new RegistrationCountViewModel(registrations.Where(r => r.Game == Game.StarCraft2).Count(), Game.StarCraft2),
+				new RegistrationCountViewModel(registrations.Where(r => r.Game == Game.Dota2).Count(), Game.Dota2)
 			};
 			return Ok(model);
 		}
@@ -488,6 +495,24 @@ namespace BellumGens.Api.Controllers
 			return Ok(registrations);
 		}
 
+		[AllowAnonymous]
+		[Route("Dota2Regs")]
+		public async Task<IActionResult> GetDota2Registrations(Guid? tournamentId = null)
+		{
+			List<TournamentApplication> entities = tournamentId != null ?
+				await _dbContext.TournamentApplications.Include(a => a.Team).Where(r => r.Game == Game.Dota2 && r.TournamentId == tournamentId && r.State != TournamentApplicationState.Banned).ToListAsync() :
+				await _dbContext.TournamentApplications.Include(a => a.Team).Where(r => r.Game == Game.Dota2 && r.Tournament.Active && r.State != TournamentApplicationState.Banned).ToListAsync();
+
+			List<TournamentDota2Match> matches = tournamentId != null ?
+				await _dbContext.TournamentDota2Matches.Where(m => m.TournamentId == tournamentId).ToListAsync() :
+				await _dbContext.TournamentDota2Matches.Where(m => m.Tournament.Active).ToListAsync();
+
+			List<TournamentDota2Participant> registrations = entities
+				.Select(app => new TournamentDota2Participant(app, matches.FindAll(m => m.Team1Id == app.TeamId || m.Team2Id == app.TeamId)))
+				.ToList();
+			return Ok(registrations);
+		}
+
 		[HttpDelete]
 		[Route("Delete")]
 		public async Task<IActionResult> DeleteRegistraion(Guid id)
@@ -706,11 +731,14 @@ namespace BellumGens.Api.Controllers
 			// registrations, groups and their participants are removed by the database cascades
 			List<Guid?> groupIds = (await _dbContext.TournamentCSGOGroups.Where(g => g.TournamentId == id).Select(g => g.Id).ToListAsync())
 				.Concat(await _dbContext.TournamentSC2Groups.Where(g => g.TournamentId == id).Select(g => g.Id).ToListAsync())
+				.Concat(await _dbContext.TournamentDota2Groups.Where(g => g.TournamentId == id).Select(g => g.Id).ToListAsync())
 				.Select(g => (Guid?)g)
 				.ToList();
 			_dbContext.TournamentCSGOMatches.RemoveRange(await _dbContext.TournamentCSGOMatches
 				.Where(m => m.TournamentId == id || groupIds.Contains(m.GroupId)).ToListAsync());
 			_dbContext.TournamentSC2Matches.RemoveRange(await _dbContext.TournamentSC2Matches
+				.Where(m => m.TournamentId == id || groupIds.Contains(m.GroupId)).ToListAsync());
+			_dbContext.TournamentDota2Matches.RemoveRange(await _dbContext.TournamentDota2Matches
 				.Where(m => m.TournamentId == id || groupIds.Contains(m.GroupId)).ToListAsync());
 			_dbContext.Tournaments.Remove(tournament);
 
@@ -834,6 +862,57 @@ namespace BellumGens.Api.Controllers
 			return Ok(group);
 		}
 
+		[AllowAnonymous]
+		[Route("Dota2Groups")]
+		public async Task<IActionResult> GetDota2Groups(Guid? tournamentId = null)
+		{
+			IQueryable<TournamentDota2Group> query = tournamentId != null ?
+				_dbContext.TournamentDota2Groups.Where(g => g.TournamentId == tournamentId) :
+				_dbContext.TournamentDota2Groups.Where(g => g.Tournament.Active);
+			List<TournamentDota2Group> groups = await query
+								.Include(g => g.Participants)
+									.ThenInclude(p => p.TournamentApplication)
+										.ThenInclude(p => p.Team)
+								.Include(g => g.Matches)
+								.ToListAsync();
+			return Ok(groups);
+		}
+
+		[HttpPut]
+		[Route("dota2group")]
+		[Authorize(Roles = "admin, event-admin")]
+		public async Task<IActionResult> SubmitDota2Group(Guid? id, TournamentDota2Group group)
+		{
+			TournamentDota2Group entity = await _dbContext.TournamentDota2Groups.FindAsync(id);
+			if (entity != null)
+			{
+				group.Id = entity.Id;
+				group.TournamentId = entity.TournamentId;
+				_dbContext.Entry(entity).CurrentValues.SetValues(group);
+			}
+			else
+			{
+				Tournament active = await _dbContext.Tournaments.FirstOrDefaultAsync(t => t.Active);
+				if (active == null)
+				{
+					return BadRequest("There is no active tournament.");
+				}
+				group.TournamentId = active.ID;
+				_dbContext.TournamentDota2Groups.Add(group);
+			}
+
+			try
+			{
+				await _dbContext.SaveChangesAsync();
+			}
+			catch (DbUpdateException e)
+			{
+				System.Diagnostics.Trace.TraceError("Tournament group update exception: " + e.Message);
+				return BadRequest("Something went wrong...");
+			}
+			return Ok(entity ?? group);
+		}
+
 		[HttpDelete]
 		[Route("group")]
 		[Authorize(Roles = "admin, event-admin")]
@@ -854,10 +933,11 @@ namespace BellumGens.Api.Controllers
 				}
 				return Ok();
 			}
-			entity = await _dbContext.TournamentSC2Groups.FindAsync(id);
+			entity = (TournamentGroup)await _dbContext.TournamentSC2Groups.FindAsync(id)
+				?? await _dbContext.TournamentDota2Groups.FindAsync(id);
 			if (entity != null)
 			{
-				_dbContext.TournamentSC2Groups.Remove(entity as TournamentSC2Group);
+				_dbContext.Remove(entity);
 				try
 				{
 					await _dbContext.SaveChangesAsync();
@@ -881,6 +961,10 @@ namespace BellumGens.Api.Controllers
 			if (entity == null)
 			{
 				entity = await _dbContext.TournamentSC2Groups.FindAsync(id);
+			}
+			if (entity == null)
+			{
+				entity = await _dbContext.TournamentDota2Groups.FindAsync(id);
 			}
 			if (entity != null)
 			{
@@ -1255,6 +1339,187 @@ namespace BellumGens.Api.Controllers
 				return BadRequest("Something went wrong...");
 			}
 			return Ok(entity);
+		}
+
+		[AllowAnonymous]
+		[Route("dota2matches")]
+		public async Task<IActionResult> GetDota2Matches(Guid? tournamentId = null)
+		{
+			IQueryable<TournamentDota2Match> query = tournamentId != null ?
+				_dbContext.TournamentDota2Matches.Where(m => m.TournamentId == tournamentId) :
+				_dbContext.TournamentDota2Matches;
+			List<TournamentDota2Match> matches = await query
+				.Include(m => m.Team1)
+				.Include(m => m.Team2)
+				.Include(m => m.Games)
+				.OrderBy(m => m.StartTime)
+				.ToListAsync();
+			return Ok(matches);
+		}
+
+		[AllowAnonymous]
+		[Route("dota2match")]
+		public async Task<IActionResult> GetDota2Match(Guid id)
+		{
+			TournamentDota2Match match = await _dbContext.TournamentDota2Matches
+				.Include(m => m.Team1)
+				.Include(m => m.Team2)
+				.Include(m => m.Games)
+				.FirstOrDefaultAsync(m => m.Id == id);
+			if (match != null)
+				return Ok(match);
+			return NotFound();
+		}
+
+		[HttpPut]
+		[Route("dota2match")]
+		[Authorize(Roles = "admin, event-admin")]
+		public async Task<IActionResult> SubmitDota2Match(Guid? id, TournamentDota2Match match)
+		{
+			if (match.Team1Id == Guid.Empty || match.Team2Id == Guid.Empty || match.Team1Id == match.Team2Id)
+			{
+				return BadRequest("A Dota 2 match needs two different teams.");
+			}
+			ICollection<Dota2MatchGame> games = match.Games ?? new List<Dota2MatchGame>();
+			if (games.Any(g => !GameTeamsBelongToMatch(g, match)))
+			{
+				return BadRequest("The Radiant team and the winner of a game must be one of the teams in the match.");
+			}
+
+			TournamentDota2Match entity = await _dbContext.TournamentDota2Matches.FindAsync(id);
+			if (entity != null)
+			{
+				match.Id = entity.Id;
+				_dbContext.Entry(entity).CurrentValues.SetValues(match);
+				foreach (Dota2MatchGame game in games)
+				{
+					game.Dota2MatchId = entity.Id;
+					Dota2MatchGame gameEntity = game.Id == Guid.Empty ? null : await _dbContext.Dota2MatchGames.FindAsync(game.Id);
+					if (gameEntity != null)
+					{
+						_dbContext.Entry(gameEntity).CurrentValues.SetValues(game);
+					}
+					else
+					{
+						_dbContext.Dota2MatchGames.Add(game);
+					}
+				}
+				match = entity;
+			}
+			else
+			{
+				match.Games = games;
+				_dbContext.TournamentDota2Matches.Add(match);
+			}
+
+			try
+			{
+				await _dbContext.SaveChangesAsync();
+			}
+			catch (DbUpdateException e)
+			{
+				System.Diagnostics.Trace.TraceError("Tournament Dota 2 match update exception: " + e.Message);
+				return BadRequest("Something went wrong...");
+			}
+
+			await _dbContext.Entry(match).Reference(m => m.Team1).LoadAsync();
+			await _dbContext.Entry(match).Reference(m => m.Team2).LoadAsync();
+			await _dbContext.Entry(match).Collection(m => m.Games).LoadAsync();
+			return Ok(match);
+		}
+
+		[HttpDelete]
+		[Route("dota2match")]
+		[Authorize(Roles = "admin, event-admin")]
+		public async Task<IActionResult> DeleteDota2Match(Guid? id)
+		{
+			TournamentDota2Match entity = await _dbContext.TournamentDota2Matches.Include(m => m.Games).FirstOrDefaultAsync(m => m.Id == id);
+			if (entity == null)
+			{
+				return NotFound();
+			}
+			_dbContext.Dota2MatchGames.RemoveRange(entity.Games);
+			_dbContext.TournamentDota2Matches.Remove(entity);
+
+			try
+			{
+				await _dbContext.SaveChangesAsync();
+			}
+			catch (DbUpdateException e)
+			{
+				System.Diagnostics.Trace.TraceError("Tournament Dota 2 match delete exception: " + e.Message);
+				return BadRequest("Something went wrong...");
+			}
+			return Ok(entity);
+		}
+
+		[HttpPut]
+		[Route("dota2matchgame")]
+		[Authorize(Roles = "admin, event-admin")]
+		public async Task<IActionResult> SubmitDota2MatchGame(Guid? id, Dota2MatchGame game)
+		{
+			TournamentDota2Match match = await _dbContext.TournamentDota2Matches.FindAsync(game.Dota2MatchId);
+			if (match == null)
+			{
+				return NotFound("The Dota 2 match of this game was not found.");
+			}
+			if (!GameTeamsBelongToMatch(game, match))
+			{
+				return BadRequest("The Radiant team and the winner of a game must be one of the teams in the match.");
+			}
+
+			Dota2MatchGame entity = await _dbContext.Dota2MatchGames.FindAsync(id);
+			if (entity != null)
+			{
+				game.Id = entity.Id;
+				_dbContext.Entry(entity).CurrentValues.SetValues(game);
+			}
+			else
+			{
+				_dbContext.Dota2MatchGames.Add(game);
+			}
+
+			try
+			{
+				await _dbContext.SaveChangesAsync();
+			}
+			catch (DbUpdateException e)
+			{
+				System.Diagnostics.Trace.TraceError("Tournament Dota 2 match game update exception: " + e.Message);
+				return BadRequest("Something went wrong...");
+			}
+			return Ok(entity ?? game);
+		}
+
+		[HttpDelete]
+		[Route("dota2matchgame")]
+		[Authorize(Roles = "admin, event-admin")]
+		public async Task<IActionResult> DeleteDota2MatchGame(Guid? id)
+		{
+			Dota2MatchGame entity = await _dbContext.Dota2MatchGames.FindAsync(id);
+			if (entity == null)
+			{
+				return NotFound();
+			}
+			_dbContext.Dota2MatchGames.Remove(entity);
+
+			try
+			{
+				await _dbContext.SaveChangesAsync();
+			}
+			catch (DbUpdateException e)
+			{
+				System.Diagnostics.Trace.TraceError("Tournament Dota 2 match game delete exception: " + e.Message);
+				return BadRequest("Something went wrong...");
+			}
+			return Ok(entity);
+		}
+
+		/// <summary>A game can only name the teams of its own match as the Radiant side and the winner.</summary>
+		private static bool GameTeamsBelongToMatch(Dota2MatchGame game, TournamentDota2Match match)
+		{
+			bool InMatch(Guid? teamId) => teamId == null || teamId == match.Team1Id || teamId == match.Team2Id;
+			return InMatch(game.RadiantTeamId) && InMatch(game.WinnerTeamId);
 		}
 		#endregion
 

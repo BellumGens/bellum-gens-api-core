@@ -5,7 +5,8 @@ namespace BellumGens.Api.Core.Models
 	public enum Game
 	{
 		CSGO,
-		StarCraft2
+		StarCraft2,
+		Dota2
 	}
 
 	public enum NotificationState

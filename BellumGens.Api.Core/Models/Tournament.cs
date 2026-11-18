@@ -54,10 +54,16 @@ namespace BellumGens.Api.Core.Models
 		public virtual ICollection<TournamentSC2Match> SC2Matches { get; set; } = new HashSet<TournamentSC2Match>();
 
 		[JsonIgnore]
+		public virtual ICollection<TournamentDota2Match> Dota2Matches { get; set; } = new HashSet<TournamentDota2Match>();
+
+		[JsonIgnore]
 		public virtual ICollection<TournamentCSGOGroup> CSGOGroups { get; set; } = new HashSet<TournamentCSGOGroup>();
 
 		[JsonIgnore]
 		public virtual ICollection<TournamentSC2Group> SC2Groups { get; set; } = new HashSet<TournamentSC2Group>();
+
+		[JsonIgnore]
+		public virtual ICollection<TournamentDota2Group> Dota2Groups { get; set; } = new HashSet<TournamentDota2Group>();
 
 		[JsonIgnore]
 		public virtual ICollection<TournamentApplication> Applications { get; set; } = new HashSet<TournamentApplication>();
