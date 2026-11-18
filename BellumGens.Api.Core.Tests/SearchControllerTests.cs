@@ -213,6 +213,26 @@ namespace BellumGens.Api.Core.Tests
 		}
 
 		[Fact]
+		public async Task SearchTeams_WithRole_ReturnsOnlyTeamsOfTheRoleGame()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var csTeam = CreateTeam("CsTeam", true, TeamSlot(DayOfWeek.Monday, 18, 22));
+			var dotaTeam = CreateTeam("DotaTeam", true, TeamSlot(DayOfWeek.Monday, 18, 22));
+			dotaTeam.Game = Game.Dota2;
+			dbContext.CSGOTeams.AddRange(csTeam, dotaTeam);
+			dbContext.SaveChanges();
+
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			var needsCarry = Assert.IsType<List<CSGOTeam>>(Assert.IsType<OkObjectResult>(await controller.SearchTeams(PlaystyleRole.Carry, 0)).Value);
+			var needsAwper = Assert.IsType<List<CSGOTeam>>(Assert.IsType<OkObjectResult>(await controller.SearchTeams(PlaystyleRole.Awper, 0)).Value);
+
+			Assert.Equal("DotaTeam", Assert.Single(needsCarry).TeamName);
+			Assert.Equal("CsTeam", Assert.Single(needsAwper).TeamName);
+		}
+
+		[Fact]
 		public async Task SearchTeams_WithOverlap_WhenUserHasNoAvailableDays_ReturnsBadRequest()
 		{
 			using var dbContext = TestUtils.CreateInMemoryDbContext();

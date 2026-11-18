@@ -28,6 +28,41 @@ namespace BellumGens.Api.Core.Tests
 			Assert.Throws<ArgumentNullException>(() => principal.GetUserId());
 		}
 
+		[Theory]
+		[InlineData(PlaystyleRole.IGL, Game.CSGO)]
+		[InlineData(PlaystyleRole.Awper, Game.CSGO)]
+		[InlineData(PlaystyleRole.EntryFragger, Game.CSGO)]
+		[InlineData(PlaystyleRole.Support, Game.CSGO)]
+		[InlineData(PlaystyleRole.Lurker, Game.CSGO)]
+		[InlineData(PlaystyleRole.Carry, Game.Dota2)]
+		[InlineData(PlaystyleRole.Mid, Game.Dota2)]
+		[InlineData(PlaystyleRole.Offlane, Game.Dota2)]
+		[InlineData(PlaystyleRole.SoftSupport, Game.Dota2)]
+		[InlineData(PlaystyleRole.HardSupport, Game.Dota2)]
+		public void PlaystyleRole_BelongsToTheRosterOfOneGame(PlaystyleRole role, Game game)
+		{
+			Assert.Equal(game, role.RoleGame());
+			Assert.True(role.IsRoleFor(game));
+			Assert.False(role.IsRoleFor(game == Game.CSGO ? Game.Dota2 : Game.CSGO));
+			Assert.False(role.IsRoleFor(Game.StarCraft2));
+		}
+
+		[Fact]
+		public void PlaystyleRole_NotSet_FitsEveryTeam()
+		{
+			Assert.Null(PlaystyleRole.NotSet.RoleGame());
+			Assert.True(PlaystyleRole.NotSet.IsRoleFor(Game.CSGO));
+			Assert.True(PlaystyleRole.NotSet.IsRoleFor(Game.Dota2));
+		}
+
+		[Fact]
+		public void Game_IsTeamGame_OnlyForCounterStrikeAndDota2()
+		{
+			Assert.True(Game.CSGO.IsTeamGame());
+			Assert.True(Game.Dota2.IsTeamGame());
+			Assert.False(Game.StarCraft2.IsTeamGame());
+		}
+
 		[Fact]
 		public void GetUserId_WithNoClaims_ReturnsNull()
 		{

@@ -296,6 +296,9 @@ namespace BellumGens.Api.Core.Migrations
                     b.Property<string>("Discord")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("Game")
+                        .HasColumnType("int");
+
                     b.Property<DateTimeOffset>("RegisteredOn")
                         .HasColumnType("datetimeoffset");
 

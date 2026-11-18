@@ -111,12 +111,16 @@ namespace BellumGens.Api.Controllers
 
 		[Route("Team")]
 		[HttpPost]
-		public async Task<IActionResult> TeamFromSteamGroup(SteamUserGroup group)
+		public async Task<IActionResult> TeamFromSteamGroup(SteamUserGroup group, [FromQuery] Game game = Game.CSGO)
 		{
 			ApplicationUser user = await GetAuthUser();
 			if (user == null)
 			{
 				return Unauthorized();
+			}
+			if (!game.IsTeamGame())
+			{
+				return BadRequest("Teams can only be created for Counter-Strike or Dota 2.");
 			}
 			if (!await _steamService.VerifyUserIsGroupAdmin(user.SteamID, group.groupID64))
 			{
@@ -127,7 +131,8 @@ namespace BellumGens.Api.Controllers
 			{
 				SteamGroupId = group.groupID64,
 				TeamName = group.groupName,
-				TeamAvatar = group.avatarFull
+				TeamAvatar = group.avatarFull,
+				Game = game
 			};
 			_dbContext.CSGOTeams.Add(team);
 			team.UniqueCustomUrl(_dbContext);
@@ -164,6 +169,8 @@ namespace BellumGens.Api.Controllers
 			if (ModelState.IsValid)
 			{
 				_dbContext.Attach(team).State = EntityState.Modified;
+				// The roster roles depend on the game, so a team keeps the game it was created for
+				_dbContext.Entry(team).Property(t => t.Game).IsModified = false;
 
 				try
 				{
@@ -187,6 +194,10 @@ namespace BellumGens.Api.Controllers
 			if (user == null)
 			{
 				return Unauthorized();
+			}
+			if (!team.Game.IsTeamGame())
+			{
+				return BadRequest("Teams can only be created for Counter-Strike or Dota 2.");
 			}
 
 			_dbContext.CSGOTeams.Add(team);
@@ -224,6 +235,11 @@ namespace BellumGens.Api.Controllers
 			if (entity == null)
 			{
 				return NotFound("Team Member not found!");
+			}
+			Game game = await _dbContext.CSGOTeams.Where(t => t.TeamId == member.TeamId).Select(t => t.Game).FirstOrDefaultAsync();
+			if (!member.Role.IsRoleFor(game))
+			{
+				return BadRequest("This role is not part of the team's roster.");
 			}
 
 			_dbContext.Entry(entity).CurrentValues.SetValues(member);

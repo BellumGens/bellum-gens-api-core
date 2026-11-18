@@ -23,14 +23,51 @@ namespace BellumGens.Api.Core.Models
 		CTSide
 	}
 
+	/// <summary>
+	/// The roles of a team roster. Counter-Strike and Dota 2 rosters each have their own five roles;
+	/// <see cref="PlaystyleRoleExtensions.IsRoleFor"/> tells which game a role belongs to.
+	/// </summary>
 	public enum PlaystyleRole
 	{
 		NotSet,
+		// Counter-Strike
 		IGL,
 		Awper,
 		EntryFragger,
 		Support,
-		Lurker
+		Lurker,
+		// Dota 2 positions 1 to 5
+		Carry,
+		Mid,
+		Offlane,
+		SoftSupport,
+		HardSupport
+	}
+
+	public static class PlaystyleRoleExtensions
+	{
+		/// <summary>The game whose rosters have the role; null for <see cref="PlaystyleRole.NotSet"/>.</summary>
+		public static Game? RoleGame(this PlaystyleRole role)
+		{
+			return role switch
+			{
+				PlaystyleRole.IGL or PlaystyleRole.Awper or PlaystyleRole.EntryFragger or PlaystyleRole.Support or PlaystyleRole.Lurker => Game.CSGO,
+				PlaystyleRole.Carry or PlaystyleRole.Mid or PlaystyleRole.Offlane or PlaystyleRole.SoftSupport or PlaystyleRole.HardSupport => Game.Dota2,
+				_ => null
+			};
+		}
+
+		/// <summary>Whether a member of a team playing <paramref name="game"/> can take the role. Any team can leave a role unset.</summary>
+		public static bool IsRoleFor(this PlaystyleRole role, Game game)
+		{
+			return role == PlaystyleRole.NotSet || role.RoleGame() == game;
+		}
+
+		/// <summary>Teams are formed for Counter-Strike and Dota 2; StarCraft II is played by single players.</summary>
+		public static bool IsTeamGame(this Game game)
+		{
+			return game == Game.CSGO || game == Game.Dota2;
+		}
 	}
 
 	public enum VoteDirection

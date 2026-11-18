@@ -87,6 +87,10 @@ namespace BellumGens.Api.Controllers
 					{
 						return BadRequest("Вече има направена регистрация за този отбор!");
 					}
+					if (!await _dbContext.CSGOTeams.AnyAsync(t => t.TeamId == application.TeamId && t.Game == application.Game))
+					{
+						return BadRequest("Избраният отбор не е за играта на тази лига!");
+					}
 				}
 				if (c == null && application.CompanyId != null)
 				{

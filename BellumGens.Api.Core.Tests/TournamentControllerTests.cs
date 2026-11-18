@@ -970,6 +970,7 @@ namespace BellumGens.Api.Core.Tests
 			var tournamentId = Guid.NewGuid();
 			var teamId = Guid.NewGuid();
 			dbContext.Companies.Add(new Company { Name = "Acme" });
+			dbContext.CSGOTeams.Add(new CSGOTeam { TeamId = teamId, TeamName = "CS Team", CustomUrl = "cs-team" });
 			dbContext.SaveChanges();
 			SetupAuthUser("user1");
 			var controller = CreateAuthenticatedController(dbContext, "user1");
@@ -993,12 +994,15 @@ namespace BellumGens.Api.Core.Tests
 		public async Task Register_KeepsProvidedHash()
 		{
 			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var teamId = Guid.NewGuid();
+			dbContext.CSGOTeams.Add(new CSGOTeam { TeamId = teamId, TeamName = "CS Team", CustomUrl = "cs-team" });
+			dbContext.SaveChanges();
 			SetupAuthUser("user1");
 			var controller = CreateAuthenticatedController(dbContext, "user1");
 
 			var result = await controller.Register(new TournamentApplication
 			{
-				TournamentId = Guid.NewGuid(), Game = Game.CSGO, TeamId = Guid.NewGuid(),
+				TournamentId = Guid.NewGuid(), Game = Game.CSGO, TeamId = teamId,
 				CompanyId = "Acme", Email = NoSendEmail, Hash = "fixedhsh"
 			});
 
@@ -2979,6 +2983,8 @@ namespace BellumGens.Api.Core.Tests
 		{
 			using var dbContext = TestUtils.CreateInMemoryDbContext();
 			var teamId = Guid.NewGuid();
+			dbContext.CSGOTeams.Add(new CSGOTeam { TeamId = teamId, TeamName = "Dota Team", CustomUrl = "dota-team", Game = Game.Dota2 });
+			dbContext.SaveChanges();
 			SetupAuthUser("user1");
 			var controller = CreateAuthenticatedController(dbContext, "user1");
 
@@ -2991,6 +2997,43 @@ namespace BellumGens.Api.Core.Tests
 			var persisted = Assert.Single(dbContext.TournamentApplications);
 			Assert.Equal(Game.Dota2, persisted.Game);
 			Assert.Equal(teamId, persisted.TeamId);
+		}
+
+		[Theory]
+		[InlineData(Game.Dota2, Game.CSGO)]
+		[InlineData(Game.CSGO, Game.Dota2)]
+		public async Task Register_TeamOfAnotherGame_ReturnsBadRequest(Game league, Game teamGame)
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var teamId = Guid.NewGuid();
+			dbContext.CSGOTeams.Add(new CSGOTeam { TeamId = teamId, TeamName = "Team", CustomUrl = "team", Game = teamGame });
+			dbContext.SaveChanges();
+			SetupAuthUser("user1");
+			var controller = CreateAuthenticatedController(dbContext, "user1");
+
+			var result = await controller.Register(new TournamentApplication
+			{
+				TournamentId = Guid.NewGuid(), Game = league, TeamId = teamId, CompanyId = "Acme", Email = NoSendEmail
+			});
+
+			Assert.IsType<BadRequestObjectResult>(result);
+			Assert.Empty(dbContext.TournamentApplications);
+		}
+
+		[Fact]
+		public async Task Register_UnknownTeam_ReturnsBadRequest()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			SetupAuthUser("user1");
+			var controller = CreateAuthenticatedController(dbContext, "user1");
+
+			var result = await controller.Register(new TournamentApplication
+			{
+				TournamentId = Guid.NewGuid(), Game = Game.Dota2, TeamId = Guid.NewGuid(), CompanyId = "Acme", Email = NoSendEmail
+			});
+
+			Assert.IsType<BadRequestObjectResult>(result);
+			Assert.Empty(dbContext.TournamentApplications);
 		}
 
 		[Fact]
