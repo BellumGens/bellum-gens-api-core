@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -2637,6 +2637,74 @@ namespace BellumGens.Api.Core.Tests
 			Assert.False(string.IsNullOrEmpty(application.Hash));
 		}
 
+		private Tournament SeedDota2JoinTournament(BellumGensDbContext dbContext, Guid teamId, bool isAdmin = true, Game teamGame = Game.Dota2)
+		{
+			var tournament = SeedTournament(dbContext, "owner", "DOTA2345");
+			tournament.Game = Game.Dota2;
+			dbContext.CSGOTeams.Add(new CSGOTeam { TeamId = teamId, TeamName = "Dota Team", CustomUrl = "dota-team", Game = teamGame });
+			dbContext.TeamMembers.Add(new TeamMember { TeamId = teamId, UserId = "player1", IsActive = true, IsAdmin = isAdmin });
+			dbContext.SaveChanges();
+			var user = SetupAuthUser("player1");
+			user.Email = NoSendEmail;
+			return tournament;
+		}
+
+		[Fact]
+		public async Task JoinTournament_Dota2_WithATeamTheUserManages_RegistersTheTeam()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var teamId = Guid.NewGuid();
+			var tournament = SeedDota2JoinTournament(dbContext, teamId);
+			var controller = CreateAuthenticatedController(dbContext, "player1");
+
+			var result = await controller.JoinTournament(new TournamentJoinViewModel { InviteCode = "DOTA2345", TeamId = teamId });
+
+			Assert.IsType<OkObjectResult>(result);
+			var application = Assert.Single(dbContext.TournamentApplications);
+			Assert.Equal((tournament.ID, Game.Dota2, (Guid?)teamId), (application.TournamentId, application.Game, application.TeamId));
+		}
+
+		[Fact]
+		public async Task JoinTournament_Dota2_WithoutATeam_ReturnsBadRequest()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			SeedDota2JoinTournament(dbContext, Guid.NewGuid());
+			var controller = CreateAuthenticatedController(dbContext, "player1");
+
+			var result = await controller.JoinTournament(new TournamentJoinViewModel { InviteCode = "DOTA2345" });
+
+			Assert.IsType<BadRequestObjectResult>(result);
+			Assert.Empty(dbContext.TournamentApplications);
+		}
+
+		[Fact]
+		public async Task JoinTournament_Dota2_WithATeamTheUserDoesNotManage_ReturnsBadRequest()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var teamId = Guid.NewGuid();
+			SeedDota2JoinTournament(dbContext, teamId, isAdmin: false);
+			var controller = CreateAuthenticatedController(dbContext, "player1");
+
+			var result = await controller.JoinTournament(new TournamentJoinViewModel { InviteCode = "DOTA2345", TeamId = teamId });
+
+			Assert.IsType<BadRequestObjectResult>(result);
+			Assert.Empty(dbContext.TournamentApplications);
+		}
+
+		[Fact]
+		public async Task JoinTournament_Dota2_WithACounterStrikeTeam_ReturnsBadRequest()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var teamId = Guid.NewGuid();
+			SeedDota2JoinTournament(dbContext, teamId, teamGame: Game.CSGO);
+			var controller = CreateAuthenticatedController(dbContext, "player1");
+
+			var result = await controller.JoinTournament(new TournamentJoinViewModel { InviteCode = "DOTA2345", TeamId = teamId });
+
+			Assert.IsType<BadRequestObjectResult>(result);
+			Assert.Empty(dbContext.TournamentApplications);
+		}
+
 		[Fact]
 		public async Task JoinTournament_UnknownCode_ReturnsNotFound()
 		{
@@ -3154,6 +3222,37 @@ namespace BellumGens.Api.Core.Tests
 		}
 
 		[Fact]
+		public async Task SubmitDota2Group_New_AddsTheGroupToTheSelectedTournament()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var activeId = Guid.NewGuid();
+			var dota2Id = Guid.NewGuid();
+			dbContext.Tournaments.Add(new Tournament { ID = activeId, Name = "Current", Active = true });
+			dbContext.Tournaments.Add(new Tournament { ID = dota2Id, Name = "Dota", Game = Game.Dota2 });
+			dbContext.SaveChanges();
+			var controller = CreateAuthenticatedController(dbContext, "admin1");
+
+			var result = await controller.SubmitDota2Group(null, new TournamentDota2Group { Name = "Group A", TournamentId = dota2Id });
+
+			Assert.Equal(dota2Id, Assert.IsType<TournamentDota2Group>(Assert.IsType<OkObjectResult>(result).Value).TournamentId);
+			Assert.Equal(dota2Id, Assert.Single(dbContext.TournamentDota2Groups).TournamentId);
+		}
+
+		[Fact]
+		public async Task SubmitDota2Group_New_ForAMissingTournament_ReturnsBadRequest()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			dbContext.Tournaments.Add(new Tournament { ID = Guid.NewGuid(), Name = "Current", Active = true });
+			dbContext.SaveChanges();
+			var controller = CreateAuthenticatedController(dbContext, "admin1");
+
+			var result = await controller.SubmitDota2Group(null, new TournamentDota2Group { Name = "Group A", TournamentId = Guid.NewGuid() });
+
+			Assert.IsType<BadRequestObjectResult>(result);
+			Assert.Empty(dbContext.TournamentDota2Groups);
+		}
+
+		[Fact]
 		public async Task SubmitDota2Group_Existing_RenamesTheGroupAndKeepsItsTournament()
 		{
 			using var dbContext = TestUtils.CreateInMemoryDbContext();
@@ -3227,6 +3326,29 @@ namespace BellumGens.Api.Core.Tests
 		}
 
 		[Fact]
+		public async Task GetDota2Matches_WithoutATournamentId_ReturnsTheActiveTournamentsSeries()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var activeId = Guid.NewGuid();
+			var pastId = Guid.NewGuid();
+			var (alpha, beta) = SeedDota2Teams(dbContext);
+			dbContext.Tournaments.Add(new Tournament { ID = activeId, Name = "Current", Active = true, Game = Game.Dota2 });
+			dbContext.Tournaments.Add(new Tournament { ID = pastId, Name = "Past", Game = Game.Dota2 });
+			var current = new TournamentDota2Match { TournamentId = activeId, Team1Id = alpha, Team2Id = beta };
+			dbContext.TournamentDota2Matches.Add(current);
+			dbContext.TournamentDota2Matches.Add(new TournamentDota2Match { TournamentId = pastId, Team1Id = alpha, Team2Id = beta });
+			dbContext.TournamentDota2Matches.Add(new TournamentDota2Match { Team1Id = alpha, Team2Id = beta });
+			dbContext.SaveChanges();
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			var result = await controller.GetDota2Matches();
+
+			var matches = Assert.IsAssignableFrom<List<TournamentDota2Match>>(Assert.IsType<OkObjectResult>(result).Value);
+			Assert.Equal(current.Id, Assert.Single(matches).Id);
+		}
+
+		[Fact]
 		public async Task GetDota2Match_NotFound_ReturnsNotFound()
 		{
 			using var dbContext = TestUtils.CreateInMemoryDbContext();
@@ -3241,10 +3363,12 @@ namespace BellumGens.Api.Core.Tests
 		{
 			using var dbContext = TestUtils.CreateInMemoryDbContext();
 			var (alpha, beta) = SeedDota2Teams(dbContext);
+			var tournamentId = Guid.NewGuid();
+			dbContext.Tournaments.Add(new Tournament { ID = tournamentId, Name = "Dota", Game = Game.Dota2 });
 			dbContext.SaveChanges();
 			var controller = CreateAuthenticatedController(dbContext, "admin1");
 
-			var match = new TournamentDota2Match { Team1Id = alpha, Team2Id = beta, Team1Points = 2, Team2Points = 1 };
+			var match = new TournamentDota2Match { TournamentId = tournamentId, Team1Id = alpha, Team2Id = beta, Team1Points = 2, Team2Points = 1 };
 			match.Games.Add(new Dota2MatchGame { GameNumber = 1, RadiantTeamId = alpha, WinnerTeamId = alpha });
 			match.Games.Add(new Dota2MatchGame { GameNumber = 2, RadiantTeamId = beta, WinnerTeamId = beta });
 			match.Games.Add(new Dota2MatchGame { GameNumber = 3, RadiantTeamId = alpha, WinnerTeamId = alpha, SteamMatchId = 8000000003 });
@@ -3255,8 +3379,96 @@ namespace BellumGens.Api.Core.Tests
 			Assert.Equal("Beta", returned.Team2!.TeamName);
 			Assert.Equal(alpha, returned.WinnerTeamId);
 			var persisted = Assert.Single(dbContext.TournamentDota2Matches);
+			Assert.Equal(tournamentId, persisted.TournamentId);
 			Assert.Equal(3, dbContext.Dota2MatchGames.Count());
 			Assert.All(dbContext.Dota2MatchGames, g => Assert.Equal(persisted.Id, g.Dota2MatchId));
+		}
+
+		[Fact]
+		public async Task SubmitDota2Match_New_WithoutATournament_ReturnsBadRequest()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var (alpha, beta) = SeedDota2Teams(dbContext);
+			dbContext.SaveChanges();
+			var controller = CreateAuthenticatedController(dbContext, "admin1");
+
+			var result = await controller.SubmitDota2Match(null, new TournamentDota2Match { Team1Id = alpha, Team2Id = beta });
+
+			Assert.IsType<BadRequestObjectResult>(result);
+			Assert.Empty(dbContext.TournamentDota2Matches);
+		}
+
+		[Fact]
+		public async Task SubmitDota2Match_New_InAGroup_TakesTheTournamentOfTheGroup()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var (alpha, beta) = SeedDota2Teams(dbContext);
+			var tournamentId = Guid.NewGuid();
+			var groupId = Guid.NewGuid();
+			dbContext.Tournaments.Add(new Tournament { ID = tournamentId, Name = "Dota", Game = Game.Dota2 });
+			dbContext.TournamentDota2Groups.Add(new TournamentDota2Group { Id = groupId, Name = "Group A", TournamentId = tournamentId });
+			dbContext.SaveChanges();
+			var controller = CreateAuthenticatedController(dbContext, "admin1");
+
+			var result = await controller.SubmitDota2Match(null, new TournamentDota2Match { GroupId = groupId, Team1Id = alpha, Team2Id = beta });
+
+			Assert.IsType<OkObjectResult>(result);
+			Assert.Equal(tournamentId, Assert.Single(dbContext.TournamentDota2Matches).TournamentId);
+		}
+
+		[Fact]
+		public async Task SubmitDota2Match_Existing_KeepsItsTournamentWhenTheClientLeavesItOut()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var (alpha, beta) = SeedDota2Teams(dbContext);
+			var tournamentId = Guid.NewGuid();
+			var matchId = Guid.NewGuid();
+			dbContext.TournamentDota2Matches.Add(new TournamentDota2Match { Id = matchId, TournamentId = tournamentId, Team1Id = alpha, Team2Id = beta });
+			dbContext.SaveChanges();
+			var controller = CreateAuthenticatedController(dbContext, "admin1");
+
+			await controller.SubmitDota2Match(matchId, new TournamentDota2Match { Id = matchId, Team1Id = alpha, Team2Id = beta, VideoLink = "https://video" });
+
+			Assert.Equal(tournamentId, Assert.Single(dbContext.TournamentDota2Matches).TournamentId);
+		}
+
+		[Fact]
+		public async Task SubmitDota2Match_WithGames_TakesTheScoreFromTheGameWinners()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var (alpha, beta) = SeedDota2Teams(dbContext);
+			var tournamentId = Guid.NewGuid();
+			dbContext.Tournaments.Add(new Tournament { ID = tournamentId, Name = "Dota", Game = Game.Dota2 });
+			dbContext.SaveChanges();
+			var controller = CreateAuthenticatedController(dbContext, "admin1");
+
+			// The typed score disagrees with the games
+			var match = new TournamentDota2Match { TournamentId = tournamentId, Team1Id = alpha, Team2Id = beta, Team1Points = 2, Team2Points = 0 };
+			match.Games.Add(new Dota2MatchGame { GameNumber = 1, WinnerTeamId = alpha });
+			match.Games.Add(new Dota2MatchGame { GameNumber = 2, WinnerTeamId = beta });
+			match.Games.Add(new Dota2MatchGame { GameNumber = 3 });
+			var result = await controller.SubmitDota2Match(null, match);
+
+			var returned = Assert.IsType<TournamentDota2Match>(Assert.IsType<OkObjectResult>(result).Value);
+			Assert.Equal((1, 1), (returned.Team1Points, returned.Team2Points));
+			var persisted = Assert.Single(dbContext.TournamentDota2Matches);
+			Assert.Equal((1, 1), (persisted.Team1Points, persisted.Team2Points));
+		}
+
+		[Fact]
+		public async Task SubmitDota2Match_WithoutGames_KeepsTheEnteredScore()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var (alpha, beta) = SeedDota2Teams(dbContext);
+			var tournamentId = Guid.NewGuid();
+			dbContext.Tournaments.Add(new Tournament { ID = tournamentId, Name = "Dota", Game = Game.Dota2 });
+			dbContext.SaveChanges();
+			var controller = CreateAuthenticatedController(dbContext, "admin1");
+
+			await controller.SubmitDota2Match(null, new TournamentDota2Match { TournamentId = tournamentId, Team1Id = alpha, Team2Id = beta, Team1Points = 2, NoShow = true });
+
+			var persisted = Assert.Single(dbContext.TournamentDota2Matches);
+			Assert.Equal((2, 0), (persisted.Team1Points, persisted.Team2Points));
 		}
 
 		[Fact]
@@ -3417,6 +3629,43 @@ namespace BellumGens.Api.Core.Tests
 
 			Assert.IsType<OkObjectResult>(await controller.DeleteDota2MatchGame(gameId));
 			Assert.Empty(dbContext.Dota2MatchGames);
+		}
+
+		[Fact]
+		public async Task DeleteDota2MatchGame_UpdatesTheScoreOfTheSeries()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var (alpha, beta) = SeedDota2Teams(dbContext);
+			var matchId = Guid.NewGuid();
+			var gameId = Guid.NewGuid();
+			dbContext.TournamentDota2Matches.Add(new TournamentDota2Match { Id = matchId, Team1Id = alpha, Team2Id = beta, Team1Points = 1, Team2Points = 1 });
+			dbContext.Dota2MatchGames.Add(new Dota2MatchGame { Id = gameId, Dota2MatchId = matchId, GameNumber = 1, WinnerTeamId = alpha });
+			dbContext.Dota2MatchGames.Add(new Dota2MatchGame { Dota2MatchId = matchId, GameNumber = 2, WinnerTeamId = beta });
+			dbContext.SaveChanges();
+			var controller = CreateAuthenticatedController(dbContext, "admin1");
+
+			await controller.DeleteDota2MatchGame(gameId);
+
+			var match = Assert.Single(dbContext.TournamentDota2Matches);
+			Assert.Equal((0, 1), (match.Team1Points, match.Team2Points));
+		}
+
+		[Fact]
+		public async Task DeleteDota2MatchGame_LastGame_ClearsTheScore()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var (alpha, beta) = SeedDota2Teams(dbContext);
+			var matchId = Guid.NewGuid();
+			var gameId = Guid.NewGuid();
+			dbContext.TournamentDota2Matches.Add(new TournamentDota2Match { Id = matchId, Team1Id = alpha, Team2Id = beta, Team1Points = 1 });
+			dbContext.Dota2MatchGames.Add(new Dota2MatchGame { Id = gameId, Dota2MatchId = matchId, GameNumber = 1, WinnerTeamId = alpha });
+			dbContext.SaveChanges();
+			var controller = CreateAuthenticatedController(dbContext, "admin1");
+
+			await controller.DeleteDota2MatchGame(gameId);
+
+			var match = Assert.Single(dbContext.TournamentDota2Matches);
+			Assert.Equal((0, 0), (match.Team1Points, match.Team2Points));
 		}
 
 		[Fact]

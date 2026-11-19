@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SteamModels.Dota2;
@@ -81,6 +82,7 @@ namespace BellumGens.Api.Controllers
 		[Route("Dota2")]
 		[AllowAnonymous]
 		[HttpGet]
+		[EnableRateLimiting(SteamServiceProvider.Dota2RateLimitPolicy)]
 		public async Task<IActionResult> GetDota2Profile(string steamid)
 		{
 			if (!Dota2Ids.TryGetAccountId(steamid, out _))

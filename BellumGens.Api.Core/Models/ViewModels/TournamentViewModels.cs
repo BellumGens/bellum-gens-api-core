@@ -40,5 +40,8 @@ namespace BellumGens.Api.Core.Models
 	public class TournamentJoinViewModel
 	{
 		public string InviteCode { get; set; }
+
+		/// <summary>The team joining a Dota 2 tournament; tournaments of other games are joined by the player.</summary>
+		public Guid? TeamId { get; set; }
 	}
 }

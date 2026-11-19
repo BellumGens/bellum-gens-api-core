@@ -47,7 +47,9 @@ namespace BellumGens.Api.Core.Providers
 		/// </summary>
 		private const int _dota2MaxConcurrentRequests = 4;
 
-		private static readonly TimeSpan _dota2ProfileCacheDuration = TimeSpan.FromHours(1);
+		// Kept as long as the Counter-Strike stats (see GetSteamUserDetails), so a player page costs one
+		// round of Steam calls per account every few days.
+		private static readonly TimeSpan _dota2ProfileCacheDuration = TimeSpan.FromDays(5);
 		// Finished matches never change.
 		private static readonly TimeSpan _dota2MatchCacheDuration = TimeSpan.FromDays(30);
 		private static readonly TimeSpan _dota2HeroesCacheDuration = TimeSpan.FromDays(7);
@@ -55,6 +57,12 @@ namespace BellumGens.Api.Core.Providers
 		public const string Dota2HeroesCacheKey = "steam:dota2:heroes";
 		public static string Dota2ProfileCacheKey(uint accountId) => $"steam:dota2:profile:{accountId}";
 		public static string Dota2MatchCacheKey(long matchId) => $"steam:dota2:match:{matchId}";
+
+		/// <summary>
+		/// Name of the rate limiting policy on the anonymous Dota 2 profile endpoint. Building a profile that isn't
+		/// cached costs up to <see cref="Dota2RecentMatchCount"/> + 2 calls against the shared Steam API key.
+		/// </summary>
+		public const string Dota2RateLimitPolicy = "steam-dota2";
 
 		//private static readonly string _steamAppNewsUrl = "https://api.steampowered.com/ISteamNews/GetNewsForApp/v0002/?appid={0}&maxlength=300&format=json";
 
@@ -203,29 +211,33 @@ namespace BellumGens.Api.Core.Providers
 				return null;
 			}
 
-			Dota2ProfileViewModel profile;
 			if (history.status == Dota2MatchHistoryPrivateStatus)
 			{
-				profile = Dota2ProfileViewModel.Private(steamId64, accountId);
+				// Like private Counter-Strike stats, a hidden match history isn't cached, so the stats show up
+				// as soon as the player makes their match data public.
+				return Dota2ProfileViewModel.Private(steamId64, accountId);
 			}
-			else if (!history.success)
+			if (!history.success)
 			{
 				_logger.LogWarning("Dota 2 match history for account {AccountId} returned status {Status}: {StatusDetail}", accountId, history.status, history.statusDetail);
 				return null;
 			}
-			else
-			{
-				List<long> matchIds = (history.matches ?? new List<Dota2MatchSummary>())
-					.OrderByDescending(m => m.start_time)
-					.Select(m => m.match_id)
-					.Take(Dota2RecentMatchCount)
-					.ToList();
-				Dota2MatchDetailsResult[] matches = await GetDota2MatchDetails(matchIds);
-				Dictionary<int, Dota2Hero> heroes = await GetDota2Heroes();
-				profile = Dota2ProfileViewModel.Create(steamId64, accountId, matches, heroes);
-			}
 
-			_cache.Set(cacheKey, profile, _dota2ProfileCacheDuration);
+			List<long> matchIds = (history.matches ?? new List<Dota2MatchSummary>())
+				.OrderByDescending(m => m.start_time)
+				.Select(m => m.match_id)
+				.Take(Dota2RecentMatchCount)
+				.ToList();
+			Dota2MatchDetailsResult[] matches = await GetDota2MatchDetails(matchIds);
+			Dictionary<int, Dota2Hero> heroes = await GetDota2Heroes();
+			Dota2ProfileViewModel profile = Dota2ProfileViewModel.Create(steamId64, accountId, matches, heroes ?? new Dictionary<int, Dota2Hero>());
+
+			// A profile built while some lookups failed is still returned, but it isn't cached: the next request
+			// rebuilds it, and only what's missing is requested again (the matches and heroes found are cached).
+			if (heroes != null && matches.All(m => m?.success == true))
+			{
+				_cache.Set(cacheKey, profile, DateTimeOffset.Now.Add(_dota2ProfileCacheDuration));
+			}
 			return profile;
 		}
 
@@ -263,6 +275,7 @@ namespace BellumGens.Api.Core.Providers
 			return match;
 		}
 
+		/// <returns>The heroes by id, or null when the Steam API could not be reached.</returns>
 		private async Task<Dictionary<int, Dota2Hero>> GetDota2Heroes()
 		{
 			if (_cache.TryGetValue(Dota2HeroesCacheKey, out Dictionary<int, Dota2Hero> cached))
@@ -275,7 +288,7 @@ namespace BellumGens.Api.Core.Providers
 			if (list == null)
 			{
 				// Profiles still render without hero names; don't cache the failure.
-				return new Dictionary<int, Dota2Hero>();
+				return null;
 			}
 
 			Dictionary<int, Dota2Hero> heroes = list.GroupBy(h => h.id).ToDictionary(g => g.Key, g => g.First());

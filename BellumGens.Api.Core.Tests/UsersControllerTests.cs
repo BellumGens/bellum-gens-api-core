@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -124,6 +124,26 @@ namespace BellumGens.Api.Core.Tests
 			var teams = Assert.IsAssignableFrom<List<CSGOTeamSummaryViewModel>>(okResult.Value);
 			Assert.Single(teams);
 			Assert.Equal("UserTeam", teams[0].TeamName);
+			Assert.Equal(Game.CSGO, teams[0].Game);
+		}
+
+		[Fact]
+		public async Task GetUserTeams_IncludesTheGameOfEachTeam()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var userId = "user1";
+			var teamId = Guid.NewGuid();
+			dbContext.Users.Add(new ApplicationUser { Id = userId, UserName = "testuser" });
+			dbContext.CSGOTeams.Add(new CSGOTeam { TeamId = teamId, TeamName = "Dota Team", CustomUrl = "dota-team", Game = Game.Dota2 });
+			dbContext.TeamMembers.Add(new TeamMember { TeamId = teamId, UserId = userId, IsActive = true });
+			dbContext.SaveChanges();
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			var result = await controller.GetUserTeams(userId);
+
+			var teams = Assert.IsAssignableFrom<List<CSGOTeamSummaryViewModel>>(Assert.IsType<OkObjectResult>(result).Value);
+			Assert.Equal(Game.Dota2, Assert.Single(teams).Game);
 		}
 
 		[Fact]

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading.RateLimiting;
 #if SQLITE_PROVIDER
 using System.Linq;
@@ -141,6 +141,16 @@ builder.Services.AddRateLimiter(options =>
 			_ => new FixedWindowRateLimiterOptions
 			{
 				PermitLimit = 10,
+				Window = TimeSpan.FromMinutes(1),
+				QueueLimit = 0
+			}));
+	// The Dota 2 profiles are public, and each uncached one costs many calls against the shared Steam API key
+	options.AddPolicy(SteamServiceProvider.Dota2RateLimitPolicy, context =>
+		RateLimitPartition.GetFixedWindowLimiter(
+			context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+			_ => new FixedWindowRateLimiterOptions
+			{
+				PermitLimit = 20,
 				Window = TimeSpan.FromMinutes(1),
 				QueueLimit = 0
 			}));

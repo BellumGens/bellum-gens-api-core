@@ -681,11 +681,35 @@ namespace BellumGens.Api.Controllers
 				return BadRequest("This tournament is full.");
 			}
 
+			// Dota 2 tournaments list teams and their series, so a player joins with a Dota 2 team they manage
+			Guid? teamId = null;
+			if (tournament.Game == Game.Dota2)
+			{
+				if (model.TeamId == null || model.TeamId == Guid.Empty)
+				{
+					return BadRequest("Please pick the Dota 2 team you are joining with.");
+				}
+				if (!await _dbContext.CSGOTeams.AnyAsync(t => t.TeamId == model.TeamId && t.Game == Game.Dota2))
+				{
+					return BadRequest("The selected team is not a Dota 2 team.");
+				}
+				if (!await _dbContext.TeamMembers.AnyAsync(m => m.TeamId == model.TeamId && m.UserId == user.Id && m.IsAdmin))
+				{
+					return BadRequest("Only a team admin can enter the team in a tournament.");
+				}
+				if (await _dbContext.TournamentApplications.AnyAsync(a => a.TournamentId == tournament.ID && a.TeamId == model.TeamId))
+				{
+					return BadRequest("This team has already joined the tournament.");
+				}
+				teamId = model.TeamId;
+			}
+
 			// The invite code is the organizer's approval, so the participant is confirmed right away
 			TournamentApplication application = new()
 			{
 				TournamentId = tournament.ID,
 				UserId = user.Id,
+				TeamId = teamId,
 				Game = tournament.Game ?? Game.CSGO,
 				Email = user.Email,
 				BattleNetId = user.BattleNetId,
@@ -896,12 +920,17 @@ namespace BellumGens.Api.Controllers
 			}
 			else
 			{
-				Tournament active = await _dbContext.Tournaments.FirstOrDefaultAsync(t => t.Active);
-				if (active == null)
+				// Dota 2 tournaments run apart from the active league season, so the group goes to the
+				// tournament the admin picked; the active one is only the fallback when none is given.
+				bool tournamentGiven = group.TournamentId != Guid.Empty;
+				Tournament tournament = tournamentGiven ?
+					await _dbContext.Tournaments.FindAsync(group.TournamentId) :
+					await _dbContext.Tournaments.FirstOrDefaultAsync(t => t.Active);
+				if (tournament == null)
 				{
-					return BadRequest("There is no active tournament.");
+					return BadRequest(tournamentGiven ? "Tournament not found." : "There is no active tournament.");
 				}
-				group.TournamentId = active.ID;
+				group.TournamentId = tournament.ID;
 				_dbContext.TournamentDota2Groups.Add(group);
 			}
 
@@ -1351,7 +1380,7 @@ namespace BellumGens.Api.Controllers
 		{
 			IQueryable<TournamentDota2Match> query = tournamentId != null ?
 				_dbContext.TournamentDota2Matches.Where(m => m.TournamentId == tournamentId) :
-				_dbContext.TournamentDota2Matches;
+				_dbContext.TournamentDota2Matches.Where(m => m.Tournament.Active);
 			List<TournamentDota2Match> matches = await query
 				.Include(m => m.Team1)
 				.Include(m => m.Team2)
@@ -1390,31 +1419,44 @@ namespace BellumGens.Api.Controllers
 				return BadRequest("The Radiant team and the winner of a game must be one of the teams in the match.");
 			}
 
-			TournamentDota2Match entity = await _dbContext.TournamentDota2Matches.FindAsync(id);
+			TournamentDota2Match entity = await _dbContext.TournamentDota2Matches.Include(m => m.Games).FirstOrDefaultAsync(m => m.Id == id);
 			if (entity != null)
 			{
 				match.Id = entity.Id;
+				// A series stays in its tournament; a client that leaves the id out doesn't take it away
+				match.TournamentId = entity.TournamentId ?? match.TournamentId;
 				_dbContext.Entry(entity).CurrentValues.SetValues(match);
 				foreach (Dota2MatchGame game in games)
 				{
 					game.Dota2MatchId = entity.Id;
-					Dota2MatchGame gameEntity = game.Id == Guid.Empty ? null : await _dbContext.Dota2MatchGames.FindAsync(game.Id);
+					Dota2MatchGame gameEntity = game.Id == Guid.Empty ? null : entity.Games.FirstOrDefault(g => g.Id == game.Id);
 					if (gameEntity != null)
 					{
 						_dbContext.Entry(gameEntity).CurrentValues.SetValues(game);
 					}
 					else
 					{
-						_dbContext.Dota2MatchGames.Add(game);
+						game.Id = Guid.Empty;
+						entity.Games.Add(game);
 					}
 				}
 				match = entity;
 			}
 			else
 			{
+				// Without a tournament the series isn't listed with it, nor counted in its standings
+				if (match.TournamentId == null && match.GroupId != null)
+				{
+					match.TournamentId = await _dbContext.TournamentDota2Groups.Where(g => g.Id == match.GroupId).Select(g => g.TournamentId).FirstOrDefaultAsync();
+				}
+				if (match.TournamentId == null || !await _dbContext.Tournaments.AnyAsync(t => t.ID == match.TournamentId))
+				{
+					return BadRequest("A Dota 2 series needs a tournament.");
+				}
 				match.Games = games;
 				_dbContext.TournamentDota2Matches.Add(match);
 			}
+			ApplyGameScore(match);
 
 			try
 			{
@@ -1462,7 +1504,7 @@ namespace BellumGens.Api.Controllers
 		[Authorize(Roles = "admin, event-admin")]
 		public async Task<IActionResult> SubmitDota2MatchGame(Guid? id, Dota2MatchGame game)
 		{
-			TournamentDota2Match match = await _dbContext.TournamentDota2Matches.FindAsync(game.Dota2MatchId);
+			TournamentDota2Match match = await _dbContext.TournamentDota2Matches.Include(m => m.Games).FirstOrDefaultAsync(m => m.Id == game.Dota2MatchId);
 			if (match == null)
 			{
 				return NotFound("The Dota 2 match of this game was not found.");
@@ -1472,7 +1514,7 @@ namespace BellumGens.Api.Controllers
 				return BadRequest("The Radiant team and the winner of a game must be one of the teams in the match.");
 			}
 
-			Dota2MatchGame entity = await _dbContext.Dota2MatchGames.FindAsync(id);
+			Dota2MatchGame entity = id == null ? null : match.Games.FirstOrDefault(g => g.Id == id);
 			if (entity != null)
 			{
 				game.Id = entity.Id;
@@ -1480,8 +1522,10 @@ namespace BellumGens.Api.Controllers
 			}
 			else
 			{
-				_dbContext.Dota2MatchGames.Add(game);
+				game.Id = Guid.Empty;
+				match.Games.Add(game);
 			}
+			ApplyGameScore(match);
 
 			try
 			{
@@ -1505,7 +1549,19 @@ namespace BellumGens.Api.Controllers
 			{
 				return NotFound();
 			}
+			TournamentDota2Match match = await _dbContext.TournamentDota2Matches.Include(m => m.Games).FirstOrDefaultAsync(m => m.Id == entity.Dota2MatchId);
 			_dbContext.Dota2MatchGames.Remove(entity);
+			if (match != null)
+			{
+				match.Games.Remove(entity);
+				// The score came from the games; with none left the series has no result on record
+				if (match.Games.Count == 0)
+				{
+					match.Team1Points = 0;
+					match.Team2Points = 0;
+				}
+				ApplyGameScore(match);
+			}
 
 			try
 			{
@@ -1517,6 +1573,21 @@ namespace BellumGens.Api.Controllers
 				return BadRequest("Something went wrong...");
 			}
 			return Ok(entity);
+		}
+
+		/// <summary>
+		/// The score of a series with games on record is the number of games each team won, so the standings
+		/// can't disagree with the games. A series without games (a walkover, or results kept elsewhere) keeps
+		/// the score the admin entered.
+		/// </summary>
+		private static void ApplyGameScore(TournamentDota2Match match)
+		{
+			if (match.Games == null || match.Games.Count == 0)
+			{
+				return;
+			}
+			match.Team1Points = match.Games.Count(g => g.WinnerTeamId == match.Team1Id);
+			match.Team2Points = match.Games.Count(g => g.WinnerTeamId == match.Team2Id);
 		}
 
 		/// <summary>A game can only name the teams of its own match as the Radiant side and the winner.</summary>

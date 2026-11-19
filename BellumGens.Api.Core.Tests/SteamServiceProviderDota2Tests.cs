@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -290,6 +290,49 @@ namespace BellumGens.Api.Core.Tests
 			Assert.Equal(1, _handler.Requests.Count(r => IsDetailsRequest(r, 101)));
 			Assert.Equal(1, _handler.Requests.Count(r => IsDetailsRequest(r, 102)));
 			Assert.Equal(1, _handler.Requests.Count(IsHeroesRequest));
+		}
+
+		[Fact]
+		public async Task GetDota2Profile_DoesNotCacheAProfileWithMissingMatches()
+		{
+			_handler.Respond(IsHistoryRequest, HttpStatusCode.OK, HistoryJson, "application/json");
+			_handler.Respond(r => IsDetailsRequest(r, 101), HttpStatusCode.OK, Match101Json, "application/json");
+			_handler.Respond(r => IsDetailsRequest(r, 102), HttpStatusCode.ServiceUnavailable, "busy");
+			_handler.Respond(IsHeroesRequest, HttpStatusCode.OK, HeroesJson, "application/json");
+
+			await _provider.GetDota2Profile(SteamId);
+			await _provider.GetDota2Profile(SteamId);
+
+			Assert.False(_cache.TryGetValue(SteamServiceProvider.Dota2ProfileCacheKey(AccountId), out _));
+			Assert.Equal(2, _handler.Requests.Count(IsHistoryRequest));
+			// The match that was found is reused; only the missing one is asked for again
+			Assert.Equal(1, _handler.Requests.Count(r => IsDetailsRequest(r, 101)));
+			Assert.Equal(2, _handler.Requests.Count(r => IsDetailsRequest(r, 102)));
+		}
+
+		[Fact]
+		public async Task GetDota2Profile_DoesNotCacheAProfileWithoutHeroNames()
+		{
+			_handler.Respond(IsHistoryRequest, HttpStatusCode.OK, HistoryJson, "application/json");
+			_handler.Respond(r => IsDetailsRequest(r, 101), HttpStatusCode.OK, Match101Json, "application/json");
+			_handler.Respond(r => IsDetailsRequest(r, 102), HttpStatusCode.OK, Match102Json, "application/json");
+			_handler.Respond(IsHeroesRequest, HttpStatusCode.InternalServerError, "error");
+
+			await _provider.GetDota2Profile(SteamId);
+
+			Assert.False(_cache.TryGetValue(SteamServiceProvider.Dota2ProfileCacheKey(AccountId), out _));
+		}
+
+		[Fact]
+		public async Task GetDota2Profile_DoesNotCacheAPrivateProfile()
+		{
+			_handler.Respond(IsHistoryRequest, HttpStatusCode.OK, PrivateHistoryJson, "application/json");
+
+			await _provider.GetDota2Profile(SteamId);
+			await _provider.GetDota2Profile(SteamId);
+
+			Assert.False(_cache.TryGetValue(SteamServiceProvider.Dota2ProfileCacheKey(AccountId), out _));
+			Assert.Equal(2, _handler.Requests.Count(IsHistoryRequest));
 		}
 
 		[Fact]
