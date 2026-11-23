@@ -268,7 +268,7 @@ internal static class SqliteDevelopmentDatabase
 
 		context.Database.ExecuteSqlRaw("CREATE TABLE IF NOT EXISTS \"__DevSchema\" (\"Hash\" TEXT NOT NULL)");
 		context.Database.ExecuteSqlRaw("DELETE FROM \"__DevSchema\"");
-		context.Database.ExecuteSqlInterpolated($"INSERT INTO \"__DevSchema\" (\"Hash\") VALUES ({schemaHash})");
+		context.Database.ExecuteSql($"INSERT INTO \"__DevSchema\" (\"Hash\") VALUES ({schemaHash})");
 	}
 
 	internal const string EBLeagueJerseySlug = "esports-business-league-jersey";

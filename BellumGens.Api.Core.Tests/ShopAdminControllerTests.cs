@@ -77,7 +77,7 @@ namespace BellumGens.Api.Core.Tests
 		{
 			using var db = TestUtils.CreateInMemoryDbContext();
 			db.Products.Add(TestUtils.CreateProduct("Umbrella"));
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var controller = CreateController(db);
 
 			var result = await controller.CreateProduct(new Product { Name = "Umbrella", Price = 10m });
@@ -96,7 +96,7 @@ namespace BellumGens.Api.Core.Tests
 			var order = TestUtils.CreateShopOrder(OrderStatus.Paid);
 			order.Items.Add(new OrderItem { ProductId = jersey.Id, VariantId = maleL.Id, ProductName = jersey.Name, VariantName = maleL.Name, UnitPrice = 30m, Quantity = 1, LineTotal = 30m });
 			db.ShopOrders.Add(order);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var controller = CreateController(db);
 
 			var update = new Product
@@ -143,7 +143,7 @@ namespace BellumGens.Api.Core.Tests
 			var order = TestUtils.CreateShopOrder(OrderStatus.Paid);
 			order.Items.Add(new OrderItem { ProductId = jersey.Id, ProductName = jersey.Name, UnitPrice = 30m, Quantity = 1, LineTotal = 30m });
 			db.ShopOrders.Add(order);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var controller = CreateController(db);
 
 			var result = await controller.DeleteProduct(jersey.Id);
@@ -160,7 +160,7 @@ namespace BellumGens.Api.Core.Tests
 			using var db = TestUtils.CreateInMemoryDbContext();
 			var product = TestUtils.CreateJersey();
 			db.Products.Add(product);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var controller = CreateController(db);
 
 			await controller.DeleteProduct(product.Id);
@@ -175,7 +175,7 @@ namespace BellumGens.Api.Core.Tests
 			using var db = TestUtils.CreateInMemoryDbContext();
 			var product = TestUtils.CreateProduct();
 			db.Products.Add(product);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			_storage.Setup(s => s.SaveImage(It.IsAny<string>(), It.IsAny<string>(), "shop"))
 				.ReturnsAsync("https://blob.example.com/shop/img.png");
 			var controller = CreateController(db);
@@ -192,7 +192,7 @@ namespace BellumGens.Api.Core.Tests
 			using var db = TestUtils.CreateInMemoryDbContext();
 			var product = TestUtils.CreateProduct();
 			db.Products.Add(product);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			_storage.Setup(s => s.SaveImage(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync("");
 			var controller = CreateController(db);
 
@@ -206,7 +206,7 @@ namespace BellumGens.Api.Core.Tests
 		{
 			using var db = TestUtils.CreateInMemoryDbContext();
 			db.ShopOrders.AddRange(TestUtils.CreateShopOrder(OrderStatus.Paid), TestUtils.CreateShopOrder(OrderStatus.Paid), TestUtils.CreateShopOrder(OrderStatus.Cancelled));
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var controller = CreateController(db);
 
 			var all = Assert.IsAssignableFrom<List<ShopOrder>>(Assert.IsType<OkObjectResult>(await controller.GetOrders()).Value);
@@ -222,7 +222,7 @@ namespace BellumGens.Api.Core.Tests
 			using var db = TestUtils.CreateInMemoryDbContext();
 			var order = TestUtils.CreateShopOrder(OrderStatus.Paid);
 			db.ShopOrders.Add(order);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var controller = CreateController(db);
 
 			var result = await controller.UpdateOrderStatus(order.Id, new OrderStatusUpdate { Status = OrderStatus.Shipped, TrackingNumber = "ECONT-1" });
@@ -238,7 +238,7 @@ namespace BellumGens.Api.Core.Tests
 			using var db = TestUtils.CreateInMemoryDbContext();
 			var order = TestUtils.CreateShopOrder(OrderStatus.AwaitingPayment);
 			db.ShopOrders.Add(order);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var controller = CreateController(db);
 
 			var result = await controller.UpdateOrderStatus(order.Id, new OrderStatusUpdate { Status = OrderStatus.Shipped });
@@ -255,7 +255,7 @@ namespace BellumGens.Api.Core.Tests
 			order.Payments.Add(new Payment { OrderId = order.Id, ProviderOrderId = "rev_failed", Amount = 36m, Status = PaymentStatus.Failed });
 			order.Payments.Add(new Payment { OrderId = order.Id, ProviderOrderId = "rev_ok", Amount = 36m, Status = PaymentStatus.Completed });
 			db.ShopOrders.Add(order);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var payments = TestUtils.CreateMockPaymentProvider();
 			payments.Setup(p => p.RefundAsync("rev_ok", 3600, "EUR", It.IsAny<string>(), It.IsAny<CancellationToken>()))
 				.ReturnsAsync(new PaymentOrderResult { ProviderOrderId = "refund_1", Status = PaymentStatus.Completed });
@@ -275,7 +275,7 @@ namespace BellumGens.Api.Core.Tests
 			var order = TestUtils.CreateShopOrder(OrderStatus.Cancelled);
 			order.Payments.Add(new Payment { OrderId = order.Id, ProviderOrderId = "rev_late", Amount = 36m, Status = PaymentStatus.Completed });
 			db.ShopOrders.Add(order);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var payments = TestUtils.CreateMockPaymentProvider();
 			payments.Setup(p => p.RefundAsync("rev_late", 3600, "EUR", It.IsAny<string>(), It.IsAny<CancellationToken>()))
 				.ReturnsAsync(new PaymentOrderResult { ProviderOrderId = "refund_1", Status = PaymentStatus.Completed });
@@ -291,7 +291,7 @@ namespace BellumGens.Api.Core.Tests
 			using var db = TestUtils.CreateInMemoryDbContext();
 			var order = TestUtils.CreateShopOrder(OrderStatus.AwaitingPayment);
 			db.ShopOrders.Add(order);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var controller = CreateController(db);
 
 			Assert.IsType<BadRequestObjectResult>(await controller.RefundOrder(order.Id));
@@ -304,7 +304,7 @@ namespace BellumGens.Api.Core.Tests
 			var order = TestUtils.CreateShopOrder(OrderStatus.Paid);
 			order.Payments.Add(new Payment { OrderId = order.Id, ProviderOrderId = "rev_ok", Amount = 36m, Status = PaymentStatus.Completed });
 			db.ShopOrders.Add(order);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var payments = TestUtils.CreateMockPaymentProvider();
 			payments.Setup(p => p.RefundAsync(It.IsAny<string>(), It.IsAny<long>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
 				.ThrowsAsync(new PaymentProviderException("Revolut returned 422."));
@@ -335,7 +335,7 @@ namespace BellumGens.Api.Core.Tests
 		{
 			using var db = TestUtils.CreateInMemoryDbContext();
 			db.PromoCodes.Add(new Promo { Code = "SAVE10", Discount = 0.1m, TimesUsed = 4 });
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var controller = CreateController(db);
 
 			var result = await controller.UpdatePromo("save10", new Promo { Code = "SAVE10", Discount = 0.2m, UsageLimit = 10, Active = false, TimesUsed = 0 });
@@ -356,7 +356,7 @@ namespace BellumGens.Api.Core.Tests
 			order.PromoCode = "USED";
 			db.ShopOrders.Add(order);
 			db.PromoCodes.Add(new Promo { Code = "FRESH", Discount = 0.1m });
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var controller = CreateController(db);
 
 			await controller.DeletePromo("used");
@@ -442,7 +442,7 @@ namespace BellumGens.Api.Core.Tests
 			using var db = TestUtils.CreateInMemoryDbContext();
 			var jersey = TestUtils.CreateJersey();
 			db.Products.Add(jersey);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var maleL = jersey.Variants.First(v => v.Cut == JerseyCut.Male);
 			int loadedStock = maleL.StockQuantity!.Value;
 			var update = new Product
@@ -466,7 +466,7 @@ namespace BellumGens.Api.Core.Tests
 				}).ToList()
 			};
 			maleL.StockQuantity = loadedStock - 3; // orders placed after the editor loaded the product
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			var controller = CreateController(db);
 
 			Assert.IsType<OkObjectResult>(await controller.UpdateProduct(jersey.Id, update));
@@ -483,7 +483,7 @@ namespace BellumGens.Api.Core.Tests
 			order.Items.Add(new OrderItem { ProductId = Guid.NewGuid(), ProductName = "Umbrella", UnitPrice = 15m, Quantity = 2, LineTotal = 30m });
 			order.Payments.Add(new Payment { OrderId = order.Id, ProviderOrderId = "rev_ok", Amount = 36m, Status = PaymentStatus.Completed });
 			db.ShopOrders.Add(order);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			db.ChangeTracker.Clear();
 			var controller = CreateController(db);
 
@@ -502,7 +502,7 @@ namespace BellumGens.Api.Core.Tests
 			order.Items.Add(new OrderItem { ProductId = Guid.NewGuid(), ProductName = "Umbrella", UnitPrice = 15m, Quantity = 2, LineTotal = 30m });
 			order.Payments.Add(new Payment { OrderId = order.Id, ProviderOrderId = "rev_ok", Amount = 36m, Status = PaymentStatus.Completed });
 			db.ShopOrders.Add(order);
-			await db.SaveChangesAsync();
+			await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 			db.ChangeTracker.Clear();
 			var payments = TestUtils.CreateMockPaymentProvider();
 			payments.Setup(p => p.RefundAsync("rev_ok", 3600, "EUR", It.IsAny<string>(), It.IsAny<CancellationToken>()))
