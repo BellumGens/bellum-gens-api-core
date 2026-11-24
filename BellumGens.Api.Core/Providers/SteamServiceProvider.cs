@@ -20,6 +20,7 @@ namespace BellumGens.Api.Core.Providers
 	{
 		private readonly HttpClient _client;
 		private readonly IMemoryCache _cache;
+		private readonly Dota2Cache _dota2Cache;
 		private readonly AppConfiguration _appInfo;
 		private readonly ILogger<SteamServiceProvider> _logger;
 
@@ -50,8 +51,15 @@ namespace BellumGens.Api.Core.Providers
 		// Kept as long as the Counter-Strike stats (see GetSteamUserDetails), so a player page costs one
 		// round of Steam calls per account every few days.
 		private static readonly TimeSpan _dota2ProfileCacheDuration = TimeSpan.FromDays(5);
-		// Finished matches never change.
+		// A profile built while Steam answered some of its matches with an error is kept for a short while, so a
+		// match Steam never has details for doesn't make every view of the profile call the Steam API again.
+		private static readonly TimeSpan _dota2PartialProfileCacheDuration = TimeSpan.FromHours(1);
+		// Finished matches never change, but a match is only looked up again when a profile with it is rebuilt,
+		// so one that isn't used for a while is let go.
 		private static readonly TimeSpan _dota2MatchCacheDuration = TimeSpan.FromDays(30);
+		private static readonly TimeSpan _dota2MatchSlidingCacheDuration = TimeSpan.FromDays(2);
+		// An error result (e.g. "Match ID not found") is kept as long as the profile built with it.
+		private static readonly TimeSpan _dota2MatchErrorCacheDuration = _dota2PartialProfileCacheDuration;
 		private static readonly TimeSpan _dota2HeroesCacheDuration = TimeSpan.FromDays(7);
 
 		public const string Dota2HeroesCacheKey = "steam:dota2:heroes";
@@ -66,10 +74,11 @@ namespace BellumGens.Api.Core.Providers
 
 		//private static readonly string _steamAppNewsUrl = "https://api.steampowered.com/ISteamNews/GetNewsForApp/v0002/?appid={0}&maxlength=300&format=json";
 
-		public SteamServiceProvider(HttpClient client, IMemoryCache cache, AppConfiguration appInfo, ILogger<SteamServiceProvider> logger)
+		public SteamServiceProvider(HttpClient client, IMemoryCache cache, Dota2Cache dota2Cache, AppConfiguration appInfo, ILogger<SteamServiceProvider> logger)
 		{
 			_client = client;
 			_cache = cache;
+			_dota2Cache = dota2Cache;
 			_appInfo = appInfo;
 			_logger = logger;
 		}
@@ -199,7 +208,7 @@ namespace BellumGens.Api.Core.Providers
 			}
 
 			string cacheKey = Dota2ProfileCacheKey(accountId);
-			if (_cache.TryGetValue(cacheKey, out Dota2ProfileViewModel cached))
+			if (_dota2Cache.TryGetValue(cacheKey, out Dota2ProfileViewModel cached))
 			{
 				return cached;
 			}
@@ -232,11 +241,17 @@ namespace BellumGens.Api.Core.Providers
 			Dictionary<int, Dota2Hero> heroes = await GetDota2Heroes();
 			Dota2ProfileViewModel profile = Dota2ProfileViewModel.Create(steamId64, accountId, matches, heroes ?? new Dictionary<int, Dota2Hero>());
 
-			// A profile built while some lookups failed is still returned, but it isn't cached: the next request
-			// rebuilds it, and only what's missing is requested again (the matches and heroes found are cached).
-			if (heroes != null && matches.All(m => m?.success == true))
+			// A profile built while some lookups couldn't reach Steam is still returned, but it isn't cached: the next
+			// request rebuilds it, and only what's missing is requested again (the matches and heroes found are cached).
+			// Matches Steam answered with an error may never have details, so that profile is kept for a short while.
+			if (heroes != null && matches.All(m => m != null))
 			{
-				_cache.Set(cacheKey, profile, DateTimeOffset.Now.Add(_dota2ProfileCacheDuration));
+				TimeSpan duration = matches.All(m => m.success) ? _dota2ProfileCacheDuration : _dota2PartialProfileCacheDuration;
+				_dota2Cache.Set(cacheKey, profile, new MemoryCacheEntryOptions
+				{
+					AbsoluteExpirationRelativeToNow = duration,
+					Size = Dota2Cache.ProfileSize
+				});
 			}
 			return profile;
 		}
@@ -261,24 +276,60 @@ namespace BellumGens.Api.Core.Providers
 		private async Task<Dota2MatchDetailsResult> GetDota2MatchDetails(long matchId)
 		{
 			string cacheKey = Dota2MatchCacheKey(matchId);
-			if (_cache.TryGetValue(cacheKey, out Dota2MatchDetailsResult cached))
+			if (_dota2Cache.TryGetValue(cacheKey, out Dota2MatchDetailsResult cached))
 			{
 				return cached;
 			}
 
 			Uri endpoint = new(string.Format(_dota2MatchDetailsUrl, _appInfo.Config.SteamApiKey, matchId));
 			Dota2MatchDetailsResult match = (await GetSteamApiJson<Dota2MatchDetails>(endpoint))?.result;
-			if (match?.success == true)
+			if (match == null)
 			{
-				_cache.Set(cacheKey, match, _dota2MatchCacheDuration);
+				// Steam couldn't be reached; the next request asks again.
+				return null;
+			}
+
+			if (match.success)
+			{
+				TrimMatchDetails(match);
+				_dota2Cache.Set(cacheKey, match, new MemoryCacheEntryOptions
+				{
+					AbsoluteExpirationRelativeToNow = _dota2MatchCacheDuration,
+					SlidingExpiration = _dota2MatchSlidingCacheDuration,
+					Priority = CacheItemPriority.Low,
+					Size = Dota2Cache.MatchSize
+				});
+			}
+			else
+			{
+				// Steam answered, but with an error, which asking again right away won't change.
+				_dota2Cache.Set(cacheKey, match, new MemoryCacheEntryOptions
+				{
+					AbsoluteExpirationRelativeToNow = _dota2MatchErrorCacheDuration,
+					Priority = CacheItemPriority.Low,
+					Size = Dota2Cache.ProfileSize
+				});
 			}
 			return match;
+		}
+
+		/// <summary>
+		/// Drops the parts of the match details a profile doesn't use, so a cached match takes less memory.
+		/// </summary>
+		private static void TrimMatchDetails(Dota2MatchDetailsResult match)
+		{
+			match.picks_bans = null;
+			foreach (Dota2MatchPlayer player in match.players ?? Enumerable.Empty<Dota2MatchPlayer>())
+			{
+				player.ability_upgrades = null;
+				player.additional_units = null;
+			}
 		}
 
 		/// <returns>The heroes by id, or null when the Steam API could not be reached.</returns>
 		private async Task<Dictionary<int, Dota2Hero>> GetDota2Heroes()
 		{
-			if (_cache.TryGetValue(Dota2HeroesCacheKey, out Dictionary<int, Dota2Hero> cached))
+			if (_dota2Cache.TryGetValue(Dota2HeroesCacheKey, out Dictionary<int, Dota2Hero> cached))
 			{
 				return cached;
 			}
@@ -292,7 +343,13 @@ namespace BellumGens.Api.Core.Providers
 			}
 
 			Dictionary<int, Dota2Hero> heroes = list.GroupBy(h => h.id).ToDictionary(g => g.Key, g => g.First());
-			_cache.Set(Dota2HeroesCacheKey, heroes, _dota2HeroesCacheDuration);
+			_dota2Cache.Set(Dota2HeroesCacheKey, heroes, new MemoryCacheEntryOptions
+			{
+				AbsoluteExpirationRelativeToNow = _dota2HeroesCacheDuration,
+				// Every profile uses the hero list, so it's the last thing dropped when the cache is full.
+				Priority = CacheItemPriority.High,
+				Size = Dota2Cache.HeroesSize
+			});
 			return heroes;
 		}
 

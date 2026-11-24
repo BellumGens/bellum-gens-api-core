@@ -15,17 +15,19 @@ namespace BellumGens.Api.Core.Tests
 		private const string SteamId = "76561198012345678";
 		private const uint AccountId = 52079950;
 
-		private readonly MemoryCache _cache;
+		private readonly MemoryCache _sharedCache;
+		private readonly Dota2Cache _cache;
 		private readonly StubHttpMessageHandler _handler;
 		private readonly HttpClient _httpClient;
 		private readonly SteamServiceProvider _provider;
 
 		public SteamServiceProviderDota2Tests()
 		{
-			_cache = new MemoryCache(new MemoryCacheOptions());
+			_sharedCache = new MemoryCache(new MemoryCacheOptions());
+			_cache = new Dota2Cache();
 			_handler = new StubHttpMessageHandler();
 			_httpClient = new HttpClient(_handler);
-			_provider = new SteamServiceProvider(_httpClient, _cache, TestUtils.CreateAppConfiguration(), TestUtils.CreateMockLogger<SteamServiceProvider>().Object);
+			_provider = new SteamServiceProvider(_httpClient, _sharedCache, _cache, TestUtils.CreateAppConfiguration(), TestUtils.CreateMockLogger<SteamServiceProvider>().Object);
 		}
 
 		public void Dispose()
@@ -33,6 +35,7 @@ namespace BellumGens.Api.Core.Tests
 			_httpClient.Dispose();
 			_handler.Dispose();
 			_cache.Dispose();
+			_sharedCache.Dispose();
 			GC.SuppressFinalize(this);
 		}
 
@@ -336,7 +339,24 @@ namespace BellumGens.Api.Core.Tests
 		}
 
 		[Fact]
-		public async Task GetDota2Profile_DoesNotCacheAMatchThatCameBackAsAnError()
+		public async Task GetDota2Profile_CachesAProfileWithAMatchThatCameBackAsAnError()
+		{
+			_handler.Respond(IsHistoryRequest, HttpStatusCode.OK, HistoryJson, "application/json");
+			_handler.Respond(r => IsDetailsRequest(r, 101), HttpStatusCode.OK, Match101Json, "application/json");
+			_handler.Respond(r => IsDetailsRequest(r, 102), HttpStatusCode.OK, MatchNotFoundJson, "application/json");
+			_handler.Respond(IsHeroesRequest, HttpStatusCode.OK, HeroesJson, "application/json");
+
+			var first = await _provider.GetDota2Profile(SteamId);
+			var second = await _provider.GetDota2Profile(SteamId);
+
+			// Steam answered, so asking again right away won't change the answer
+			Assert.Same(first, second);
+			Assert.Equal(1, _handler.Requests.Count(IsHistoryRequest));
+			Assert.Equal(1, _handler.Requests.Count(r => IsDetailsRequest(r, 102)));
+		}
+
+		[Fact]
+		public async Task GetDota2Profile_KeepsTheErrorOfAMatchWhenTheProfileIsRebuilt()
 		{
 			_handler.Respond(IsHistoryRequest, HttpStatusCode.OK, HistoryJson, "application/json");
 			_handler.Respond(r => IsDetailsRequest(r, 101), HttpStatusCode.OK, Match101Json, "application/json");
@@ -344,9 +364,37 @@ namespace BellumGens.Api.Core.Tests
 			_handler.Respond(IsHeroesRequest, HttpStatusCode.OK, HeroesJson, "application/json");
 
 			await _provider.GetDota2Profile(SteamId);
+			_cache.Remove(SteamServiceProvider.Dota2ProfileCacheKey(AccountId));
+			var result = await _provider.GetDota2Profile(SteamId);
 
+			Assert.Equal(1, result!.Matches);
+			Assert.Equal(1, _handler.Requests.Count(r => IsDetailsRequest(r, 102)));
+		}
+
+		[Fact]
+		public async Task GetDota2Profile_StoresTheDota2DataInTheBoundedCacheOnly()
+		{
+			RespondWithMatches();
+
+			await _provider.GetDota2Profile(SteamId);
+
+			Assert.True(_cache.TryGetValue(SteamServiceProvider.Dota2ProfileCacheKey(AccountId), out _));
 			Assert.True(_cache.TryGetValue(SteamServiceProvider.Dota2MatchCacheKey(101), out _));
-			Assert.False(_cache.TryGetValue(SteamServiceProvider.Dota2MatchCacheKey(102), out _));
+			Assert.True(_cache.TryGetValue(SteamServiceProvider.Dota2HeroesCacheKey, out _));
+			Assert.Equal(0, _sharedCache.Count);
+		}
+
+		[Fact]
+		public async Task GetDota2Profile_WhenTheCacheIsFull_StillReturnsTheProfile()
+		{
+			using var tinyCache = new Dota2Cache(sizeLimit: 1);
+			var provider = new SteamServiceProvider(_httpClient, _sharedCache, tinyCache, TestUtils.CreateAppConfiguration(), TestUtils.CreateMockLogger<SteamServiceProvider>().Object);
+			RespondWithMatches();
+
+			var result = await provider.GetDota2Profile(SteamId);
+
+			Assert.Equal(2, result!.Matches);
+			Assert.Equal("Axe", result.RecentMatches[0].HeroName);
 		}
 	}
 }

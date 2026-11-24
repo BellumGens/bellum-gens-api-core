@@ -1,4 +1,4 @@
-
+﻿
 using BellumGens.Api.Controllers;
 using BellumGens.Api.Core.Models;
 using BellumGens.Api.Core.Providers;
@@ -193,6 +193,8 @@ namespace BellumGens.Api.Core.Tests
 			var saved = await dbContext.CSGOTeams.SingleAsync(TestContext.Current.CancellationToken);
 			Assert.Equal("Renamed", saved.TeamName);
 			Assert.Equal(Game.Dota2, saved.Game);
+			// The response has the game the team kept, not the one in the request
+			Assert.Equal(Game.Dota2, Assert.IsType<CSGOTeam>(((OkObjectResult)result).Value).Game);
 		}
 
 		[Theory]
@@ -255,6 +257,66 @@ namespace BellumGens.Api.Core.Tests
 			var okResult = Assert.IsType<OkObjectResult>(result);
 			var tournaments = Assert.IsAssignableFrom<List<TeamTournamentViewModel>>(okResult.Value);
 			Assert.Empty(tournaments);
+		}
+
+		[Fact]
+		public async Task GetTournaments_UnknownTeam_ReturnsNotFound()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			Assert.IsType<NotFoundResult>(await controller.GetTournaments(Guid.NewGuid().ToString()));
+		}
+
+		[Fact]
+		public async Task GetTournaments_ListsTheTournamentsOfTheSeriesOfADota2Team()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var teamId = Guid.NewGuid();
+			var opponentId = Guid.NewGuid();
+			var tournamentId = Guid.NewGuid();
+			dbContext.CSGOTeams.Add(new CSGOTeam { TeamId = teamId, TeamName = "Dota Team", CustomUrl = "dota-team", SteamGroupId = "d1", Game = Game.Dota2 });
+			dbContext.CSGOTeams.Add(new CSGOTeam { TeamId = opponentId, TeamName = "Opponent", CustomUrl = "opponent", SteamGroupId = "d2", Game = Game.Dota2 });
+			dbContext.Tournaments.Add(new Tournament { ID = tournamentId, Name = "Dota Cup", Game = Game.Dota2 });
+			dbContext.Tournaments.Add(new Tournament { ID = Guid.NewGuid(), Name = "Other Cup", Game = Game.Dota2 });
+			dbContext.TournamentDota2Matches.Add(new TournamentDota2Match { TournamentId = tournamentId, Team1Id = opponentId, Team2Id = teamId, Team2Points = 2, StartTime = DateTimeOffset.UtcNow.AddDays(-1) });
+			dbContext.TournamentDota2Matches.Add(new TournamentDota2Match { TournamentId = tournamentId, Team1Id = teamId, Team2Id = opponentId, Team1Points = 1, StartTime = DateTimeOffset.UtcNow });
+			dbContext.SaveChanges();
+			dbContext.ChangeTracker.Clear();
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			var result = await controller.GetTournaments("dota-team");
+
+			var tournaments = Assert.IsAssignableFrom<List<TeamTournamentViewModel>>(Assert.IsType<OkObjectResult>(result).Value);
+			var tournament = Assert.Single(tournaments);
+			Assert.Equal("Dota Cup", tournament.Name);
+			Assert.Empty(tournament.CSGOMatches);
+			Assert.Equal(new[] { 1, 0 }, tournament.Dota2Matches.Select(m => m.Team1Points));
+			Assert.All(tournament.Dota2Matches, m => Assert.NotNull(m.Team1Summary));
+		}
+
+		[Fact]
+		public async Task GetTournaments_ListsATournamentWhereTheTeamOnlyPlayedAsTheFirstTeam()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var teamId = Guid.NewGuid();
+			var opponentId = Guid.NewGuid();
+			var tournamentId = Guid.NewGuid();
+			dbContext.CSGOTeams.Add(new CSGOTeam { TeamId = teamId, TeamName = "CS Team", CustomUrl = "cs-team", SteamGroupId = "c1" });
+			dbContext.CSGOTeams.Add(new CSGOTeam { TeamId = opponentId, TeamName = "Opponent", CustomUrl = "opponent", SteamGroupId = "c2" });
+			dbContext.Tournaments.Add(new Tournament { ID = tournamentId, Name = "CS Cup", Game = Game.CSGO });
+			dbContext.TournamentCSGOMatches.Add(new TournamentCSGOMatch { TournamentId = tournamentId, Team1Id = teamId, Team2Id = opponentId });
+			dbContext.SaveChanges();
+			dbContext.ChangeTracker.Clear();
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			var result = await controller.GetTournaments(teamId.ToString());
+
+			var tournaments = Assert.IsAssignableFrom<List<TeamTournamentViewModel>>(Assert.IsType<OkObjectResult>(result).Value);
+			Assert.Single(Assert.Single(tournaments).CSGOMatches);
 		}
 
 		[Fact]

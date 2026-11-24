@@ -55,6 +55,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options => options.S
 	.AddDefaultTokenProviders();
 
 builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<Dota2Cache>();
 
 builder.Services.AddAuthentication("Cookies")
 	.AddCookie(options =>

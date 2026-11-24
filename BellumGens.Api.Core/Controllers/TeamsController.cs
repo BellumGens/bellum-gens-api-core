@@ -50,15 +50,27 @@ namespace BellumGens.Api.Controllers
 		public async Task<IActionResult> GetTournaments(string teamid)
 		{
 			CSGOTeam team = await ResolveTeam(teamid);
+			if (team == null)
+			{
+				return NotFound();
+			}
+			Guid id = team.TeamId;
 			List<TeamTournamentViewModel> model = new();
 			await _dbContext.Tournaments
+							.Where(t => t.CSGOMatches.Any(m => m.Team1Id == id || m.Team2Id == id) ||
+										t.Dota2Matches.Any(m => m.Team1Id == id || m.Team2Id == id))
 							.Include(t => t.CSGOMatches)
 								.ThenInclude(m => m.Team1)
-								.Where(t => t.CSGOMatches.Any(m => m.Team1Id == team.TeamId))
 							.Include(t => t.CSGOMatches)
 								.ThenInclude(m => m.Team2)
-								.Where(t => t.CSGOMatches.Any(m => m.Team2Id == team.TeamId))
-							.ForEachAsync(tournament => model.Add(new TeamTournamentViewModel(tournament, team.TeamId)));
+							.Include(t => t.Dota2Matches)
+								.ThenInclude(m => m.Team1)
+							.Include(t => t.Dota2Matches)
+								.ThenInclude(m => m.Team2)
+							.Include(t => t.Dota2Matches)
+								.ThenInclude(m => m.Games)
+							.AsSplitQuery()
+							.ForEachAsync(tournament => model.Add(new TeamTournamentViewModel(tournament, id)));
 			return Ok(model);
 		}
 
@@ -168,8 +180,10 @@ namespace BellumGens.Api.Controllers
 
 			if (ModelState.IsValid)
 			{
+				// The roster roles depend on the game, so a team keeps the game it was created for, and the
+				// response has that game rather than the one in the request
+				team.Game = await _dbContext.CSGOTeams.Where(t => t.TeamId == team.TeamId).Select(t => t.Game).FirstOrDefaultAsync();
 				_dbContext.Attach(team).State = EntityState.Modified;
-				// The roster roles depend on the game, so a team keeps the game it was created for
 				_dbContext.Entry(team).Property(t => t.Game).IsModified = false;
 
 				try
