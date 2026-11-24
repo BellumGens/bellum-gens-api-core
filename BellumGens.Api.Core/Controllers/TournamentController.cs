@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Threading.Tasks;
 
 namespace BellumGens.Api.Controllers
@@ -543,6 +544,7 @@ namespace BellumGens.Api.Controllers
 			}
 			if (application.UserId == user.Id || await UserIsInRole("admin"))
 			{
+				await RemoveGroupParticipants(p => p.TournamentApplicationId == id);
 				_dbContext.TournamentApplications.Remove(application);
 				try
 				{
@@ -765,8 +767,9 @@ namespace BellumGens.Api.Controllers
 				return StatusCode(StatusCodes.Status403Forbidden, "You can only delete tournaments you created.");
 			}
 
-			// Matches reference the tournament and its groups without cascading deletes, so remove them first;
-			// registrations, groups and their participants are removed by the database cascades
+			// Matches and group participants reference the tournament's groups and registrations without cascading
+			// deletes, so remove them first; registrations and groups are removed by the database cascades
+			await RemoveGroupParticipants(p => p.TournamentApplication.TournamentId == id || p.TournamentGroup.TournamentId == id);
 			List<Guid?> groupIds = (await _dbContext.TournamentCSGOGroups.Where(g => g.TournamentId == id).Select(g => g.Id).ToListAsync())
 				.Concat(await _dbContext.TournamentSC2Groups.Where(g => g.TournamentId == id).Select(g => g.Id).ToListAsync())
 				.Concat(await _dbContext.TournamentDota2Groups.Where(g => g.TournamentId == id).Select(g => g.Id).ToListAsync())
@@ -968,6 +971,7 @@ namespace BellumGens.Api.Controllers
 			TournamentGroup entity = await _dbContext.TournamentCSGOGroups.FindAsync(id);
 			if (entity != null)
 			{
+				await RemoveGroupParticipants(p => p.TournamentGroupId == id);
 				_dbContext.TournamentCSGOGroups.Remove(entity as TournamentCSGOGroup);
 				try
 				{
@@ -990,6 +994,7 @@ namespace BellumGens.Api.Controllers
 					// group first. They stay in the tournament with their games and score.
 					await _dbContext.TournamentDota2Matches.Where(m => m.GroupId == id).ForEachAsync(m => m.GroupId = null);
 				}
+				await RemoveGroupParticipants(p => p.TournamentGroupId == id);
 				_dbContext.Remove(entity);
 				try
 				{
@@ -1675,6 +1680,16 @@ namespace BellumGens.Api.Controllers
 				return false;
 			}
 			return (tournament.CreatorId != null && tournament.CreatorId == user.Id) || await _userManager.IsInRoleAsync(user, "admin");
+		}
+
+		/// <summary>
+		/// Marks the matching group participants for removal on the next save. Both of their foreign keys are NO ACTION
+		/// in the database (SQL Server allows only one cascade path from a tournament), so they have to be removed
+		/// before the registration or group they reference.
+		/// </summary>
+		private async Task RemoveGroupParticipants(Expression<Func<TournamentGroupParticipant, bool>> predicate)
+		{
+			_dbContext.TournamentGroupParticipants.RemoveRange(await _dbContext.TournamentGroupParticipants.Where(predicate).ToListAsync());
 		}
 
 		private async Task<int> CountParticipants(Guid tournamentId)

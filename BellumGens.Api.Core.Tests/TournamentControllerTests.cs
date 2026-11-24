@@ -455,6 +455,39 @@ namespace BellumGens.Api.Core.Tests
 		}
 
 		[Fact]
+		public async Task DeleteRegistraion_RegistrationInGroup_RemovesGroupParticipant()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var userId = "user1";
+			var user = new ApplicationUser { Id = userId, UserName = "testuser" };
+			var tournamentId = Guid.NewGuid();
+			var appId = Guid.NewGuid();
+			var otherAppId = Guid.NewGuid();
+			var groupId = Guid.NewGuid();
+			dbContext.Users.Add(user);
+			dbContext.TournamentApplications.Add(new TournamentApplication { Id = appId, TournamentId = tournamentId, UserId = userId, Email = "a@b.com" });
+			dbContext.TournamentApplications.Add(new TournamentApplication { Id = otherAppId, TournamentId = tournamentId, UserId = "user2", Email = "c@d.com" });
+			dbContext.TournamentSC2Groups.Add(new TournamentSC2Group { Id = groupId, Name = "Group A", TournamentId = tournamentId });
+			dbContext.TournamentGroupParticipants.Add(new TournamentGroupParticipant { TournamentGroupId = groupId, TournamentApplicationId = appId });
+			dbContext.TournamentGroupParticipants.Add(new TournamentGroupParticipant { TournamentGroupId = groupId, TournamentApplicationId = otherAppId });
+			dbContext.SaveChanges();
+			// The database doesn't cascade from a registration to its group participants, so nothing may rely on them being tracked
+			dbContext.ChangeTracker.Clear();
+
+			_mockUserManager.Setup(m => m.FindByIdAsync(userId)).ReturnsAsync(user);
+			_mockUserManager.Setup(m => m.IsInRoleAsync(user, "admin")).ReturnsAsync(false);
+
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser(userId));
+
+			var result = await controller.DeleteRegistraion(appId);
+
+			Assert.IsType<OkObjectResult>(result);
+			Assert.Equal(otherAppId, Assert.Single(dbContext.TournamentApplications).Id);
+			Assert.Equal(otherAppId, Assert.Single(dbContext.TournamentGroupParticipants).TournamentApplicationId);
+		}
+
+		[Fact]
 		public async Task DeleteRegistraion_NotOwnRegistration_ReturnsNotFound()
 		{
 			using var dbContext = TestUtils.CreateInMemoryDbContext();
@@ -722,6 +755,33 @@ namespace BellumGens.Api.Core.Tests
 
 			Assert.IsType<OkResult>(result);
 			Assert.Empty(dbContext.TournamentCSGOGroups);
+		}
+
+		[Fact]
+		public async Task DeleteGroup_WithParticipants_RemovesParticipantsButKeepsRegistrations()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var groupId = Guid.NewGuid();
+			var otherGroupId = Guid.NewGuid();
+			var tournamentId = Guid.NewGuid();
+			var appId = Guid.NewGuid();
+			dbContext.Tournaments.Add(new Tournament { ID = tournamentId, Name = "Test" });
+			dbContext.TournamentApplications.Add(new TournamentApplication { Id = appId, TournamentId = tournamentId, UserId = "p1", Email = "a@b.com" });
+			dbContext.TournamentCSGOGroups.Add(new TournamentCSGOGroup { Id = groupId, Name = "Group A", TournamentId = tournamentId });
+			dbContext.TournamentCSGOGroups.Add(new TournamentCSGOGroup { Id = otherGroupId, Name = "Group B", TournamentId = tournamentId });
+			dbContext.TournamentGroupParticipants.Add(new TournamentGroupParticipant { TournamentGroupId = groupId, TournamentApplicationId = appId });
+			dbContext.TournamentGroupParticipants.Add(new TournamentGroupParticipant { TournamentGroupId = otherGroupId, TournamentApplicationId = appId });
+			dbContext.SaveChanges();
+			dbContext.ChangeTracker.Clear();
+
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateAuthenticatedUser("admin1"));
+
+			var result = await controller.DeleteGroup(groupId);
+
+			Assert.IsType<OkResult>(result);
+			Assert.Equal(otherGroupId, Assert.Single(dbContext.TournamentGroupParticipants).TournamentGroupId);
+			Assert.Single(dbContext.TournamentApplications);
 		}
 
 		[Fact]
@@ -2862,6 +2922,32 @@ namespace BellumGens.Api.Core.Tests
 			Assert.Equal(other.ID, Assert.Single(dbContext.Tournaments).ID);
 			Assert.Empty(dbContext.TournamentApplications);
 			Assert.Equal(other.ID, Assert.Single(dbContext.TournamentSC2Matches).TournamentId);
+		}
+
+		[Fact]
+		public async Task DeleteTournament_WithGroupParticipants_RemovesThem()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var tournament = SeedTournament(dbContext, "owner");
+			var other = SeedTournament(dbContext, "owner");
+			var app = new TournamentApplication { TournamentId = tournament.ID, UserId = "p1", Email = NoSendEmail };
+			var otherApp = new TournamentApplication { TournamentId = other.ID, UserId = "p1", Email = NoSendEmail };
+			var group = new TournamentSC2Group { Id = Guid.NewGuid(), Name = "Group A", TournamentId = tournament.ID };
+			var otherGroup = new TournamentSC2Group { Id = Guid.NewGuid(), Name = "Group A", TournamentId = other.ID };
+			dbContext.TournamentApplications.AddRange(app, otherApp);
+			dbContext.TournamentSC2Groups.AddRange(group, otherGroup);
+			dbContext.SaveChanges();
+			dbContext.TournamentGroupParticipants.Add(new TournamentGroupParticipant { TournamentGroupId = group.Id, TournamentApplicationId = app.Id });
+			dbContext.TournamentGroupParticipants.Add(new TournamentGroupParticipant { TournamentGroupId = otherGroup.Id, TournamentApplicationId = otherApp.Id });
+			dbContext.SaveChanges();
+			dbContext.ChangeTracker.Clear();
+			SetupAuthUser("owner");
+			var controller = CreateAuthenticatedController(dbContext, "owner");
+
+			var result = await controller.DeleteTournament(tournament.ID);
+
+			Assert.IsType<OkObjectResult>(result);
+			Assert.Equal(otherApp.Id, Assert.Single(dbContext.TournamentGroupParticipants).TournamentApplicationId);
 		}
 
 		[Fact]
