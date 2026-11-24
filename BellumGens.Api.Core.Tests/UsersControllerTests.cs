@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -124,6 +124,26 @@ namespace BellumGens.Api.Core.Tests
 			var teams = Assert.IsAssignableFrom<List<CSGOTeamSummaryViewModel>>(okResult.Value);
 			Assert.Single(teams);
 			Assert.Equal("UserTeam", teams[0].TeamName);
+			Assert.Equal(Game.CSGO, teams[0].Game);
+		}
+
+		[Fact]
+		public async Task GetUserTeams_IncludesTheGameOfEachTeam()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var userId = "user1";
+			var teamId = Guid.NewGuid();
+			dbContext.Users.Add(new ApplicationUser { Id = userId, UserName = "testuser" });
+			dbContext.CSGOTeams.Add(new CSGOTeam { TeamId = teamId, TeamName = "Dota Team", CustomUrl = "dota-team", Game = Game.Dota2 });
+			dbContext.TeamMembers.Add(new TeamMember { TeamId = teamId, UserId = userId, IsActive = true });
+			dbContext.SaveChanges();
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			var result = await controller.GetUserTeams(userId);
+
+			var teams = Assert.IsAssignableFrom<List<CSGOTeamSummaryViewModel>>(Assert.IsType<OkObjectResult>(result).Value);
+			Assert.Equal(Game.Dota2, Assert.Single(teams).Game);
 		}
 
 		[Fact]
@@ -748,6 +768,52 @@ namespace BellumGens.Api.Core.Tests
 				It.IsAny<List<BellumGensPushSubscription>>(),
 				It.Is<TeamInvite>(i => i.Team != null && i.Team.TeamName == "Team1" && i.InvitedUser != null && i.InvitedUser.Id == "user1"),
 				NotificationState.Accepted), Times.Once);
+		}
+
+		[Theory]
+		[InlineData(null)]
+		[InlineData("")]
+		[InlineData("not-a-steam-id")]
+		[InlineData("12345")]
+		public async Task GetDota2Profile_WithInvalidSteamId_ReturnsBadRequest(string? steamid)
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			var result = await controller.GetDota2Profile(steamid!);
+
+			Assert.IsType<BadRequestObjectResult>(result);
+			_mockSteamService.Verify(s => s.GetDota2Profile(It.IsAny<string>()), Times.Never);
+		}
+
+		[Fact]
+		public async Task GetDota2Profile_ReturnsTheProfileFromTheService()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var profile = new Dota2ProfileViewModel { SteamId = "76561198012345678", AccountId = 52079950, Matches = 3 };
+			_mockSteamService.Setup(s => s.GetDota2Profile("76561198012345678")).ReturnsAsync(profile);
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			var result = await controller.GetDota2Profile("76561198012345678");
+
+			var okResult = Assert.IsType<OkObjectResult>(result);
+			Assert.Same(profile, okResult.Value);
+		}
+
+		[Fact]
+		public async Task GetDota2Profile_WhenSteamIsUnavailable_ReturnsBadGateway()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			_mockSteamService.Setup(s => s.GetDota2Profile(It.IsAny<string>())).ReturnsAsync((Dota2ProfileViewModel?)null);
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			var result = await controller.GetDota2Profile("76561198012345678");
+
+			var status = Assert.IsType<ObjectResult>(result);
+			Assert.Equal(502, status.StatusCode);
 		}
 	}
 }

@@ -1,4 +1,4 @@
-
+﻿
 using BellumGens.Api.Controllers;
 using BellumGens.Api.Core.Models;
 using BellumGens.Api.Core.Providers;
@@ -141,7 +141,101 @@ namespace BellumGens.Api.Core.Tests
 			var okResult = Assert.IsType<OkObjectResult>(result);
 			var createdTeam = Assert.IsType<CSGOTeam>(okResult.Value);
 			Assert.Equal("NewTeam", createdTeam.TeamName);
+			Assert.Equal(Game.CSGO, createdTeam.Game);
 			Assert.Single(createdTeam.Members);
+		}
+
+		[Fact]
+		public async Task NewTeam_SavesTheGameOfTheTeam()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			dbContext.Users.Add(new ApplicationUser { Id = "user1", UserName = "teamcreator" });
+			dbContext.SaveChanges();
+			var controller = CreateControllerAs(dbContext, "user1");
+
+			var result = await controller.NewTeam(new CSGOTeam { TeamName = "Dota Team", Visible = true, Game = Game.Dota2 });
+
+			Assert.IsType<OkObjectResult>(result);
+			Assert.Equal(Game.Dota2, (await dbContext.CSGOTeams.SingleAsync(TestContext.Current.CancellationToken)).Game);
+		}
+
+		[Fact]
+		public async Task NewTeam_ReturnsBadRequest_ForStarCraft2()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			dbContext.Users.Add(new ApplicationUser { Id = "user1", UserName = "teamcreator" });
+			dbContext.SaveChanges();
+			var controller = CreateControllerAs(dbContext, "user1");
+
+			var result = await controller.NewTeam(new CSGOTeam { TeamName = "SC2 Team", Visible = true, Game = Game.StarCraft2 });
+
+			Assert.IsType<BadRequestObjectResult>(result);
+			Assert.Empty(dbContext.CSGOTeams);
+		}
+
+		[Fact]
+		public async Task UpdateTeam_KeepsTheGameOfTheTeam()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var teamId = Guid.NewGuid();
+			dbContext.Users.Add(new ApplicationUser { Id = "user1", UserName = "admin" });
+			var existingTeam = new CSGOTeam { TeamId = teamId, TeamName = "Dota Team", CustomUrl = "dota-team", Game = Game.Dota2 };
+			dbContext.CSGOTeams.Add(existingTeam);
+			dbContext.TeamMembers.Add(new TeamMember { TeamId = teamId, UserId = "user1", IsActive = true, IsAdmin = true });
+			dbContext.SaveChanges();
+			dbContext.Entry(existingTeam).State = EntityState.Detached;
+			var controller = CreateControllerAs(dbContext, "user1");
+
+			var result = await controller.UpdateTeam(new CSGOTeam { TeamId = teamId, TeamName = "Renamed", CustomUrl = "dota-team", Game = Game.CSGO });
+
+			Assert.IsType<OkObjectResult>(result);
+			dbContext.ChangeTracker.Clear();
+			var saved = await dbContext.CSGOTeams.SingleAsync(TestContext.Current.CancellationToken);
+			Assert.Equal("Renamed", saved.TeamName);
+			Assert.Equal(Game.Dota2, saved.Game);
+			// The response has the game the team kept, not the one in the request
+			Assert.Equal(Game.Dota2, Assert.IsType<CSGOTeam>(((OkObjectResult)result).Value).Game);
+		}
+
+		[Theory]
+		[InlineData(Game.CSGO, PlaystyleRole.Awper)]
+		[InlineData(Game.Dota2, PlaystyleRole.Carry)]
+		[InlineData(Game.Dota2, PlaystyleRole.NotSet)]
+		public async Task UpdateTeamMember_SetsARoleOfTheTeamGame(Game game, PlaystyleRole role)
+		{
+			using var dbContext = SeedTeamWithMember(game, out Guid teamId);
+			var controller = CreateControllerAs(dbContext, "admin1");
+
+			var result = await controller.UpdateTeamMember(new TeamMember { TeamId = teamId, UserId = "member1", IsActive = true, Role = role });
+
+			Assert.IsType<OkResult>(result);
+			Assert.Equal(role, (await dbContext.TeamMembers.FindAsync([teamId, "member1"], TestContext.Current.CancellationToken))!.Role);
+		}
+
+		[Theory]
+		[InlineData(Game.CSGO, PlaystyleRole.Carry)]
+		[InlineData(Game.Dota2, PlaystyleRole.Awper)]
+		public async Task UpdateTeamMember_ReturnsBadRequest_ForARoleOfAnotherGame(Game game, PlaystyleRole role)
+		{
+			using var dbContext = SeedTeamWithMember(game, out Guid teamId);
+			var controller = CreateControllerAs(dbContext, "admin1");
+
+			var result = await controller.UpdateTeamMember(new TeamMember { TeamId = teamId, UserId = "member1", IsActive = true, Role = role });
+
+			Assert.IsType<BadRequestObjectResult>(result);
+			Assert.Equal(PlaystyleRole.NotSet, (await dbContext.TeamMembers.FindAsync([teamId, "member1"], TestContext.Current.CancellationToken))!.Role);
+		}
+
+		private static BellumGensDbContext SeedTeamWithMember(Game game, out Guid teamId)
+		{
+			var dbContext = TestUtils.CreateInMemoryDbContext();
+			teamId = Guid.NewGuid();
+			dbContext.Users.AddRange(new ApplicationUser { Id = "admin1", UserName = "admin" }, new ApplicationUser { Id = "member1", UserName = "member" });
+			dbContext.CSGOTeams.Add(new CSGOTeam { TeamId = teamId, TeamName = "Team", CustomUrl = "team", Game = game });
+			dbContext.TeamMembers.Add(new TeamMember { TeamId = teamId, UserId = "admin1", IsActive = true, IsAdmin = true });
+			dbContext.TeamMembers.Add(new TeamMember { TeamId = teamId, UserId = "member1", IsActive = true });
+			dbContext.SaveChanges();
+			return dbContext;
 		}
 
 		[Fact]
@@ -163,6 +257,66 @@ namespace BellumGens.Api.Core.Tests
 			var okResult = Assert.IsType<OkObjectResult>(result);
 			var tournaments = Assert.IsAssignableFrom<List<TeamTournamentViewModel>>(okResult.Value);
 			Assert.Empty(tournaments);
+		}
+
+		[Fact]
+		public async Task GetTournaments_UnknownTeam_ReturnsNotFound()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			Assert.IsType<NotFoundResult>(await controller.GetTournaments(Guid.NewGuid().ToString()));
+		}
+
+		[Fact]
+		public async Task GetTournaments_ListsTheTournamentsOfTheSeriesOfADota2Team()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var teamId = Guid.NewGuid();
+			var opponentId = Guid.NewGuid();
+			var tournamentId = Guid.NewGuid();
+			dbContext.CSGOTeams.Add(new CSGOTeam { TeamId = teamId, TeamName = "Dota Team", CustomUrl = "dota-team", SteamGroupId = "d1", Game = Game.Dota2 });
+			dbContext.CSGOTeams.Add(new CSGOTeam { TeamId = opponentId, TeamName = "Opponent", CustomUrl = "opponent", SteamGroupId = "d2", Game = Game.Dota2 });
+			dbContext.Tournaments.Add(new Tournament { ID = tournamentId, Name = "Dota Cup", Game = Game.Dota2 });
+			dbContext.Tournaments.Add(new Tournament { ID = Guid.NewGuid(), Name = "Other Cup", Game = Game.Dota2 });
+			dbContext.TournamentDota2Matches.Add(new TournamentDota2Match { TournamentId = tournamentId, Team1Id = opponentId, Team2Id = teamId, Team2Points = 2, StartTime = DateTimeOffset.UtcNow.AddDays(-1) });
+			dbContext.TournamentDota2Matches.Add(new TournamentDota2Match { TournamentId = tournamentId, Team1Id = teamId, Team2Id = opponentId, Team1Points = 1, StartTime = DateTimeOffset.UtcNow });
+			dbContext.SaveChanges();
+			dbContext.ChangeTracker.Clear();
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			var result = await controller.GetTournaments("dota-team");
+
+			var tournaments = Assert.IsAssignableFrom<List<TeamTournamentViewModel>>(Assert.IsType<OkObjectResult>(result).Value);
+			var tournament = Assert.Single(tournaments);
+			Assert.Equal("Dota Cup", tournament.Name);
+			Assert.Empty(tournament.CSGOMatches);
+			Assert.Equal(new[] { 1, 0 }, tournament.Dota2Matches.Select(m => m.Team1Points));
+			Assert.All(tournament.Dota2Matches, m => Assert.NotNull(m.Team1Summary));
+		}
+
+		[Fact]
+		public async Task GetTournaments_ListsATournamentWhereTheTeamOnlyPlayedAsTheFirstTeam()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			var teamId = Guid.NewGuid();
+			var opponentId = Guid.NewGuid();
+			var tournamentId = Guid.NewGuid();
+			dbContext.CSGOTeams.Add(new CSGOTeam { TeamId = teamId, TeamName = "CS Team", CustomUrl = "cs-team", SteamGroupId = "c1" });
+			dbContext.CSGOTeams.Add(new CSGOTeam { TeamId = opponentId, TeamName = "Opponent", CustomUrl = "opponent", SteamGroupId = "c2" });
+			dbContext.Tournaments.Add(new Tournament { ID = tournamentId, Name = "CS Cup", Game = Game.CSGO });
+			dbContext.TournamentCSGOMatches.Add(new TournamentCSGOMatch { TournamentId = tournamentId, Team1Id = teamId, Team2Id = opponentId });
+			dbContext.SaveChanges();
+			dbContext.ChangeTracker.Clear();
+			var controller = CreateController(dbContext);
+			TestUtils.SetupControllerContext(controller, TestUtils.CreateUnauthenticatedUser());
+
+			var result = await controller.GetTournaments(teamId.ToString());
+
+			var tournaments = Assert.IsAssignableFrom<List<TeamTournamentViewModel>>(Assert.IsType<OkObjectResult>(result).Value);
+			Assert.Single(Assert.Single(tournaments).CSGOMatches);
 		}
 
 		[Fact]
@@ -909,6 +1063,35 @@ namespace BellumGens.Api.Core.Tests
 			Assert.Empty(dbContext.CSGOTeams);
 			Assert.Empty(dbContext.TeamMembers);
 			_mockSteamService.Verify(s => s.VerifyUserIsGroupAdmin("76561198000000002", "103582791400000002"), Times.Once);
+		}
+
+		[Fact]
+		public async Task TeamFromSteamGroup_CreatesATeamForTheGivenGame()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			dbContext.Users.Add(new ApplicationUser { Id = "user1", UserName = "groupowner", SteamID = "76561198000000001" });
+			dbContext.SaveChanges();
+			_mockSteamService.Setup(s => s.VerifyUserIsGroupAdmin("76561198000000001", "103582791400000003")).ReturnsAsync(true);
+			var controller = CreateControllerAs(dbContext, "user1");
+
+			var result = await controller.TeamFromSteamGroup(new SteamUserGroup { groupID64 = "103582791400000003", groupName = "Dota Group" }, Game.Dota2);
+
+			var createdTeam = Assert.IsType<CSGOTeam>(Assert.IsType<OkObjectResult>(result).Value);
+			Assert.Equal(Game.Dota2, createdTeam.Game);
+		}
+
+		[Fact]
+		public async Task TeamFromSteamGroup_ReturnsBadRequest_ForStarCraft2()
+		{
+			using var dbContext = TestUtils.CreateInMemoryDbContext();
+			dbContext.Users.Add(new ApplicationUser { Id = "user1", UserName = "groupowner", SteamID = "76561198000000001" });
+			dbContext.SaveChanges();
+			var controller = CreateControllerAs(dbContext, "user1");
+
+			var result = await controller.TeamFromSteamGroup(new SteamUserGroup { groupID64 = "103582791400000004", groupName = "SC2 Group" }, Game.StarCraft2);
+
+			Assert.IsType<BadRequestObjectResult>(result);
+			Assert.Empty(dbContext.CSGOTeams);
 		}
 
 		// ---- GetTeamApplications ----

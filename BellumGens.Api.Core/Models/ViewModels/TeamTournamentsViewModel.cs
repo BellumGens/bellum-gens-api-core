@@ -10,6 +10,7 @@ namespace BellumGens.Api.Core.Models
 		private readonly Tournament _tournament;
 		private readonly Guid _teamid;
 		private List<TournamentCSGOMatch> _matches;
+		private List<TournamentDota2Match> _dota2Matches;
 		public TeamTournamentViewModel(Tournament tournament, Guid teamid)
 		{
 			_tournament = tournament;
@@ -47,6 +48,21 @@ namespace BellumGens.Api.Core.Models
 					_matches = _tournament.CSGOMatches.Where(m => m.Team1Id == _teamid || m.Team2Id == _teamid).OrderByDescending(m => m.StartTime).ToList();
 				}
 				return _matches;
+			}
+		}
+		[JsonProperty("dota2Matches")]
+		public List<TournamentDota2Match> Dota2Matches
+		{
+			get
+			{
+				if (_dota2Matches == null)
+				{
+					_dota2Matches = (_tournament.Dota2Matches ?? new List<TournamentDota2Match>())
+						.Where(m => m.Team1Id == _teamid || m.Team2Id == _teamid)
+						.OrderByDescending(m => m.StartTime)
+						.ToList();
+				}
+				return _dota2Matches;
 			}
 		}
 	}

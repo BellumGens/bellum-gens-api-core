@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading.RateLimiting;
 #if SQLITE_PROVIDER
 using System.Linq;
@@ -55,6 +55,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options => options.S
 	.AddDefaultTokenProviders();
 
 builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<Dota2Cache>();
 
 builder.Services.AddAuthentication("Cookies")
 	.AddCookie(options =>
@@ -141,6 +142,16 @@ builder.Services.AddRateLimiter(options =>
 			_ => new FixedWindowRateLimiterOptions
 			{
 				PermitLimit = 10,
+				Window = TimeSpan.FromMinutes(1),
+				QueueLimit = 0
+			}));
+	// The Dota 2 profiles are public, and each uncached one costs many calls against the shared Steam API key
+	options.AddPolicy(SteamServiceProvider.Dota2RateLimitPolicy, context =>
+		RateLimitPartition.GetFixedWindowLimiter(
+			context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+			_ => new FixedWindowRateLimiterOptions
+			{
+				PermitLimit = 20,
 				Window = TimeSpan.FromMinutes(1),
 				QueueLimit = 0
 			}));
@@ -258,7 +269,7 @@ internal static class SqliteDevelopmentDatabase
 
 		context.Database.ExecuteSqlRaw("CREATE TABLE IF NOT EXISTS \"__DevSchema\" (\"Hash\" TEXT NOT NULL)");
 		context.Database.ExecuteSqlRaw("DELETE FROM \"__DevSchema\"");
-		context.Database.ExecuteSqlInterpolated($"INSERT INTO \"__DevSchema\" (\"Hash\") VALUES ({schemaHash})");
+		context.Database.ExecuteSql($"INSERT INTO \"__DevSchema\" (\"Hash\") VALUES ({schemaHash})");
 	}
 
 	internal const string EBLeagueJerseySlug = "esports-business-league-jersey";

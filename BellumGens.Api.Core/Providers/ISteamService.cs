@@ -17,5 +17,12 @@ namespace BellumGens.Api.Core.Providers
 		public Task<bool> VerifyUserIsGroupAdmin(string userid, string groupid);
 		public Uri NormalizeUsername(string name);
 		public string SteamUserId(string userUri);
+
+		/// <summary>
+		/// Builds the Dota 2 profile of a Steam account from its most recent matches.
+		/// </summary>
+		/// <param name="steamId64">The 64 bit steam id of the player.</param>
+		/// <returns>The profile, or null when the id is not a steam id or the Steam API could not be reached.</returns>
+		public Task<Dota2ProfileViewModel> GetDota2Profile(string steamId64);
 	}
 }

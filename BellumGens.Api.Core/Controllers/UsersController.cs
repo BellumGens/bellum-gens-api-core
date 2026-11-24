@@ -1,10 +1,13 @@
 ﻿using BellumGens.Api.Core.Models;
 using BellumGens.Api.Core.Providers;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using SteamModels.Dota2;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -74,6 +77,25 @@ namespace BellumGens.Api.Controllers
 		{
 			UserStatsViewModel user = await _steamService.GetSteamUserDetails(userid);
 			return Ok(user?.SteamUser?.groups);
+		}
+
+		[Route("Dota2")]
+		[AllowAnonymous]
+		[HttpGet]
+		[EnableRateLimiting(SteamServiceProvider.Dota2RateLimitPolicy)]
+		public async Task<IActionResult> GetDota2Profile(string steamid)
+		{
+			if (!Dota2Ids.TryGetAccountId(steamid, out _))
+			{
+				return BadRequest("Not a valid steam id.");
+			}
+
+			Dota2ProfileViewModel profile = await _steamService.GetDota2Profile(steamid);
+			if (profile == null)
+			{
+				return StatusCode(StatusCodes.Status502BadGateway, "Dota 2 stats could not be retrieved from Steam.");
+			}
+			return Ok(profile);
 		}
 
 		[Route("UserTeams")]

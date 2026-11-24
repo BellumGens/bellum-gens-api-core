@@ -65,7 +65,11 @@ namespace BellumGens.Api.Controllers
 			List<CSGOTeam> teams;
 			if (role != null)
 			{
-				teams = await visibleTeams.Include(t => t.PracticeSchedule).Where(t => !t.Members.Any(m => m.Role == role) && t.PracticeSchedule.Any(d => d.Available)).ToListAsync();
+				// Only the teams of the role's game have that role in their roster
+				Game? roleGame = role.Value.RoleGame();
+				teams = await visibleTeams.Include(t => t.PracticeSchedule)
+					.Where(t => (roleGame == null || t.Game == roleGame) && !t.Members.Any(m => m.Role == role) && t.PracticeSchedule.Any(d => d.Available))
+					.ToListAsync();
 			}
 			else
 			{

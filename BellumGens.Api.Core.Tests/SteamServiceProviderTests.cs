@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -21,6 +21,7 @@ namespace BellumGens.Api.Core.Tests
 		private const string GroupId = "103582791429521408";
 
 		private readonly MemoryCache _cache;
+		private readonly Dota2Cache _dota2Cache;
 		private readonly StubHttpMessageHandler _handler;
 		private readonly HttpClient _httpClient;
 		private readonly SteamServiceProvider _provider;
@@ -31,7 +32,8 @@ namespace BellumGens.Api.Core.Tests
 			_handler = new StubHttpMessageHandler();
 			_httpClient = new HttpClient(_handler);
 			var appConfig = TestUtils.CreateAppConfiguration();
-			_provider = new SteamServiceProvider(_httpClient, _cache, appConfig);
+			_dota2Cache = new Dota2Cache();
+			_provider = new SteamServiceProvider(_httpClient, _cache, _dota2Cache, appConfig, TestUtils.CreateMockLogger<SteamServiceProvider>().Object);
 		}
 
 		public void Dispose()
@@ -39,6 +41,7 @@ namespace BellumGens.Api.Core.Tests
 			_httpClient.Dispose();
 			_handler.Dispose();
 			_cache.Dispose();
+			_dota2Cache.Dispose();
 			GC.SuppressFinalize(this);
 		}
 

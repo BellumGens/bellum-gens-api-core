@@ -41,6 +41,9 @@ namespace BellumGens.Api.Core.Models
 
 		public string Discord { get; set; }
 
+		/// <summary>The game the team plays: Counter-Strike or Dota 2. It is set when the team is created and does not change.</summary>
+		public Game Game { get; set; } = Game.CSGO;
+
 		public DateTimeOffset RegisteredOn { get; set; } = DateTimeOffset.Now;
 
 		public bool Visible { get; set; } = true;
